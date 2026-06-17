@@ -811,17 +811,18 @@ function fireReminderNotification(n){
 }
 
 /* ---- Dokumentenscanner ---- */
+let scanReuseHistory=false;
 $("scanBtn").addEventListener("mousedown",e=>e.preventDefault());
-$("scanBtn").addEventListener("click",()=>{if(!cur()){toast("Bitte erst eine Notiz öffnen");return;}$("scanFile").click();});
-$("scanFile").addEventListener("change",async e=>{const f=e.target.files[0];e.target.value="";if(f)openScanner(f);});
+$("scanBtn").addEventListener("click",()=>{if(!cur()){toast("Bitte erst eine Notiz öffnen");return;}scanReuseHistory=false;$("scanFile").click();});
+$("scanFile").addEventListener("change",async e=>{const f=e.target.files[0];e.target.value="";const reuse=scanReuseHistory;scanReuseHistory=false;if(f)openScanner(f,reuse);});
 
-async function openScanner(file){
+async function openScanner(file,reuseHistory){
   const img=await loadImageBitmapish(file);
   if(!img){toast("Bild konnte nicht geladen werden");return;}
   const root=document.createElement("div");root.className="scan-bg";
   root.innerHTML='<div class="scan-bar"><button id="scClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button><span class="sb-title">Ecken anpassen</span><button id="scAuto" title="Automatisch erkennen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg></button></div><div class="scan-stage" id="scStage"><canvas id="scCanvas"></canvas></div><div class="scan-foot"><button class="sf-retake" id="scRetake">Neu aufnehmen</button><button class="sf-confirm" id="scConfirm">Zuschneiden &amp; weiter</button></div>';
   document.body.appendChild(root);
-  try{history.pushState({s:1,viewer:1},"");}catch(e){}
+  if(!reuseHistory){try{history.pushState({s:1,viewer:1},"");}catch(e){}}
   let closed=false;function close(){if(closed)return;closed=true;root.remove();const ix=viewerCloseFns.indexOf(close);if(ix>=0)viewerCloseFns.splice(ix,1);}
   root.querySelector("#scClose").addEventListener("click",()=>{close();history.back();});
   viewerCloseFns.push(close);
@@ -895,12 +896,20 @@ async function openScanner(file){
   });
 
   root.querySelector("#scAuto").addEventListener("click",()=>{const c=detectCorners(fullCanvas);if(c){corners=c;drawOverlay();layoutHandles();toast("Kanten erkannt");}else toast("Keine klaren Kanten gefunden");});
-  root.querySelector("#scRetake").addEventListener("click",()=>{close();history.back();$("scanFile").click();});
+  root.querySelector("#scRetake").addEventListener("click",()=>{closeNoHistory(close);$("scanFile").click();});
   root.querySelector("#scConfirm").addEventListener("click",()=>{
     const warped=warpPerspective(fullCanvas,corners);
-    close();history.back();
-    openScanResult(warped,file.name);
+    closeNoHistory(close);          // Scanner schliessen OHNE history.back (kein Race mit dem folgenden Fenster)
+    openScanResult(warped,file.name,true); // übernimmt denselben History-Eintrag
   });
+}
+/* Schliesst ein Overlay ohne den History-Stack anzufassen und entfernt seinen Eintrag aus viewerCloseFns.
+   Nötig für interne Overlay-Wechsel (Zuschneiden -> Vorschau), da history.back() asynchron feuert und sonst
+   das frisch geöffnete Folgefenster sofort wieder schliessen würde. */
+function closeNoHistory(closeFn){
+  const ix=viewerCloseFns.indexOf(closeFn);
+  if(ix>=0)viewerCloseFns.splice(ix,1);
+  try{closeFn();}catch(e){}
 }
 
 function loadImageBitmapish(file){
@@ -1025,12 +1034,12 @@ function solveHomogeneous(A){
   return [B[0],B[1],B[2],B[3],B[4],B[5],B[6],B[7],1];
 }
 
-/* Ergebnis-Ansicht: Filter, Speichern als Bild oder PDF */
-function openScanResult(canvas,origName){
+/* Ergebnis-Ansicht: Filter, Speichern als Bild oder PDF. reuseHistory=true, wenn aus dem Zuschneide-Fenster gewechselt wird (übernimmt dessen History-Eintrag, statt einen neuen zu pushen). */
+function openScanResult(canvas,origName,reuseHistory){
   const root=document.createElement("div");root.className="scan-bg";
   root.innerHTML='<div class="scan-bar"><button id="srBack"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button><span class="sb-title">Vorschau</span></div><div class="scan-stage" id="srStage"></div><div class="scan-modefoot"><button id="modeColor" class="on">Farbe</button><button id="modeGray">Graustufen</button><button id="modeBw">Schwarz/Weiss</button></div><div class="scan-foot"><button class="sf-retake" id="srAsImage">Als Bild anhängen</button><button class="sf-confirm" id="srAsPdf">Als PDF anhängen</button></div>';
   document.body.appendChild(root);
-  try{history.pushState({s:1,viewer:1},"");}catch(e){}
+  if(!reuseHistory){try{history.pushState({s:1,viewer:1},"");}catch(e){}}
   let closed=false;function close(){if(closed)return;closed=true;root.remove();const ix=viewerCloseFns.indexOf(close);if(ix>=0)viewerCloseFns.splice(ix,1);}
   root.querySelector("#srBack").addEventListener("click",()=>{close();history.back();});
   viewerCloseFns.push(close);
@@ -1053,25 +1062,83 @@ function openScanResult(canvas,origName){
   [["modeColor","color"],["modeGray","gray"],["modeBw","bw"]].forEach(([id,m])=>{root.querySelector("#"+id).addEventListener("click",()=>{mode=m;root.querySelectorAll(".scan-modefoot button").forEach(b=>b.classList.remove("on"));root.querySelector("#"+id).classList.add("on");applyFilter();});});
 
   root.querySelector("#srAsImage").addEventListener("click",async()=>{
-    const blob=await new Promise(res=>view.toBlob(res,"image/jpeg",0.88));
-    if(!blob){toast("Fehler beim Erzeugen des Bilds");return;}
-    const name=(origName||"scan").replace(/\.[^.]+$/,"")+"-scan.jpg";
-    const file=new File([blob],name,{type:"image/jpeg"});
-    close();history.back();
-    await insertInlineImage(file,{append:true});
-    toast("Scan als Bild eingefügt");
+    try{
+      const targetNote=cur();
+      if(!targetNote){toast("Keine Notiz geöffnet – Scan konnte nicht eingefügt werden");return;}
+      const blob=await canvasToBlob(view,"image/jpeg",0.88);
+      if(!blob){toast("Fehler beim Erzeugen des Bilds");return;}
+      const name=(origName||"scan").replace(/\.[^.]+$/,"")+"-scan.jpg";
+      const file=blobToFile(blob,name,"image/jpeg");
+      // ZUERST einfügen (Editor liegt noch unter dem Overlay, edBody existiert), DANN Overlay schliessen
+      const insertedId=await insertInlineImageInto(targetNote,file);
+      finishViewerChain(close);
+      if(insertedId)toast("Scan als Bild eingefügt"); else toast("Einfügen fehlgeschlagen");
+    }catch(err){toast("Fehler: "+(err&&err.message?err.message:err));}
   });
   root.querySelector("#srAsPdf").addEventListener("click",async()=>{
-    const blob=await new Promise(res=>view.toBlob(res,"image/jpeg",0.85));
-    if(!blob){toast("Fehler beim Erzeugen des PDFs");return;}
-    const pdfBytes=await buildSimplePdfFromJpeg(await blob.arrayBuffer(),view.width,view.height);
-    const name=(origName||"scan").replace(/\.[^.]+$/,"")+"-scan.pdf";
-    const file=new File([pdfBytes],name,{type:"application/pdf"});
-    close();history.back();
-    await addAttachment(file,false);
-    const nn=cur();if(nn){renderAttachments(nn);}renderNoteList();
-    toast("Scan als PDF angehängt");
+    try{
+      const targetNote=cur();
+      if(!targetNote){toast("Keine Notiz geöffnet – Scan konnte nicht angehängt werden");return;}
+      const blob=await canvasToBlob(view,"image/jpeg",0.85);
+      if(!blob){toast("Fehler beim Erzeugen des PDFs");return;}
+      const pdfBytes=await buildSimplePdfFromJpeg(await blob.arrayBuffer(),view.width,view.height);
+      const name=(origName||"scan").replace(/\.[^.]+$/,"")+"-scan.pdf";
+      const file=blobToFile(new Blob([pdfBytes],{type:"application/pdf"}),name,"application/pdf");
+      const id=await addAttachmentTo(targetNote,file,false);
+      finishViewerChain(close);
+      if(id){renderAttachments(targetNote);renderNoteList();toast("Scan als PDF angehängt");}else toast("Anhängen fehlgeschlagen");
+    }catch(err){toast("Fehler: "+(err&&err.message?err.message:err));}
   });
+}
+/* Schliesst das letzte Overlay einer Kette und räumt den zugehörigen History-Eintrag still ab,
+   ohne history.back() – so feuert kein verirrtes popstate, das den Editor zuklappen würde. */
+function finishViewerChain(closeFn){
+  const ix=viewerCloseFns.indexOf(closeFn);
+  if(ix>=0)viewerCloseFns.splice(ix,1);
+  try{closeFn();}catch(e){}
+  // den beim Öffnen gepushten History-Eintrag durch den aktuellen Zustand ersetzen (neutralisieren)
+  try{history.replaceState({s:1},"");}catch(e){}
+}
+/* toBlob mit Fallback auf toDataURL, falls toBlob auf manchen Android-WebViews null liefert */
+function canvasToBlob(canvas,type,quality){
+  return new Promise(resolve=>{
+    let settled=false;
+    try{
+      canvas.toBlob(b=>{ if(settled)return; settled=true; if(b)resolve(b); else resolve(dataUrlToBlob(canvas.toDataURL(type,quality))); }, type, quality);
+    }catch(e){ if(!settled){settled=true; try{resolve(dataUrlToBlob(canvas.toDataURL(type,quality)));}catch(e2){resolve(null);} } }
+    // Sicherheits-Timeout, falls toBlob nie zurückruft
+    setTimeout(()=>{ if(!settled){settled=true; try{resolve(dataUrlToBlob(canvas.toDataURL(type,quality)));}catch(e){resolve(null);} } },1500);
+  });
+}
+function dataUrlToBlob(dataUrl){
+  const parts=dataUrl.split(","); const mime=(parts[0].match(/:(.*?);/)||[])[1]||"image/jpeg";
+  const bin=atob(parts[1]); const len=bin.length; const arr=new Uint8Array(len);
+  for(let i=0;i<len;i++)arr[i]=bin.charCodeAt(i);
+  return new Blob([arr],{type:mime});
+}
+/* File-Konstruktor ist auf einigen älteren WebViews nicht verfügbar -> Blob mit name-Property als Fallback */
+function blobToFile(blob,name,type){
+  try{ return new File([blob],name,{type:type||blob.type}); }
+  catch(e){ blob.name=name; if(!blob.type&&type){try{Object.defineProperty(blob,"type",{value:type});}catch(_){}} return blob; }
+}
+/* Einfügen in eine KONKRETE Notiz-Referenz (unabhängig von cur()/Fokus), gibt die id zurück oder null */
+async function insertInlineImageInto(n,file){
+  if(!n)return null;
+  const id=await addAttachmentTo(n,file,true);
+  if(!id)return null;
+  const eb=$("edBody");
+  if(eb){
+    const img=document.createElement("img");img.setAttribute("data-att",id);img.setAttribute("alt",file.name||"");
+    eb.appendChild(img);
+    const p=document.createElement("p");p.innerHTML="<br>";eb.appendChild(p);
+    await hydrateImages();
+    syncBody();
+  }else{
+    // Editor-DOM nicht vorhanden: direkt ins gespeicherte HTML der Notiz schreiben
+    n.html=(n.html||"")+'<img data-att="'+id+'" alt="'+escapeHtml(file.name||"")+'"><p><br></p>';
+    n.updated=now();markDirty();
+  }
+  return id;
 }
 
 /* Baut ein minimales, gültiges Einzelseiten-PDF mit eingebettetem JPEG – ganz ohne externe Bibliothek. */
@@ -1210,7 +1277,18 @@ function handleListBackspace(e){
 function getAttUrl(att){return idbGet("blobs",att.id).then(rec=>{if(!rec)return null;return decryptBytes(cryptoKey,rec).then(buf=>{const url=URL.createObjectURL(new Blob([buf],{type:att.type||"application/octet-stream"}));noteObjectUrls.push(url);return url;});});}
 async function hydrateImages(){const n=cur();if(!n)return;const imgs=$("edBody").querySelectorAll("img[data-att]");for(const img of imgs){const id=img.getAttribute("data-att");const att=(n.attachments||[]).find(a=>a.id===id);if(att){const url=await getAttUrl(att);if(url)img.src=url;}}}
 const MAX_ATTACH=25*1024*1024;
-async function addAttachment(file,inline){if(file.size>MAX_ATTACH){toast("Datei zu gross (max. "+fmtSize(MAX_ATTACH)+")");return null;}const buf=await file.arrayBuffer();const id=uid();const {iv,ct}=await encryptBytes(cryptoKey,buf);await idbPut("blobs",{id,iv,ct});const n=cur();n.attachments=n.attachments||[];const rec={id,name:file.name||(inline?"bild.png":"datei"),type:file.type||"application/octet-stream",size:buf.byteLength,added:now(),inline:!!inline};n.attachments.push(rec);n.updated=now();markDirty();
+async function addAttachment(file,inline){return addAttachmentTo(cur(),file,inline);}
+async function addAttachmentTo(n,file,inline){
+  if(!n){toast("Keine Notiz aktiv");return null;}
+  const size=(typeof file.size==="number")?file.size:0;
+  if(size>MAX_ATTACH){toast("Datei zu gross (max. "+fmtSize(MAX_ATTACH)+")");return null;}
+  const buf=await file.arrayBuffer();
+  const id=uid();
+  const {iv,ct}=await encryptBytes(cryptoKey,buf);
+  await idbPut("blobs",{id,iv,ct});
+  n.attachments=n.attachments||[];
+  const rec={id,name:file.name||(inline?"bild.png":"datei"),type:file.type||"application/octet-stream",size:buf.byteLength,added:now(),inline:!!inline};
+  n.attachments.push(rec);n.updated=now();markDirty();
   if((rec.type||"").includes("pdf")){extractPdfText(rec).then(text=>{if(text&&text.trim()){rec.text=text.slice(0,200000);markDirty();}}).catch(()=>{});}
   return id;}
 async function insertInlineImage(file,opts){
