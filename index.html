@@ -321,6 +321,12 @@
   .scan-stage{flex:1;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;touch-action:none;}
   .scan-stage canvas{max-width:100%;max-height:100%;}
   .scan-handle{position:absolute;width:26px;height:26px;border-radius:50%;background:var(--blue-500);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5);transform:translate(-50%,-50%);touch-action:none;}
+  .scan-loupe{position:absolute;width:120px;height:120px;border-radius:50%;border:3px solid #fff;box-shadow:0 4px 16px rgba(0,0,0,.6);overflow:hidden;pointer-events:none;z-index:20;display:none;background:#000;}
+  .scan-loupe canvas{position:absolute;left:0;top:0;}
+  .scan-loupe .lp-cross{position:absolute;left:50%;top:50%;width:18px;height:18px;transform:translate(-50%,-50%);}
+  .scan-loupe .lp-cross::before,.scan-loupe .lp-cross::after{content:"";position:absolute;background:var(--blue-500);}
+  .scan-loupe .lp-cross::before{left:50%;top:0;width:2px;height:100%;transform:translateX(-50%);}
+  .scan-loupe .lp-cross::after{top:50%;left:0;height:2px;width:100%;transform:translateY(-50%);}
   .scan-foot{display:flex;gap:10px;padding:14px;padding-bottom:max(14px,env(safe-area-inset-bottom));background:#05070c;flex:0 0 auto;}
   .scan-foot button{flex:1;padding:12px;border-radius:10px;font-weight:600;font-size:14px;}
   .scan-foot .sf-retake{background:rgba(255,255,255,.1);color:#fff;}
@@ -816,7 +822,7 @@ async function openScanner(file){
   root.innerHTML='<div class="scan-bar"><button id="scClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button><span class="sb-title">Ecken anpassen</span><button id="scAuto" title="Automatisch erkennen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg></button></div><div class="scan-stage" id="scStage"><canvas id="scCanvas"></canvas></div><div class="scan-foot"><button class="sf-retake" id="scRetake">Neu aufnehmen</button><button class="sf-confirm" id="scConfirm">Zuschneiden &amp; weiter</button></div>';
   document.body.appendChild(root);
   try{history.pushState({s:1,viewer:1},"");}catch(e){}
-  let closed=false;function close(){if(closed)return;closed=true;root.remove();}
+  let closed=false;function close(){if(closed)return;closed=true;root.remove();const ix=viewerCloseFns.indexOf(close);if(ix>=0)viewerCloseFns.splice(ix,1);}
   root.querySelector("#scClose").addEventListener("click",()=>{close();history.back();});
   viewerCloseFns.push(close);
 
@@ -838,6 +844,28 @@ async function openScanner(file){
 
   let corners=detectCorners(fullCanvas) || defaultCorners(fullCanvas.width,fullCanvas.height);
   const handles=[0,1,2,3].map(i=>{const h=document.createElement("div");h.className="scan-handle";stage.appendChild(h);return h;});
+  // Lupe
+  const loupe=document.createElement("div");loupe.className="scan-loupe";
+  const loupeCanvas=document.createElement("canvas");loupeCanvas.width=120;loupeCanvas.height=120;
+  const cross=document.createElement("div");cross.className="lp-cross";
+  loupe.appendChild(loupeCanvas);loupe.appendChild(cross);stage.appendChild(loupe);
+  const LOUPE_ZOOM=2.6;
+  function showLoupe(cx,cy){
+    // cx,cy = Koordinaten im fullCanvas
+    const lc=loupeCanvas.getContext("2d");
+    lc.clearRect(0,0,120,120);
+    const srcSize=120/LOUPE_ZOOM;
+    lc.imageSmoothingEnabled=true;
+    lc.drawImage(fullCanvas, cx-srcSize/2, cy-srcSize/2, srcSize, srcSize, 0,0,120,120);
+    // Position: über/neben dem Finger, im Stage-Koordinatensystem
+    const rect=canvas.getBoundingClientRect(),stageRect=stage.getBoundingClientRect();
+    const px=rect.left-stageRect.left+cx*dispScale, py=rect.top-stageRect.top+cy*dispScale;
+    let lx=px-60, ly=py-150; // standardmässig oberhalb
+    if(ly<6)ly=py+40; // wenn oben kein Platz, unterhalb
+    lx=Math.max(6,Math.min(stage.clientWidth-126,lx));
+    loupe.style.left=lx+"px";loupe.style.top=ly+"px";loupe.style.display="block";
+  }
+  function hideLoupe(){loupe.style.display="none";}
 
   function drawOverlay(){
     const ctx=canvas.getContext("2d");
@@ -858,11 +886,12 @@ async function openScanner(file){
       const rect=canvas.getBoundingClientRect();
       let x=(clientX-rect.left)/dispScale, y=(clientY-rect.top)/dispScale;
       x=Math.max(0,Math.min(fullCanvas.width,x));y=Math.max(0,Math.min(fullCanvas.height,y));
-      corners[i]={x,y};drawOverlay();layoutHandles();
+      corners[i]={x,y};drawOverlay();layoutHandles();showLoupe(x,y);
     }
-    h.addEventListener("pointerdown",e=>{dragging=true;h.setPointerCapture(e.pointerId);e.preventDefault();});
+    h.addEventListener("pointerdown",e=>{dragging=true;h.setPointerCapture(e.pointerId);e.preventDefault();showLoupe(corners[i].x,corners[i].y);});
     h.addEventListener("pointermove",e=>{if(dragging)onMove(e.clientX,e.clientY);});
-    h.addEventListener("pointerup",()=>{dragging=false;});
+    h.addEventListener("pointerup",()=>{dragging=false;hideLoupe();});
+    h.addEventListener("pointercancel",()=>{dragging=false;hideLoupe();});
   });
 
   root.querySelector("#scAuto").addEventListener("click",()=>{const c=detectCorners(fullCanvas);if(c){corners=c;drawOverlay();layoutHandles();toast("Kanten erkannt");}else toast("Keine klaren Kanten gefunden");});
@@ -1002,7 +1031,7 @@ function openScanResult(canvas,origName){
   root.innerHTML='<div class="scan-bar"><button id="srBack"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button><span class="sb-title">Vorschau</span></div><div class="scan-stage" id="srStage"></div><div class="scan-modefoot"><button id="modeColor" class="on">Farbe</button><button id="modeGray">Graustufen</button><button id="modeBw">Schwarz/Weiss</button></div><div class="scan-foot"><button class="sf-retake" id="srAsImage">Als Bild anhängen</button><button class="sf-confirm" id="srAsPdf">Als PDF anhängen</button></div>';
   document.body.appendChild(root);
   try{history.pushState({s:1,viewer:1},"");}catch(e){}
-  let closed=false;function close(){if(closed)return;closed=true;root.remove();}
+  let closed=false;function close(){if(closed)return;closed=true;root.remove();const ix=viewerCloseFns.indexOf(close);if(ix>=0)viewerCloseFns.splice(ix,1);}
   root.querySelector("#srBack").addEventListener("click",()=>{close();history.back();});
   viewerCloseFns.push(close);
   const stage=root.querySelector("#srStage");
@@ -1028,8 +1057,9 @@ function openScanResult(canvas,origName){
     if(!blob){toast("Fehler beim Erzeugen des Bilds");return;}
     const name=(origName||"scan").replace(/\.[^.]+$/,"")+"-scan.jpg";
     const file=new File([blob],name,{type:"image/jpeg"});
-    await insertInlineImage(file);
-    close();history.back();toast("Scan als Bild eingefügt");
+    close();history.back();
+    await insertInlineImage(file,{append:true});
+    toast("Scan als Bild eingefügt");
   });
   root.querySelector("#srAsPdf").addEventListener("click",async()=>{
     const blob=await new Promise(res=>view.toBlob(res,"image/jpeg",0.85));
@@ -1037,9 +1067,10 @@ function openScanResult(canvas,origName){
     const pdfBytes=await buildSimplePdfFromJpeg(await blob.arrayBuffer(),view.width,view.height);
     const name=(origName||"scan").replace(/\.[^.]+$/,"")+"-scan.pdf";
     const file=new File([pdfBytes],name,{type:"application/pdf"});
+    close();history.back();
     await addAttachment(file,false);
     const nn=cur();if(nn){renderAttachments(nn);}renderNoteList();
-    close();history.back();toast("Scan als PDF angehängt");
+    toast("Scan als PDF angehängt");
   });
 }
 
@@ -1182,7 +1213,23 @@ const MAX_ATTACH=25*1024*1024;
 async function addAttachment(file,inline){if(file.size>MAX_ATTACH){toast("Datei zu gross (max. "+fmtSize(MAX_ATTACH)+")");return null;}const buf=await file.arrayBuffer();const id=uid();const {iv,ct}=await encryptBytes(cryptoKey,buf);await idbPut("blobs",{id,iv,ct});const n=cur();n.attachments=n.attachments||[];const rec={id,name:file.name||(inline?"bild.png":"datei"),type:file.type||"application/octet-stream",size:buf.byteLength,added:now(),inline:!!inline};n.attachments.push(rec);n.updated=now();markDirty();
   if((rec.type||"").includes("pdf")){extractPdfText(rec).then(text=>{if(text&&text.trim()){rec.text=text.slice(0,200000);markDirty();}}).catch(()=>{});}
   return id;}
-async function insertInlineImage(file){if(!cur())return;const id=await addAttachment(file,true);if(!id)return;restoreSelection();document.execCommand("insertHTML",false,'<img data-att="'+id+'" alt="'+escapeHtml(file.name||"")+'">');await hydrateImages();syncBody();}
+async function insertInlineImage(file,opts){
+  if(!cur())return;
+  const id=await addAttachment(file,true);if(!id)return;
+  const eb=$("edBody");
+  const selValid=savedRange && eb.contains(savedRange.startContainer) && document.activeElement===eb;
+  if(opts&&opts.append || !selValid){
+    // Zuverlässig ans Ende der Notiz hängen (z.B. nach Scanner-Overlay, wenn der Cursor nicht mehr im Editor steht)
+    const img=document.createElement("img");img.setAttribute("data-att",id);img.setAttribute("alt",file.name||"");
+    eb.appendChild(img);
+    const p=document.createElement("p");p.innerHTML="<br>";eb.appendChild(p);
+  }else{
+    restoreSelection();
+    document.execCommand("insertHTML",false,'<img data-att="'+id+'" alt="'+escapeHtml(file.name||"")+'">');
+  }
+  await hydrateImages();
+  syncBody();
+}
 
 $("imgBtn").addEventListener("mousedown",e=>e.preventDefault());
 $("imgBtn").addEventListener("click",()=>$("imgFile").click());
@@ -1325,7 +1372,7 @@ function openImageViewer(url,name){
   root.querySelector("img").src=url;
   document.body.appendChild(root);
   try{history.pushState({s:1,viewer:1},"");}catch(e){}
-  let closed=false;function close(){if(closed)return;closed=true;root.remove();}
+  let closed=false;function close(){if(closed)return;closed=true;root.remove();const ix=viewerCloseFns.indexOf(close);if(ix>=0)viewerCloseFns.splice(ix,1);}
   root.querySelector("#ivClose").addEventListener("click",()=>{close();history.back();});
   viewerCloseFns.push(close);
 }
