@@ -282,6 +282,52 @@
     .ed-body{font-size:16px;min-height:140px;}
     .ed-inner{padding:12px 18px 28px;}
   }
+
+  /* ---- PDF-Thumbnail / Viewer ---- */
+  .att-thumb{position:relative;}
+  .att-thumb canvas{width:100%;height:100%;object-fit:cover;}
+  .att-pagecount{position:absolute;bottom:3px;right:4px;background:rgba(0,0,0,.6);color:#fff;font-size:9.5px;padding:1px 5px;border-radius:5px;}
+
+  .viewer-bg{position:fixed;inset:0;background:rgba(10,15,25,.92);z-index:950;display:flex;flex-direction:column;}
+  .viewer-bar{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--nav);color:#fff;flex:0 0 auto;padding-top:max(10px,env(safe-area-inset-top));}
+  .viewer-bar .vb-title{font-size:13.5px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .viewer-bar button{color:#fff;padding:7px;border-radius:7px;display:flex;align-items:center;}
+  .viewer-bar button:hover{background:rgba(255,255,255,.15);}
+  .viewer-bar svg{width:19px;height:19px;}
+  .viewer-search{display:flex;align-items:center;gap:4px;background:rgba(255,255,255,.12);border-radius:7px;padding:2px 4px;}
+  .viewer-search input{background:none;border:none;color:#fff;font-size:13px;padding:5px 6px;width:120px;}
+  .viewer-search input::placeholder{color:rgba(255,255,255,.55);}
+  .viewer-search .vs-count{font-size:11.5px;color:rgba(255,255,255,.7);padding:0 4px;white-space:nowrap;}
+  .viewer-body{flex:1;overflow:auto;display:flex;flex-direction:column;align-items:center;gap:14px;padding:16px;}
+  .viewer-body canvas{max-width:100%;box-shadow:0 4px 18px rgba(0,0,0,.4);background:#fff;}
+  .viewer-body img.full{max-width:100%;max-height:100%;object-fit:contain;}
+  .viewer-loading{color:#fff;font-size:13px;padding:40px;}
+  .pdf-page-wrap{position:relative;}
+  .pdf-hit-mark{position:absolute;background:rgba(253,230,138,.55);border-radius:2px;}
+
+  /* ---- Tabellen im Editor ---- */
+  .ed-body table{border-collapse:collapse;width:100%;margin:.6em 0;font-size:14px;}
+  .ed-body table td,.ed-body table th{border:1px solid var(--line);padding:7px 9px;min-width:32px;vertical-align:top;}
+  .ed-body table th{background:var(--panel-2);font-weight:700;}
+  .ed-body table td:focus,.ed-body table th:focus{outline:2px solid var(--blue-500);outline-offset:-2px;}
+
+  /* ---- Dokumentenscanner ---- */
+  .scan-bg{position:fixed;inset:0;background:#05070c;z-index:960;display:flex;flex-direction:column;}
+  .scan-bar{display:flex;align-items:center;gap:10px;padding:10px 14px;padding-top:max(10px,env(safe-area-inset-top));color:#fff;flex:0 0 auto;}
+  .scan-bar button{color:#fff;padding:7px;border-radius:7px;}
+  .scan-bar button:hover{background:rgba(255,255,255,.15);}
+  .scan-bar svg{width:19px;height:19px;}
+  .scan-bar .sb-title{flex:1;font-size:13.5px;font-weight:600;}
+  .scan-stage{flex:1;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;touch-action:none;}
+  .scan-stage canvas{max-width:100%;max-height:100%;}
+  .scan-handle{position:absolute;width:26px;height:26px;border-radius:50%;background:var(--blue-500);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5);transform:translate(-50%,-50%);touch-action:none;}
+  .scan-foot{display:flex;gap:10px;padding:14px;padding-bottom:max(14px,env(safe-area-inset-bottom));background:#05070c;flex:0 0 auto;}
+  .scan-foot button{flex:1;padding:12px;border-radius:10px;font-weight:600;font-size:14px;}
+  .scan-foot .sf-retake{background:rgba(255,255,255,.1);color:#fff;}
+  .scan-foot .sf-confirm{background:var(--blue-600);color:#fff;}
+  .scan-modefoot{display:flex;gap:8px;padding:0 14px 10px;}
+  .scan-modefoot button{flex:1;padding:8px;border-radius:8px;font-size:12.5px;font-weight:600;background:rgba(255,255,255,.08);color:rgba(255,255,255,.75);}
+  .scan-modefoot button.on{background:var(--blue-600);color:#fff;}
 </style>
 </head>
 <body>
@@ -382,6 +428,7 @@
           <button class="tb-btn" data-cmd="insertUnorderedList" title="Aufzählung">•</button>
           <button class="tb-btn" data-cmd="insertOrderedList" title="Nummerierte Liste">1.</button>
           <button class="tb-btn" id="checklistBtn" title="Checkliste">☑</button>
+          <button class="tb-btn" id="tableBtn" title="Tabelle einfügen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 9h18M3 15h18M9 4v16M15 4v16"/></svg></button>
           <span class="tb-sep"></span>
           <button class="tb-btn" data-cmd="formatBlock" data-val="blockquote" title="Zitat">❝</button>
           <button class="tb-btn" id="codeBtn" title="Codeblock">&lt;/&gt;</button>
@@ -390,8 +437,17 @@
           <button class="tb-btn" id="hrBtn" title="Trennlinie">—</button>
           <span class="tb-sep"></span>
           <button class="tb-btn" id="imgBtn" title="Bild einfügen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 16l-5-5L5 20"/></svg></button>
+          <button class="tb-btn" id="scanBtn" title="Dokument scannen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7V5a1 1 0 0 1 1-1h2M4 17v2a1 1 0 0 0 1 1h2M20 7V5a1 1 0 0 0-1-1h-2M20 17v2a1 1 0 0 1-1 1h-2"/><circle cx="12" cy="12" r="3.2"/></svg></button>
           <button class="tb-btn" id="micBtn" title="Audio-Notiz aufnehmen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
           <button class="tb-btn" id="ocrBtn" title="Text aus Bild erkennen (OCR)">OCR</button>
+          <span class="tb-sep"></span>
+          <button class="tb-btn" id="reminderBtn" title="Erinnerung setzen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 6v6l4 2"/><circle cx="12" cy="13" r="8"/><path d="M9 2h6"/></svg></button>
+        </div>
+
+        <div id="reminderChip" class="hidden" style="margin:0 16px 0;padding:8px 12px;background:var(--blue-50);color:var(--blue-700);border-radius:8px;font-size:12.5px;display:flex;align-items:center;gap:8px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:14px;height:14px;flex:0 0 14px;"><path d="M12 6v6l4 2"/><circle cx="12" cy="13" r="8"/></svg>
+          <span id="reminderText" style="flex:1;"></span>
+          <button id="reminderRemove" style="color:var(--blue-700);font-weight:700;">×</button>
         </div>
 
         <div class="ed-scroll" id="edScroll">
@@ -439,6 +495,7 @@
 <input type="file" id="imgFile" accept="image/*" class="hidden">
 <input type="file" id="ocrFile" accept="image/*" class="hidden">
 <input type="file" id="attachFile" multiple class="hidden">
+<input type="file" id="scanFile" accept="image/*" capture="environment" class="hidden">
 <div id="modalRoot"></div>
 <div id="toast"></div>
 <div id="printArea"></div>
@@ -473,6 +530,7 @@ async function decryptBytes(key,rec){return crypto.subtle.decrypt({name:"AES-GCM
 
 /* ---- Status ---- */
 let cryptoKey=null, vault=null;
+let viewerCloseFns=[];
 let currentView={type:"all"}, currentNoteId=null;
 let saveTimer=null, dirty=false, autolockTimer=null, edLoading=false, savedRange=null;
 let noteObjectUrls=[];
@@ -523,7 +581,7 @@ function freshVault(){const nbId=uid();return {version:2,notebooks:[{id:nbId,nam
     tags:["willkommen"],attachments:[],pinned:true,trashed:false,created:now(),updated:now()}],
   settings:{theme:"light",sort:"updated"}};}
 
-async function launchApp(){$("lock").classList.add("hidden");$("app").classList.remove("hidden");applyTheme(vault.settings.theme||"light");$("sortSelect").value=vault.settings.sort||"updated";currentView={type:"all"};renderAll();resetAutolock();backInit();await loadSyncCfg();updateSyncUI();const hadPending=!!pendingOAuth;await maybeCompleteOAuth();if(!hadPending&&sync&&sync.autoSync)syncNow(true);}
+async function launchApp(){$("lock").classList.add("hidden");$("app").classList.remove("hidden");applyTheme(vault.settings.theme||"light");$("sortSelect").value=vault.settings.sort||"updated";currentView={type:"all"};renderAll();resetAutolock();backInit();startReminderWatch();await loadSyncCfg();updateSyncUI();const hadPending=!!pendingOAuth;await maybeCompleteOAuth();if(!hadPending&&sync&&sync.autoSync)syncNow(true);}
 
 /* ---- Persistenz ---- */
 function markDirty(){dirty=true;updateSaveState();clearTimeout(saveTimer);saveTimer=setTimeout(persist,600);}
@@ -532,7 +590,7 @@ function updateSaveState(){const dot=$("saveDot"),t=$("saveText");if(!dot)return
 
 /* ---- Lock ---- */
 function revokeUrls(){noteObjectUrls.forEach(u=>URL.revokeObjectURL(u));noteObjectUrls=[];}
-function lockApp(){clearTimeout(saveTimer);saveCurrentNote(true);persist().finally(()=>{revokeUrls();cryptoKey=null;vault=null;currentNoteId=null;sync=null;pendingOAuth=null;updateSyncUI();$("app").classList.add("hidden");$("lock").classList.remove("hidden");$("lockMsg").textContent="";$("pw").value="";$("pw").focus();});}
+function lockApp(){clearTimeout(saveTimer);clearInterval(reminderTimer);saveCurrentNote(true);persist().finally(()=>{revokeUrls();cryptoKey=null;vault=null;currentNoteId=null;sync=null;pendingOAuth=null;updateSyncUI();$("app").classList.add("hidden");$("lock").classList.remove("hidden");$("lockMsg").textContent="";$("pw").value="";$("pw").focus();});}
 $("lockBtn").addEventListener("click",lockApp);
 function resetAutolock(){clearTimeout(autolockTimer);autolockTimer=setTimeout(()=>{if(cryptoKey)lockApp();},AUTOLOCK_MS);}
 ["click","keydown","mousemove"].forEach(ev=>document.addEventListener(ev,()=>{if(cryptoKey)resetAutolock();},{passive:true}));
@@ -573,7 +631,7 @@ function getViewNotes(){
     if(currentView.type==="pinned")list=list.filter(n=>n.pinned);
     else if(currentView.type==="notebook")list=list.filter(n=>n.notebookId===currentView.id);
     else if(currentView.type==="tag")list=list.filter(n=>(n.tags||[]).includes(currentView.id));}
-  if(q)list=list.filter(n=>(n.title||"").toLowerCase().includes(q)||htmlToText(n.html).toLowerCase().includes(q)||(n.tags||[]).some(t=>t.toLowerCase().includes(q))||(n.attachments||[]).some(a=>(a.name||"").toLowerCase().includes(q)));
+  if(q)list=list.filter(n=>(n.title||"").toLowerCase().includes(q)||htmlToText(n.html).toLowerCase().includes(q)||(n.tags||[]).some(t=>t.toLowerCase().includes(q))||(n.attachments||[]).some(a=>(a.name||"").toLowerCase().includes(q)||(a.text||"").toLowerCase().includes(q)));
   const sort=$("sortSelect").value;
   list.sort((a,b)=>{if(currentView.type!=="trash"&&a.pinned!==b.pinned)return a.pinned?-1:1;if(sort==="title")return (a.title||"").localeCompare(b.title||"","de");if(sort==="created")return b.created-a.created;return b.updated-a.updated;});
   return list;
@@ -617,9 +675,15 @@ function renderEditor(){
   $("trashBtn").style.display=n.trashed?"none":"";$("restoreBtn").style.display=n.trashed?"":"none";
   $("edBody").contentEditable=n.trashed?"false":"true";$("edTitle").disabled=!!n.trashed;
   $("dateInfo").textContent="Erstellt "+fmtDate(n.created);
-  updateCounts();hydrateImages();renderAttachments(n);bindChecklistEvents();
+  updateCounts();hydrateImages();renderAttachments(n);bindChecklistEvents();renderReminderChip(n);
   edLoading=false;
 }
+function renderReminderChip(n){
+  const chip=$("reminderChip");
+  if(n.reminder){chip.classList.remove("hidden");$("reminderText").textContent="Erinnerung: "+fmtReminder(n.reminder)+(n.reminder<now()&&!n.reminderFired?" (überfällig)":"");}
+  else chip.classList.add("hidden");
+}
+function fmtReminder(ts){const d=new Date(ts);return d.toLocaleDateString("de-CH",{day:"2-digit",month:"2-digit",year:"numeric"})+", "+d.toLocaleTimeString("de-CH",{hour:"2-digit",minute:"2-digit"});}
 function renderTagbar(n){const bar=$("tagbar");bar.querySelectorAll(".tag-chip").forEach(c=>c.remove());const input=$("tagInput");
   (n.tags||[]).forEach(t=>{const chip=document.createElement("span");chip.className="tag-chip";const span=document.createElement("span");span.textContent="#"+t;const x=document.createElement("button");x.textContent="×";x.title="Entfernen";x.addEventListener("click",()=>{n.tags=n.tags.filter(y=>y!==t);n.updated=now();markDirty();renderTagbar(n);renderSidebar();renderNoteList();});chip.appendChild(span);chip.appendChild(x);bar.insertBefore(chip,input);});}
 
@@ -663,11 +727,368 @@ $("codeBtn").addEventListener("mousedown",e=>e.preventDefault());
 $("codeBtn").addEventListener("click",()=>{$("edBody").focus();document.execCommand("formatBlock",false,"pre");syncBody();});
 $("hrBtn").addEventListener("mousedown",e=>e.preventDefault());
 $("hrBtn").addEventListener("click",()=>{$("edBody").focus();document.execCommand("insertHorizontalRule");syncBody();});
+$("tableBtn").addEventListener("mousedown",e=>e.preventDefault());
+$("tableBtn").addEventListener("click",()=>{
+  modal({title:"Tabelle einfügen",body:'<label style="font-size:12.5px;display:block;margin-bottom:4px;">Spalten</label><input type="number" id="__tc" value="3" min="1" max="12" style="margin-bottom:12px;"><label style="font-size:12.5px;display:block;margin-bottom:4px;">Zeilen</label><input type="number" id="__tr" value="3" min="1" max="50">',buttons:[{label:"Abbrechen",cls:"btn-ghost",act:closeModal},{label:"Einfügen",cls:"btn-blue",act:()=>{const cols=Math.max(1,Math.min(12,parseInt($("__tc").value)||3));const rows=Math.max(1,Math.min(50,parseInt($("__tr").value)||3));closeModal();insertTable(rows,cols);}}]});
+});
+function insertTable(rows,cols){
+  let html='<table><tbody>';
+  for(let r=0;r<rows;r++){html+="<tr>";for(let c=0;c<cols;c++){html+=(r===0?"<th>\u200b</th>":"<td>\u200b</td>");}html+="</tr>";}
+  html+='</tbody></table><p><br></p>';
+  restoreSelection();document.execCommand("insertHTML",false,html);syncBody();
+}
+/* Tab/Shift+Tab springt zwischen Tabellenzellen; Enter in letzter Zelle fügt neue Zeile hinzu */
+$("edBody").addEventListener("keydown",e=>{
+  const sel=window.getSelection();if(!sel.rangeCount)return;
+  let node=sel.getRangeAt(0).startContainer;if(node.nodeType===3)node=node.parentNode;
+  const cell=node&&node.closest?node.closest("td,th"):null;if(!cell)return;
+  const table=cell.closest("table");if(!table)return;
+  if(e.key==="Tab"){
+    e.preventDefault();
+    const cells=[...table.querySelectorAll("td,th")];
+    let idx=cells.indexOf(cell);idx+=e.shiftKey?-1:1;
+    if(idx<0)return;
+    if(idx>=cells.length){addTableRow(table);const cells2=[...table.querySelectorAll("td,th")];idx=cells.length;}
+    const target=table.querySelectorAll("td,th")[idx];if(target)focusCell(target);
+  }
+});
+function addTableRow(table){const tbody=table.querySelector("tbody")||table;const cols=table.querySelector("tr").children.length;const tr=document.createElement("tr");for(let c=0;c<cols;c++){const td=document.createElement("td");td.innerHTML="\u200b";tr.appendChild(td);}tbody.appendChild(tr);syncBody();}
+function focusCell(cell){const r=document.createRange();r.selectNodeContents(cell);r.collapse(true);const sel=window.getSelection();sel.removeAllRanges();sel.addRange(r);}
+
+/* ---- Erinnerungen ---- */
+$("reminderBtn").addEventListener("mousedown",e=>e.preventDefault());
+$("reminderBtn").addEventListener("click",openReminderModal);
+$("reminderRemove").addEventListener("click",()=>{const n=cur();if(!n)return;delete n.reminder;delete n.reminderFired;n.updated=now();markDirty();renderReminderChip(n);renderNoteList();});
+async function openReminderModal(){
+  const n=cur();if(!n)return;
+  if("Notification" in window && Notification.permission==="default"){try{await Notification.requestPermission();}catch(e){}}
+  const deniedNote=("Notification" in window && Notification.permission==="denied")?'<p style="color:var(--warn);">Benachrichtigungen sind im Browser blockiert. Die Erinnerung wird dennoch gespeichert und in der App angezeigt, sobald sie geöffnet ist.</p>':'';
+  const d=n.reminder?new Date(n.reminder):new Date(Date.now()+3600000);
+  const dateStr=d.toISOString().slice(0,10), timeStr=String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
+  modal({title:"Erinnerung setzen",body:'<label style="font-size:12.5px;display:block;margin-bottom:4px;">Datum</label><input type="date" id="__rd" value="'+dateStr+'"><label style="font-size:12.5px;display:block;margin-bottom:4px;">Uhrzeit</label><input type="time" id="__rt" value="'+timeStr+'">'+deniedNote,
+    buttons:[{label:"Abbrechen",cls:"btn-ghost",act:closeModal},{label:"Setzen",cls:"btn-blue",act:()=>{
+      const dv=$("__rd").value,tv=$("__rt").value;if(!dv||!tv){return;}
+      const ts=new Date(dv+"T"+tv+":00").getTime();
+      n.reminder=ts;n.reminderFired=false;n.updated=now();markDirty();closeModal();renderReminderChip(n);renderNoteList();toast("Erinnerung gesetzt");
+    }}]});
+}
+let reminderTimer=null;
+function startReminderWatch(){
+  clearInterval(reminderTimer);
+  reminderTimer=setInterval(checkReminders,30000);
+  checkReminders();
+}
+function checkReminders(){
+  if(!vault)return;
+  const t=now();
+  vault.notes.forEach(n=>{
+    if(n.trashed||!n.reminder||n.reminderFired)return;
+    if(n.reminder<=t){
+      n.reminderFired=true;markDirty();
+      fireReminderNotification(n);
+      if(n.id===currentNoteId)renderReminderChip(n);
+    }
+  });
+  renderNoteList();
+}
+function fireReminderNotification(n){
+  const title=n.title||"Notiz-Erinnerung";
+  const body=htmlToText(n.html).slice(0,120)||"Erinnerung an deine Notiz";
+  if("Notification" in window && Notification.permission==="granted"){
+    try{
+      if(navigator.serviceWorker&&navigator.serviceWorker.ready){
+        navigator.serviceWorker.ready.then(reg=>{ if(reg.showNotification) reg.showNotification(title,{body,tag:"reminder-"+n.id,icon:"icon-192.png"}); else new Notification(title,{body}); }).catch(()=>{ try{new Notification(title,{body});}catch(e){} });
+      }else{ new Notification(title,{body}); }
+    }catch(e){}
+  }
+  toast("Erinnerung: "+title);
+}
+
+/* ---- Dokumentenscanner ---- */
+$("scanBtn").addEventListener("mousedown",e=>e.preventDefault());
+$("scanBtn").addEventListener("click",()=>{if(!cur()){toast("Bitte erst eine Notiz öffnen");return;}$("scanFile").click();});
+$("scanFile").addEventListener("change",async e=>{const f=e.target.files[0];e.target.value="";if(f)openScanner(f);});
+
+async function openScanner(file){
+  const img=await loadImageBitmapish(file);
+  if(!img){toast("Bild konnte nicht geladen werden");return;}
+  const root=document.createElement("div");root.className="scan-bg";
+  root.innerHTML='<div class="scan-bar"><button id="scClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button><span class="sb-title">Ecken anpassen</span><button id="scAuto" title="Automatisch erkennen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg></button></div><div class="scan-stage" id="scStage"><canvas id="scCanvas"></canvas></div><div class="scan-foot"><button class="sf-retake" id="scRetake">Neu aufnehmen</button><button class="sf-confirm" id="scConfirm">Zuschneiden &amp; weiter</button></div>';
+  document.body.appendChild(root);
+  try{history.pushState({s:1,viewer:1},"");}catch(e){}
+  let closed=false;function close(){if(closed)return;closed=true;root.remove();}
+  root.querySelector("#scClose").addEventListener("click",()=>{close();history.back();});
+  viewerCloseFns.push(close);
+
+  const stage=root.querySelector("#scStage"), canvas=root.querySelector("#scCanvas");
+  const maxW=Math.min(1400,img.width), scale0=Math.min(1,maxW/img.width);
+  const fullCanvas=document.createElement("canvas");fullCanvas.width=Math.round(img.width*scale0);fullCanvas.height=Math.round(img.height*scale0);
+  fullCanvas.getContext("2d").drawImage(img,0,0,fullCanvas.width,fullCanvas.height);
+
+  function fitStage(){
+    const sw=stage.clientWidth,sh=stage.clientHeight;
+    const sc=Math.min(sw/fullCanvas.width,sh/fullCanvas.height);
+    canvas.width=fullCanvas.width;canvas.height=fullCanvas.height;
+    canvas.style.width=Math.round(fullCanvas.width*sc)+"px";
+    canvas.style.height=Math.round(fullCanvas.height*sc)+"px";
+    return sc;
+  }
+  let dispScale=fitStage();
+  window.addEventListener("resize",()=>{dispScale=fitStage();layoutHandles();},{passive:true});
+
+  let corners=detectCorners(fullCanvas) || defaultCorners(fullCanvas.width,fullCanvas.height);
+  const handles=[0,1,2,3].map(i=>{const h=document.createElement("div");h.className="scan-handle";stage.appendChild(h);return h;});
+
+  function drawOverlay(){
+    const ctx=canvas.getContext("2d");
+    ctx.drawImage(fullCanvas,0,0);
+    ctx.save();ctx.strokeStyle="#3b82f6";ctx.lineWidth=Math.max(2,fullCanvas.width*0.004);ctx.beginPath();
+    ctx.moveTo(corners[0].x,corners[0].y);for(let i=1;i<4;i++)ctx.lineTo(corners[i].x,corners[i].y);ctx.closePath();ctx.stroke();
+    ctx.fillStyle="rgba(59,130,246,.18)";ctx.fill();ctx.restore();
+  }
+  function layoutHandles(){
+    const rect=canvas.getBoundingClientRect(),stageRect=stage.getBoundingClientRect();
+    corners.forEach((c,i)=>{handles[i].style.left=(rect.left-stageRect.left+c.x*dispScale)+"px";handles[i].style.top=(rect.top-stageRect.top+c.y*dispScale)+"px";});
+  }
+  drawOverlay();layoutHandles();
+
+  handles.forEach((h,i)=>{
+    let dragging=false;
+    function onMove(clientX,clientY){
+      const rect=canvas.getBoundingClientRect();
+      let x=(clientX-rect.left)/dispScale, y=(clientY-rect.top)/dispScale;
+      x=Math.max(0,Math.min(fullCanvas.width,x));y=Math.max(0,Math.min(fullCanvas.height,y));
+      corners[i]={x,y};drawOverlay();layoutHandles();
+    }
+    h.addEventListener("pointerdown",e=>{dragging=true;h.setPointerCapture(e.pointerId);e.preventDefault();});
+    h.addEventListener("pointermove",e=>{if(dragging)onMove(e.clientX,e.clientY);});
+    h.addEventListener("pointerup",()=>{dragging=false;});
+  });
+
+  root.querySelector("#scAuto").addEventListener("click",()=>{const c=detectCorners(fullCanvas);if(c){corners=c;drawOverlay();layoutHandles();toast("Kanten erkannt");}else toast("Keine klaren Kanten gefunden");});
+  root.querySelector("#scRetake").addEventListener("click",()=>{close();history.back();$("scanFile").click();});
+  root.querySelector("#scConfirm").addEventListener("click",()=>{
+    const warped=warpPerspective(fullCanvas,corners);
+    close();history.back();
+    openScanResult(warped,file.name);
+  });
+}
+
+function loadImageBitmapish(file){
+  return new Promise(res=>{
+    const img=new Image();const url=URL.createObjectURL(file);
+    img.onload=()=>{res(img);};img.onerror=()=>{URL.revokeObjectURL(url);res(null);};
+    img.src=url;
+  });
+}
+function defaultCorners(w,h){const mx=w*0.06,my=h*0.06;return [{x:mx,y:my},{x:w-mx,y:my},{x:w-mx,y:h-my},{x:mx,y:h-my}];}
+
+/* Heuristische Dokument-Kantenerkennung: Graustufen -> Sobel-Gradient -> Schwelle -> grösstes Konturviereck via Randabtastung */
+function detectCorners(srcCanvas){
+  try{
+    const w=srcCanvas.width,h=srcCanvas.height;
+    const work=document.createElement("canvas");const ws=Math.max(1,Math.round(Math.min(360,w)));const wscale=ws/w;
+    work.width=ws;work.height=Math.round(h*wscale);
+    const wctx=work.getContext("2d");wctx.drawImage(srcCanvas,0,0,work.width,work.height);
+    const id=wctx.getImageData(0,0,work.width,work.height).data;
+    const gw=work.width,gh=work.height;
+    const gray=new Float32Array(gw*gh);
+    for(let i=0;i<gw*gh;i++){const r=id[i*4],g=id[i*4+1],b=id[i*4+2];gray[i]=0.299*r+0.587*g+0.114*b;}
+    // Gradientenmagnitude (einfacher Sobel)
+    const mag=new Float32Array(gw*gh);let maxMag=1;
+    for(let y=1;y<gh-1;y++)for(let x=1;x<gw-1;x++){
+      const i=y*gw+x;
+      const gx=gray[i-1]-gray[i+1];
+      const gy=gray[i-gw]-gray[i+gw];
+      const m=Math.sqrt(gx*gx+gy*gy);mag[i]=m;if(m>maxMag)maxMag=m;
+    }
+    const thresh=maxMag*0.22;
+    // Für jede Bildseite: finde die am weitesten innen liegende durchgehende Kantenline -> grob über Randscan je Quadrant
+    function scanEdge(rowMajor,reverse,limit){
+      // sucht je Spalte (oder Zeile) den ersten/letzten Index mit starkem Gradient, gibt Medianposition zurück
+      const positions=[];
+      const n1=rowMajor?gw:gh, n2=rowMajor?gh:gw;
+      for(let a=0;a<n1;a+=Math.max(1,Math.floor(n1/80))){
+        let found=-1;
+        const range=reverse?[...Array(n2).keys()].reverse():[...Array(n2).keys()];
+        for(const b of range){const x=rowMajor?a:b,y=rowMajor?b:a;const idx=y*gw+x;if(mag[idx]>thresh){found=b;break;}}
+        if(found>=0)positions.push(found);
+      }
+      if(!positions.length)return null;
+      positions.sort((a,b)=>a-b);
+      return positions[Math.floor(positions.length/2)];
+    }
+    const top=scanEdge(true,false,gh*0.4);
+    const bottom=scanEdge(true,true,gh*0.4);
+    const left=scanEdge(false,false,gw*0.4);
+    const right=scanEdge(false,true,gw*0.4);
+    if(top==null||bottom==null||left==null||right==null)return null;
+    if(bottom<=top||right<=left)return null;
+    if((bottom-top)<gh*0.25||(right-left)<gw*0.25)return null; // zu klein -> unzuverlässig
+    const sc=1/wscale;
+    return [{x:left*sc,y:top*sc},{x:right*sc,y:top*sc},{x:right*sc,y:bottom*sc},{x:left*sc,y:bottom*sc}];
+  }catch(e){return null;}
+}
+
+/* Perspektivische Entzerrung über bilineare Rückwärts-Abbildung (reine Canvas/JS-Implementierung, keine Bibliothek nötig) */
+function warpPerspective(srcCanvas,corners){
+  const [tl,tr,br,bl]=corners;
+  const wTop=dist(tl,tr),wBot=dist(bl,br),outW=Math.round(Math.max(wTop,wBot));
+  const hLeft=dist(tl,bl),hRight=dist(tr,br),outH=Math.round(Math.max(hLeft,hRight));
+  const W=Math.max(40,Math.min(2400,outW)),H=Math.max(40,Math.min(3200,outH));
+  const dst=document.createElement("canvas");dst.width=W;dst.height=H;
+  const dctx=dst.getContext("2d");
+  const sctx=srcCanvas.getContext("2d");
+  const sdata=sctx.getImageData(0,0,srcCanvas.width,srcCanvas.height);
+  const ddata=dctx.createImageData(W,H);
+  const M=computeHomography(
+    [[0,0],[W,0],[W,H],[0,H]],
+    [[tl.x,tl.y],[tr.x,tr.y],[br.x,br.y],[bl.x,bl.y]]
+  );
+  const sw=srcCanvas.width,sh=srcCanvas.height;
+  for(let y=0;y<H;y++){
+    for(let x=0;x<W;x++){
+      const den=M[6]*x+M[7]*y+M[8];
+      const sx=(M[0]*x+M[1]*y+M[2])/den;
+      const sy=(M[3]*x+M[4]*y+M[5])/den;
+      const di=(y*W+x)*4;
+      if(sx>=0&&sx<sw-1&&sy>=0&&sy<sh-1){
+        const x0=Math.floor(sx),y0=Math.floor(sy),fx=sx-x0,fy=sy-y0;
+        for(let c=0;c<4;c++){
+          const p00=sdata.data[(y0*sw+x0)*4+c],p10=sdata.data[(y0*sw+x0+1)*4+c];
+          const p01=sdata.data[((y0+1)*sw+x0)*4+c],p11=sdata.data[((y0+1)*sw+x0+1)*4+c];
+          const top=p00+(p10-p00)*fx, bot=p01+(p11-p01)*fx;
+          ddata.data[di+c]=top+(bot-top)*fy;
+        }
+      }else{ddata.data[di]=255;ddata.data[di+1]=255;ddata.data[di+2]=255;ddata.data[di+3]=255;}
+    }
+  }
+  dctx.putImageData(ddata,0,0);
+  return dst;
+}
+function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y);}
+/* Löst die 3x3-Homographie, die die 4 Quell- auf die 4 Zielpunkte abbildet (Standard-DLT für Vierecke) */
+function computeHomography(srcPts,dstPts){
+  const A=[];
+  for(let i=0;i<4;i++){
+    const [x,y]=srcPts[i],[u,v]=dstPts[i];
+    A.push([x,y,1,0,0,0,-u*x,-u*y,-u]);
+    A.push([0,0,0,x,y,1,-v*x,-v*y,-v]);
+  }
+  const h=solveHomogeneous(A);
+  return h;
+}
+/* Löst A*h=0 für 8x9-Matrix via Gauss-Elimination, setzt h[8]=1 */
+function solveHomogeneous(A){
+  // Normiere auf h8=1: stelle als inhomogenes System für h0..h7 um
+  const rows=A.map(r=>r.slice());
+  const B=rows.map(r=>-r[8]);
+  const M=rows.map(r=>r.slice(0,8));
+  // Gauss-Jordan
+  const n=8;
+  for(let i=0;i<n;i++){
+    let piv=i;for(let k=i+1;k<n;k++)if(Math.abs(M[k][i])>Math.abs(M[piv][i]))piv=k;
+    [M[i],M[piv]]=[M[piv],M[i]];[B[i],B[piv]]=[B[piv],B[i]];
+    const pv=M[i][i]||1e-9;
+    for(let j=0;j<n;j++)M[i][j]/=pv;B[i]/=pv;
+    for(let k=0;k<n;k++){if(k===i)continue;const f=M[k][i];for(let j=0;j<n;j++)M[k][j]-=f*M[i][j];B[k]-=f*B[i];}
+  }
+  return [B[0],B[1],B[2],B[3],B[4],B[5],B[6],B[7],1];
+}
+
+/* Ergebnis-Ansicht: Filter, Speichern als Bild oder PDF */
+function openScanResult(canvas,origName){
+  const root=document.createElement("div");root.className="scan-bg";
+  root.innerHTML='<div class="scan-bar"><button id="srBack"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button><span class="sb-title">Vorschau</span></div><div class="scan-stage" id="srStage"></div><div class="scan-modefoot"><button id="modeColor" class="on">Farbe</button><button id="modeGray">Graustufen</button><button id="modeBw">Schwarz/Weiss</button></div><div class="scan-foot"><button class="sf-retake" id="srAsImage">Als Bild anhängen</button><button class="sf-confirm" id="srAsPdf">Als PDF anhängen</button></div>';
+  document.body.appendChild(root);
+  try{history.pushState({s:1,viewer:1},"");}catch(e){}
+  let closed=false;function close(){if(closed)return;closed=true;root.remove();}
+  root.querySelector("#srBack").addEventListener("click",()=>{close();history.back();});
+  viewerCloseFns.push(close);
+  const stage=root.querySelector("#srStage");
+  const view=document.createElement("canvas");view.width=canvas.width;view.height=canvas.height;view.style.maxWidth="100%";view.style.maxHeight="100%";stage.appendChild(view);
+  let mode="color";
+  function applyFilter(){
+    const ctx=view.getContext("2d");ctx.drawImage(canvas,0,0);
+    if(mode==="color"){return;}
+    const id=ctx.getImageData(0,0,view.width,view.height);
+    for(let i=0;i<id.data.length;i+=4){
+      const g=0.299*id.data[i]+0.587*id.data[i+1]+0.114*id.data[i+2];
+      let v=g;
+      if(mode==="bw"){v=g>150?255:30;}
+      id.data[i]=v;id.data[i+1]=v;id.data[i+2]=v;
+    }
+    ctx.putImageData(id,0,0);
+  }
+  applyFilter();
+  [["modeColor","color"],["modeGray","gray"],["modeBw","bw"]].forEach(([id,m])=>{root.querySelector("#"+id).addEventListener("click",()=>{mode=m;root.querySelectorAll(".scan-modefoot button").forEach(b=>b.classList.remove("on"));root.querySelector("#"+id).classList.add("on");applyFilter();});});
+
+  root.querySelector("#srAsImage").addEventListener("click",async()=>{
+    const blob=await new Promise(res=>view.toBlob(res,"image/jpeg",0.88));
+    if(!blob){toast("Fehler beim Erzeugen des Bilds");return;}
+    const name=(origName||"scan").replace(/\.[^.]+$/,"")+"-scan.jpg";
+    const file=new File([blob],name,{type:"image/jpeg"});
+    await insertInlineImage(file);
+    close();history.back();toast("Scan als Bild eingefügt");
+  });
+  root.querySelector("#srAsPdf").addEventListener("click",async()=>{
+    const blob=await new Promise(res=>view.toBlob(res,"image/jpeg",0.85));
+    if(!blob){toast("Fehler beim Erzeugen des PDFs");return;}
+    const pdfBytes=await buildSimplePdfFromJpeg(await blob.arrayBuffer(),view.width,view.height);
+    const name=(origName||"scan").replace(/\.[^.]+$/,"")+"-scan.pdf";
+    const file=new File([pdfBytes],name,{type:"application/pdf"});
+    await addAttachment(file,false);
+    const nn=cur();if(nn){renderAttachments(nn);}renderNoteList();
+    close();history.back();toast("Scan als PDF angehängt");
+  });
+}
+
+/* Baut ein minimales, gültiges Einzelseiten-PDF mit eingebettetem JPEG – ganz ohne externe Bibliothek. */
+async function buildSimplePdfFromJpeg(jpegArrayBuffer,pxW,pxH){
+  const ptW=(pxW/96)*72, ptH=(pxH/96)*72;
+  const jpeg=new Uint8Array(jpegArrayBuffer);
+  const enc=new TextEncoder();
+  const parts=[]; let offset=0; const offsets=[];
+  function push(strOrBytes){const b=(typeof strOrBytes==="string")?enc.encode(strOrBytes):strOrBytes;parts.push(b);offset+=b.length;}
+  push("%PDF-1.4\n");
+  offsets[1]=offset; push("1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
+  offsets[2]=offset; push("2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n");
+  offsets[3]=offset; push("3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 "+ptW.toFixed(2)+" "+ptH.toFixed(2)+"] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>\nendobj\n");
+  offsets[4]=offset; push("4 0 obj\n<< /Type /XObject /Subtype /Image /Width "+pxW+" /Height "+pxH+" /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length "+jpeg.length+" >>\nstream\n");
+  push(jpeg); push("\nendstream\nendobj\n");
+  const content="q\n"+ptW.toFixed(2)+" 0 0 "+ptH.toFixed(2)+" 0 0 cm\n/Im0 Do\nQ";
+  offsets[5]=offset; push("5 0 obj\n<< /Length "+content.length+" >>\nstream\n"+content+"\nendstream\nendobj\n");
+  const xrefStart=offset;
+  let xref="xref\n0 6\n0000000000 65535 f \n";
+  for(let i=1;i<=5;i++)xref+=String(offsets[i]).padStart(10,"0")+" 00000 n \n";
+  push(xref);
+  push("trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n"+xrefStart+"\n%%EOF");
+  const total=parts.reduce((a,p)=>a+p.length,0);
+  const out=new Uint8Array(total);let pos=0;for(const p of parts){out.set(p,pos);pos+=p.length;}
+  return out;
+}
+
 $("linkBtn").addEventListener("mousedown",e=>e.preventDefault());
 $("linkBtn").addEventListener("click",()=>{const selText=window.getSelection().toString();promptModal("Web-Link einfügen","https://…  oder  mailto:name@…","",url=>{url=(url||"").trim();if(!url)return;if(!/^(https?:|mailto:)/i.test(url))url="https://"+url;restoreSelection();if(window.getSelection().toString())document.execCommand("createLink",false,url);else document.execCommand("insertHTML",false,'<a href="'+escapeHtml(url)+'">'+escapeHtml(selText||url)+'</a> ');syncBody();});});
 $("checklistBtn").addEventListener("mousedown",e=>e.preventDefault());
-$("checklistBtn").addEventListener("click",()=>{$("edBody").focus();document.execCommand("insertHTML",false,'<ul class="checklist"><li><input type="checkbox"> </li></ul>');bindChecklistEvents();syncBody();});
-function bindChecklistEvents(){$("edBody").querySelectorAll('ul.checklist li input[type=checkbox]').forEach(cb=>{cb.onchange=()=>{cb.closest("li").classList.toggle("done",cb.checked);if(cb.checked)cb.setAttribute("checked","checked");else cb.removeAttribute("checked");syncBody();};cb.closest("li").classList.toggle("done",cb.checked);});}
+$("checklistBtn").addEventListener("click",()=>{insertChecklistItem();});
+function insertChecklistItem(){
+  $("edBody").focus();
+  const id="cb"+uid();
+  document.execCommand("insertHTML",false,'<ul class="checklist"><li><input type="checkbox" id="'+id+'"><span>\u200b</span></li></ul>');
+  bindChecklistEvents();
+  placeCursorInLi(document.getElementById(id));
+  syncBody();
+}
+function placeCursorInLi(cb){
+  if(!cb)return;
+  const li=cb.closest("li");if(!li)return;
+  let span=li.querySelector("span");
+  if(!span){span=document.createElement("span");span.textContent="\u200b";li.appendChild(span);}
+  const r=document.createRange();r.selectNodeContents(span);r.collapse(false);
+  const sel=window.getSelection();sel.removeAllRanges();sel.addRange(r);
+}
+function bindChecklistEvents(){$("edBody").querySelectorAll('ul.checklist li').forEach(li=>{const cb=li.querySelector('input[type=checkbox]');if(!cb)return;if(!li.querySelector("span")&&cb.nextSibling==null){const sp=document.createElement("span");sp.textContent="\u200b";li.appendChild(sp);}cb.onchange=()=>{li.classList.toggle("done",cb.checked);if(cb.checked)cb.setAttribute("checked","checked");else cb.removeAttribute("checked");syncBody();};li.classList.toggle("done",cb.checked);});}
 
 /* ---- Internal note link ---- */
 $("noteLinkBtn").addEventListener("mousedown",e=>e.preventDefault());
@@ -684,13 +1105,83 @@ $("noteLinkBtn").addEventListener("click",()=>{
 $("edBody").addEventListener("click",e=>{const a=e.target.closest("a");if(!a)return;if(a.dataset.note){e.preventDefault();const t=vault.notes.find(x=>x.id===a.dataset.note);if(t&&!t.trashed)openNote(t.id);else toast("Verlinkte Notiz nicht gefunden");return;}const href=a.getAttribute("href");if(href&&/^(https?:|mailto:)/i.test(href)){e.preventDefault();window.open(href,"_blank","noopener,noreferrer");}});
 
 /* ---- Keyboard ---- */
-$("edBody").addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"){e.preventDefault();syncBody();persist();toast("Gespeichert");}});
+$("edBody").addEventListener("keydown",e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"){e.preventDefault();syncBody();persist();toast("Gespeichert");return;}
+  if(e.key==="Enter"&&!e.shiftKey){if(handleListEnter(e))return;}
+  if(e.key==="Backspace"){if(handleListBackspace(e))return;}
+});
+function currentLi(){const sel=window.getSelection();if(!sel.rangeCount)return null;let node=sel.getRangeAt(0).startContainer;if(node.nodeType===3)node=node.parentNode;return node&&node.closest?node.closest("li"):null;}
+function liIsEmpty(li){
+  const cb=li.querySelector('input[type="checkbox"]');
+  const clone=li.cloneNode(true);
+  clone.querySelectorAll('input[type="checkbox"]').forEach(n=>n.remove());
+  const text=(clone.textContent||"").replace(/\u200b/g,"").trim();
+  return text.length===0;
+}
+function handleListEnter(e){
+  const li=currentLi();if(!li)return false;
+  const list=li.parentElement;if(!list||!/^(UL|OL)$/i.test(list.tagName))return false;
+  e.preventDefault();
+  const isChecklist=list.classList.contains("checklist");
+  if(liIsEmpty(li)){
+    // leere Zeile + Enter -> Liste verlassen, normaler Absatz danach
+    const p=document.createElement("p");p.innerHTML="<br>";
+    if(list.nextSibling)list.parentNode.insertBefore(p,list.nextSibling);else list.parentNode.appendChild(p);
+    li.remove();
+    if(!list.querySelector("li"))list.remove();
+    const r=document.createRange();r.selectNodeContents(p);r.collapse(true);
+    const sel=window.getSelection();sel.removeAllRanges();sel.addRange(r);
+    syncBody();return true;
+  }
+  // Inhalt vorhanden -> neue Zeile gleichen Typs danach
+  const newLi=document.createElement("li");
+  if(isChecklist){
+    const id="cb"+uid();
+    newLi.innerHTML='<input type="checkbox" id="'+id+'"><span>\u200b</span>';
+    li.after(newLi);
+    bindChecklistEvents();
+    placeCursorInLi(document.getElementById(id));
+  }else{
+    newLi.innerHTML="<span>\u200b</span>";
+    li.after(newLi);
+    const span=newLi.querySelector("span");const r=document.createRange();r.selectNodeContents(span);r.collapse(false);
+    const sel=window.getSelection();sel.removeAllRanges();sel.addRange(r);
+  }
+  syncBody();return true;
+}
+function handleListBackspace(e){
+  const li=currentLi();if(!li)return false;
+  const list=li.parentElement;if(!list||!/^(UL|OL)$/i.test(list.tagName))return false;
+  const sel=window.getSelection();if(!sel.rangeCount)return false;
+  const r=sel.getRangeAt(0);if(!r.collapsed)return false;
+  if(!liIsEmpty(li))return false;
+  e.preventDefault();
+  const prevLi=li.previousElementSibling;
+  if(prevLi&&prevLi.tagName==="LI"){
+    // vorherige Zeile vorhanden -> nur diese leere Zeile entfernen, Cursor ans Ende der vorherigen setzen
+    li.remove();
+    const target=prevLi.querySelector("span")||prevLi;
+    const r2=document.createRange();r2.selectNodeContents(target);r2.collapse(false);
+    sel.removeAllRanges();sel.addRange(r2);
+  }else{
+    // keine vorherige Zeile -> Liste an dieser Stelle verlassen (wie Enter-Austritt, aber rückwärts)
+    const p=document.createElement("p");p.innerHTML="<br>";
+    list.parentNode.insertBefore(p,list);
+    li.remove();
+    if(!list.querySelector("li"))list.remove();
+    const r2=document.createRange();r2.selectNodeContents(p);r2.collapse(true);
+    sel.removeAllRanges();sel.addRange(r2);
+  }
+  syncBody();return true;
+}
 
 /* ---- Images & attachments ---- */
 function getAttUrl(att){return idbGet("blobs",att.id).then(rec=>{if(!rec)return null;return decryptBytes(cryptoKey,rec).then(buf=>{const url=URL.createObjectURL(new Blob([buf],{type:att.type||"application/octet-stream"}));noteObjectUrls.push(url);return url;});});}
 async function hydrateImages(){const n=cur();if(!n)return;const imgs=$("edBody").querySelectorAll("img[data-att]");for(const img of imgs){const id=img.getAttribute("data-att");const att=(n.attachments||[]).find(a=>a.id===id);if(att){const url=await getAttUrl(att);if(url)img.src=url;}}}
 const MAX_ATTACH=25*1024*1024;
-async function addAttachment(file,inline){if(file.size>MAX_ATTACH){toast("Datei zu gross (max. "+fmtSize(MAX_ATTACH)+")");return null;}const buf=await file.arrayBuffer();const id=uid();const {iv,ct}=await encryptBytes(cryptoKey,buf);await idbPut("blobs",{id,iv,ct});const n=cur();n.attachments=n.attachments||[];n.attachments.push({id,name:file.name||(inline?"bild.png":"datei"),type:file.type||"application/octet-stream",size:buf.byteLength,added:now(),inline:!!inline});n.updated=now();markDirty();return id;}
+async function addAttachment(file,inline){if(file.size>MAX_ATTACH){toast("Datei zu gross (max. "+fmtSize(MAX_ATTACH)+")");return null;}const buf=await file.arrayBuffer();const id=uid();const {iv,ct}=await encryptBytes(cryptoKey,buf);await idbPut("blobs",{id,iv,ct});const n=cur();n.attachments=n.attachments||[];const rec={id,name:file.name||(inline?"bild.png":"datei"),type:file.type||"application/octet-stream",size:buf.byteLength,added:now(),inline:!!inline};n.attachments.push(rec);n.updated=now();markDirty();
+  if((rec.type||"").includes("pdf")){extractPdfText(rec).then(text=>{if(text&&text.trim()){rec.text=text.slice(0,200000);markDirty();}}).catch(()=>{});}
+  return id;}
 async function insertInlineImage(file){if(!cur())return;const id=await addAttachment(file,true);if(!id)return;restoreSelection();document.execCommand("insertHTML",false,'<img data-att="'+id+'" alt="'+escapeHtml(file.name||"")+'">');await hydrateImages();syncBody();}
 
 $("imgBtn").addEventListener("mousedown",e=>e.preventDefault());
@@ -700,17 +1191,143 @@ $("attachAddBtn").addEventListener("click",()=>$("attachFile").click());
 $("attachFile").addEventListener("change",async e=>{const files=[...e.target.files];e.target.value="";for(const f of files){if(f.type.startsWith("image/"))await insertInlineImage(f);else await addAttachment(f,false);}const n=cur();renderAttachments(n);renderNoteList();toast(files.length+" Anhang/Anhänge hinzugefügt");});
 
 function renderAttachments(n){const grid=$("attachGrid");grid.innerHTML="";const files=(n.attachments||[]).filter(a=>!a.inline);$("attachCount").textContent=files.length?"("+files.length+")":"";if(!files.length){grid.innerHTML='<div style="grid-column:1/-1;color:var(--text-dim);font-size:12.5px;">Noch keine angehängten Dateien. Bilder im Text erscheinen direkt in der Notiz.</div>';return;}
-  files.forEach(att=>{const card=document.createElement("div");const isImg=(att.type||"").startsWith("image/");const isPdf=(att.type||"").includes("pdf");const isAudio=(att.type||"").startsWith("audio/");const ext=(att.name.split(".").pop()||"").slice(0,4).toUpperCase();card.className="att-card"+(isAudio?" att-audio":"");
-    card.innerHTML='<div class="att-thumb">'+(isImg?'<img alt="">':(isAudio?'<audio controls></audio>':'<span class="ficon">'+(isPdf?"PDF":(ext||"DAT"))+'</span>'))+'</div><div class="att-info"><div class="att-name"></div><div class="att-size">'+fmtSize(att.size)+'</div></div><div class="att-actions"><button class="open" title="Öffnen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3h7v7M21 3l-9 9M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/></svg></button><button class="dl" title="Herunterladen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg></button>'+(isImg?'<button class="ocr" title="OCR">OCR</button>':'')+'<button class="del" title="Entfernen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button></div>';
+  files.forEach(att=>{const card=document.createElement("div");const isImg=(att.type||"").startsWith("image/");const isPdf=(att.type||"").includes("pdf");const isAudio=(att.type||"").startsWith("audio/");const ext=(att.name.split(".").pop()||"").slice(0,4).toUpperCase();card.className="att-card"+(isAudio?" att-audio":"")+(isPdf?" att-pdf":"");
+    card.innerHTML='<div class="att-thumb">'+(isImg?'<img alt="">':(isAudio?'<audio controls></audio>':(isPdf?'<canvas></canvas><span class="att-pagecount" id="pc_'+att.id+'"></span>':'<span class="ficon">'+(ext||"DAT")+'</span>')))+'</div><div class="att-info"><div class="att-name"></div><div class="att-size">'+fmtSize(att.size)+'</div></div><div class="att-actions"><button class="open" title="Öffnen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3h7v7M21 3l-9 9M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/></svg></button><button class="dl" title="Herunterladen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg></button>'+(isImg?'<button class="ocr" title="OCR">OCR</button>':'')+'<button class="del" title="Entfernen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button></div>';
     card.querySelector(".att-name").textContent=att.name;
     if(isImg)getAttUrl(att).then(u=>{if(u)card.querySelector(".att-thumb img").src=u;});
     if(isAudio)getAttUrl(att).then(u=>{if(u)card.querySelector(".att-thumb audio").src=u;});
-    card.querySelector(".open").addEventListener("click",async()=>{const u=await getAttUrl(att);if(u)window.open(u,"_blank","noopener");});
+    if(isPdf)renderPdfThumb(att,card.querySelector(".att-thumb canvas"));
+    card.querySelector(".open").addEventListener("click",async()=>{if(isPdf){openPdfViewer(att);}else if(isImg){const u=await getAttUrl(att);if(u)openImageViewer(u,att.name);}else{const u=await getAttUrl(att);if(u)window.open(u,"_blank","noopener");}});
     card.querySelector(".dl").addEventListener("click",async()=>{const u=await getAttUrl(att);if(u){const a=document.createElement("a");a.href=u;a.download=att.name;a.click();}});
     if(isImg){const ob=card.querySelector(".ocr");if(ob)ob.addEventListener("click",async()=>{const rec=await idbGet("blobs",att.id);if(!rec)return;const buf=await decryptBytes(cryptoKey,rec);runOcr(new Blob([buf],{type:att.type}));});}
     card.querySelector(".del").addEventListener("click",()=>{modal({title:"Anhang entfernen",body:'<p>"'+escapeHtml(att.name)+'" wird gelöscht.</p>',buttons:[{label:"Abbrechen",cls:"btn-ghost",act:closeModal},{label:"Entfernen",cls:"btn-red",act:async()=>{n.attachments=n.attachments.filter(a=>a.id!==att.id);await idbDelete("blobs",att.id);n.updated=now();markDirty();renderAttachments(n);renderNoteList();closeModal();}}]});});
     grid.appendChild(card);
   });
+}
+
+/* ---- PDF.js lazy laden (lokal, kein CDN) ---- */
+let pdfjsLoading=null;
+function ensurePdfjs(){
+  if(window.pdfjsLib)return Promise.resolve(true);
+  if(pdfjsLoading)return pdfjsLoading;
+  pdfjsLoading=new Promise(res=>{
+    const s=document.createElement("script");s.src="./pdfjs/pdf.min.js";
+    s.onload=()=>{try{window.pdfjsLib.GlobalWorkerOptions.workerSrc="./pdfjs/pdf.worker.min.js";res(true);}catch(e){res(false);}};
+    s.onerror=()=>res(false);
+    document.head.appendChild(s);
+  });
+  return pdfjsLoading;
+}
+function pdfMissingModal(){modal({title:"PDF-Anzeige nicht verfügbar",body:'<p>Für die PDF-Vorschau und -Suche fehlen die Anzeige-Dateien. Lege den Ordner <b>pdfjs/</b> (aus dem Programmpaket) neben die <b>index.html</b> auf deinem Webspace, dann funktioniert es automatisch.</p>',buttons:[{label:"Verstanden",cls:"btn-blue",act:closeModal}]});}
+
+const pdfDocCache=new Map(); // att.id -> pdfjsLib document proxy (nur im RAM, nie persistiert)
+async function getPdfDoc(att){
+  if(pdfDocCache.has(att.id))return pdfDocCache.get(att.id);
+  const rec=await idbGet("blobs",att.id);if(!rec)return null;
+  const buf=await decryptBytes(cryptoKey,rec);
+  const doc=await window.pdfjsLib.getDocument({data:new Uint8Array(buf)}).promise;
+  pdfDocCache.set(att.id,doc);
+  return doc;
+}
+async function renderPdfThumb(att,canvas){
+  if(!canvas)return;
+  const ok=await ensurePdfjs();if(!ok)return;
+  try{
+    const doc=await getPdfDoc(att);if(!doc)return;
+    const page=await doc.getPage(1);
+    const vp=page.getViewport({scale:1});
+    const scale=Math.min(220/vp.width,220/vp.height);
+    const svp=page.getViewport({scale});
+    canvas.width=svp.width;canvas.height=svp.height;
+    await page.render({canvasContext:canvas.getContext("2d"),viewport:svp}).promise;
+    const pc=document.getElementById("pc_"+att.id);if(pc)pc.textContent=doc.numPages+(doc.numPages===1?" Seite":" Seiten");
+  }catch(e){}
+}
+/* Extrahiert den Volltext aller Seiten – wird verschlüsselt im Anhang-Metadatensatz mitgespeichert, damit die Suche funktioniert ohne das PDF jedes Mal neu zu öffnen. */
+async function extractPdfText(att){
+  const ok=await ensurePdfjs();if(!ok)return "";
+  try{
+    const doc=await getPdfDoc(att);if(!doc)return "";
+    let text="";
+    for(let i=1;i<=doc.numPages;i++){const page=await doc.getPage(i);const tc=await page.getTextContent();text+=tc.items.map(it=>it.str).join(" ")+"\n";}
+    return text;
+  }catch(e){return "";}
+}
+
+/* ---- PDF-Inline-Viewer mit Volltextsuche ---- */
+async function openPdfViewer(att){
+  const ok=await ensurePdfjs();if(!ok){pdfMissingModal();return;}
+  const root=document.createElement("div");root.className="viewer-bg";
+  root.innerHTML='<div class="viewer-bar"><button id="pvClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button><span class="vb-title"></span><div class="viewer-search"><input type="text" id="pvSearch" placeholder="In PDF suchen…"><span class="vs-count" id="pvCount"></span><button id="pvPrev" title="Vorheriger Treffer">‹</button><button id="pvNext" title="Nächster Treffer">›</button></div><button id="pvDownload" title="Herunterladen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg></button></div><div class="viewer-body" id="pvBody"><div class="viewer-loading">PDF wird geladen …</div></div>';
+  root.querySelector(".vb-title").textContent=att.name;
+  document.body.appendChild(root);
+  try{history.pushState({s:1,viewer:1},"");}catch(e){}
+  let closed=false;
+  function close(){if(closed)return;closed=true;root.remove();}
+  root.querySelector("#pvClose").addEventListener("click",()=>{close();history.back();});
+  root.querySelector("#pvDownload").addEventListener("click",async()=>{const u=await getAttUrl(att);if(u){const a=document.createElement("a");a.href=u;a.download=att.name;a.click();}});
+
+  const doc=await getPdfDoc(att);
+  const body=$("pvBody")||root.querySelector("#pvBody");
+  body.innerHTML="";
+  const pageEls=[];
+  for(let i=1;i<=doc.numPages;i++){
+    const page=await doc.getPage(i);
+    const vp=page.getViewport({scale:Math.min(1.6,(root.clientWidth||900)/page.getViewport({scale:1}).width)});
+    const wrap=document.createElement("div");wrap.className="pdf-page-wrap";
+    const canvas=document.createElement("canvas");canvas.width=vp.width;canvas.height=vp.height;
+    wrap.appendChild(canvas);body.appendChild(wrap);
+    await page.render({canvasContext:canvas.getContext("2d"),viewport:vp}).promise;
+    const tc=await page.getTextContent();
+    pageEls.push({wrap,page,vp,tc});
+  }
+  // Suche
+  let hits=[],hitIdx=-1;
+  function clearMarks(){root.querySelectorAll(".pdf-hit-mark").forEach(m=>m.remove());}
+  function runSearch(q){
+    clearMarks();hits=[];hitIdx=-1;
+    const needle=q.trim().toLowerCase();
+    if(!needle){$("pvCount").textContent="";return;}
+    pageEls.forEach((pe,pIdx)=>{
+      pe.tc.items.forEach(it=>{
+        const s=(it.str||"").toLowerCase();let pos=0,found;
+        while((found=s.indexOf(needle,pos))>=0){
+          const tx=it.transform;const fontH=Math.hypot(tx[2],tx[3])||10;
+          const charW=it.width/Math.max(1,it.str.length);
+          const x=tx[4]+charW*found, w=charW*needle.length, y=tx[5];
+          const vx=x*pe.vp.scale, vy=pe.vp.height-(y*pe.vp.scale)-fontH*pe.vp.scale*0.85, vw=w*pe.vp.scale, vh=fontH*pe.vp.scale*1.05;
+          const mark=document.createElement("div");mark.className="pdf-hit-mark";mark.style.left=vx+"px";mark.style.top=vy+"px";mark.style.width=Math.max(vw,4)+"px";mark.style.height=vh+"px";
+          pe.wrap.appendChild(mark);hits.push(mark);
+          pos=found+needle.length;
+        }
+      });
+    });
+    $("pvCount").textContent=hits.length?("1/"+hits.length):"0/0";
+    if(hits.length){hitIdx=0;goToHit();}
+  }
+  function goToHit(){
+    hits.forEach(h=>h.style.background="rgba(253,230,138,.55)");
+    if(hitIdx<0||hitIdx>=hits.length)return;
+    hits[hitIdx].style.background="rgba(251,146,60,.85)";
+    hits[hitIdx].scrollIntoView({block:"center",behavior:"smooth"});
+    $("pvCount").textContent=(hitIdx+1)+"/"+hits.length;
+  }
+  let searchTimer2=null;
+  root.querySelector("#pvSearch").addEventListener("input",e=>{clearTimeout(searchTimer2);const v=e.target.value;searchTimer2=setTimeout(()=>runSearch(v),250);});
+  root.querySelector("#pvNext").addEventListener("click",()=>{if(!hits.length)return;hitIdx=(hitIdx+1)%hits.length;goToHit();});
+  root.querySelector("#pvPrev").addEventListener("click",()=>{if(!hits.length)return;hitIdx=(hitIdx-1+hits.length)%hits.length;goToHit();});
+  viewerCloseFns.push(close);
+}
+function openImageViewer(url,name){
+  const root=document.createElement("div");root.className="viewer-bg";
+  root.innerHTML='<div class="viewer-bar"><button id="ivClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button><span class="vb-title"></span></div><div class="viewer-body"><img class="full"></div>';
+  root.querySelector(".vb-title").textContent=name||"";
+  root.querySelector("img").src=url;
+  document.body.appendChild(root);
+  try{history.pushState({s:1,viewer:1},"");}catch(e){}
+  let closed=false;function close(){if(closed)return;closed=true;root.remove();}
+  root.querySelector("#ivClose").addEventListener("click",()=>{close();history.back();});
+  viewerCloseFns.push(close);
 }
 
 /* ---- Drag & drop / paste ---- */
@@ -824,7 +1441,7 @@ function closeSidebar(){$("sidebar").classList.remove("open");}
 /* ---- Helpers ---- */
 function escapeHtml(s){return (s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 function htmlToText(html){const doc=new DOMParser().parseFromString(String(html||""),"text/html");return (doc.body.textContent||"").replace(/\u00a0/g," ");}
-const ALLOWED_TAGS=new Set(["P","DIV","BR","H1","H2","H3","B","STRONG","I","EM","U","S","STRIKE","UL","OL","LI","BLOCKQUOTE","PRE","CODE","A","HR","IMG","SPAN","INPUT"]);
+const ALLOWED_TAGS=new Set(["P","DIV","BR","H1","H2","H3","B","STRONG","I","EM","U","S","STRIKE","UL","OL","LI","BLOCKQUOTE","PRE","CODE","A","HR","IMG","SPAN","INPUT","TABLE","TBODY","THEAD","TR","TD","TH"]);
 function cleanAttrs(el){
   const tag=el.tagName;
   [...el.attributes].forEach(a=>{
@@ -879,7 +1496,8 @@ function backInit(){try{history.pushState({s:1},"");}catch(e){}}
 window.addEventListener("popstate",()=>{
   if(!cryptoKey)return;
   let handled=false;
-  if($("modalRoot").innerHTML){$("modalRoot").innerHTML="";handled=true;}
+  if(typeof viewerCloseFns!=="undefined"&&viewerCloseFns.length){const fn=viewerCloseFns.pop();if(fn)fn();handled=true;}
+  else if($("modalRoot").innerHTML){$("modalRoot").innerHTML="";handled=true;}
   else if(isMobile()&&$("editor").classList.contains("open")){$("editor").classList.remove("open");updateMobileNav();handled=true;}
   else if($("sidebar").classList.contains("open")){closeSidebar();handled=true;}
   if(handled){try{history.pushState({s:1},"");}catch(e){}}
