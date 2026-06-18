@@ -1026,15 +1026,55 @@ function evalTableFormula(table,formula){
   expr=expr.replace(/\b([A-Za-z]+\d+)\b/g,(all,ref)=>"("+cellNumericValue(table,ref)+")");
   // Dezimalkomma -> Punkt
   expr=expr.replace(/(\d)\s*,\s*(\d)/g,"$1.$2");
-  // Nur erlaubte Zeichen zulassen (Sicherheit: keine beliebige Code-Ausführung)
+  // Nur erlaubte Zeichen zulassen (Sicherheit)
   if(!/^[0-9+\-*/().\s]*$/.test(expr))return "#FEHLER";
   if(!expr.trim())return "";
   try{
-    // sichere Auswertung eines reinen Arithmetik-Ausdrucks
-    const val=Function('"use strict";return ('+expr+')')();
+    // Eigener Arithmetik-Parser statt eval/Function (durch CSP blockiert, und sicherer)
+    const val=evalArithmetic(expr);
     if(typeof val!=="number"||!isFinite(val))return "#FEHLER";
     return (Math.round(val*1e6)/1e6).toString().replace(".",",");
   }catch(e){return "#FEHLER";}
+}
+/* Sicherer Auswerter für reine Arithmetik (+ - * / und Klammern), ohne eval/Function.
+   Rekursiver Abstieg mit korrekter Operatorpräzedenz. */
+function evalArithmetic(input){
+  let s=input,i=0;
+  function skip(){while(i<s.length&&/\s/.test(s[i]))i++;}
+  function parseExpr(){
+    let v=parseTerm();
+    for(;;){skip();const c=s[i];
+      if(c==="+"){i++;v+=parseTerm();}
+      else if(c==="-"){i++;v-=parseTerm();}
+      else break;
+    }
+    return v;
+  }
+  function parseTerm(){
+    let v=parseFactor();
+    for(;;){skip();const c=s[i];
+      if(c==="*"){i++;v*=parseFactor();}
+      else if(c==="/"){i++;const d=parseFactor();v=v/d;}
+      else break;
+    }
+    return v;
+  }
+  function parseFactor(){
+    skip();
+    if(s[i]==="+"){i++;return parseFactor();}
+    if(s[i]==="-"){i++;return -parseFactor();}
+    if(s[i]==="("){i++;const v=parseExpr();skip();if(s[i]===")")i++;return v;}
+    // Zahl lesen
+    let start=i;
+    while(i<s.length&&/[0-9.]/.test(s[i]))i++;
+    const num=s.slice(start,i);
+    if(num==="")throw new Error("ungültig");
+    return parseFloat(num);
+  }
+  const result=parseExpr();
+  skip();
+  if(i<s.length)throw new Error("Rest: "+s.slice(i)); // unerwartete Zeichen
+  return result;
 }
 /* Alle Formelzellen einer Tabelle (oder aller Tabellen) neu berechnen. */
 function recalcTables(scope){
