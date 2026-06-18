@@ -217,6 +217,9 @@
   .modal-btns{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;}
   .modal-btns button{padding:9px 16px;border-radius:8px;font-weight:600;font-size:13.5px;}
   .btn-ghost{color:var(--text-dim);} .btn-ghost:hover{background:var(--line-2);}
+  .tbl-menu .tbl-op{width:100%;text-align:left;padding:11px 13px;border:1px solid var(--line);border-radius:9px;background:var(--panel);font-size:14px;font-weight:500;}
+  .tbl-menu .tbl-op:hover{background:var(--line-2);}
+  .tbl-menu .tbl-op.btn-red{color:var(--danger);border-color:color-mix(in srgb,var(--danger) 30%,var(--line));}
   .btn-blue{background:var(--blue-600);color:#fff;} .btn-blue:hover{background:var(--blue-700);}
   .btn-red{background:var(--danger);color:#fff;} .btn-red:hover{background:#b91c1c;}
   .note-pick{max-height:240px;overflow:auto;margin-bottom:14px;border:1px solid var(--line);border-radius:8px;}
@@ -803,8 +806,20 @@ $("hrBtn").addEventListener("mousedown",e=>e.preventDefault());
 $("hrBtn").addEventListener("click",()=>{$("edBody").focus();document.execCommand("insertHorizontalRule");syncBody();});
 $("tableBtn").addEventListener("mousedown",e=>e.preventDefault());
 $("tableBtn").addEventListener("click",()=>{
+  const cell=cellFromSavedSelection();
+  if(cell){tableMenu(cell);return;}
   modal({title:"Tabelle einfügen",body:'<label style="font-size:12.5px;display:block;margin-bottom:4px;">Spalten</label><input type="number" id="__tc" value="3" min="1" max="12" style="margin-bottom:12px;"><label style="font-size:12.5px;display:block;margin-bottom:4px;">Zeilen</label><input type="number" id="__tr" value="3" min="1" max="50">',buttons:[{label:"Abbrechen",cls:"btn-ghost",act:closeModal},{label:"Einfügen",cls:"btn-blue",act:()=>{const cols=Math.max(1,Math.min(12,parseInt($("__tc").value)||3));const rows=Math.max(1,Math.min(50,parseInt($("__tr").value)||3));closeModal();insertTable(rows,cols);}}]});
 });
+/* Ermittelt die Tabellenzelle, in der der Cursor zuletzt stand (über savedRange oder aktuelle Selektion). */
+function cellFromSavedSelection(){
+  let node=null;
+  const sel=window.getSelection();
+  if(sel&&sel.rangeCount&&$("edBody").contains(sel.anchorNode))node=sel.anchorNode;
+  else if(savedRange&&$("edBody").contains(savedRange.startContainer))node=savedRange.startContainer;
+  if(!node)return null;
+  if(node.nodeType===3)node=node.parentNode;
+  return node&&node.closest?node.closest("td,th"):null;
+}
 function insertTable(rows,cols){
   let html='<table><tbody>';
   for(let r=0;r<rows;r++){html+="<tr>";for(let c=0;c<cols;c++){html+=(r===0?"<th>\u200b</th>":"<td>\u200b</td>");}html+="</tr>";}
@@ -819,15 +834,99 @@ $("edBody").addEventListener("keydown",e=>{
   const table=cell.closest("table");if(!table)return;
   if(e.key==="Tab"){
     e.preventDefault();
+    commitCellFormula(cell);                 // verlassene Zelle ggf. als Formel auswerten
     const cells=[...table.querySelectorAll("td,th")];
     let idx=cells.indexOf(cell);idx+=e.shiftKey?-1:1;
     if(idx<0)return;
-    if(idx>=cells.length){addTableRow(table);const cells2=[...table.querySelectorAll("td,th")];idx=cells.length;}
-    const target=table.querySelectorAll("td,th")[idx];if(target)focusCell(target);
+    if(idx>=cells.length){addTableRow(table);}
+    const allCells=[...table.querySelectorAll("td,th")];
+    const target=allCells[idx];
+    if(target){
+      // falls Zielzelle eine Formel ist: Formeltext zum Bearbeiten zeigen
+      if(target.hasAttribute("data-formula"))target.textContent=target.getAttribute("data-formula");
+      focusCell(target);
+    }
+    syncBody();
+  }
+  if(e.key==="Enter"){
+    // In einer Tabellenzelle: Enter schliesst die Eingabe ab und berechnet (kein Zeilenumbruch in der Zelle)
+    e.preventDefault();
+    commitCellFormula(cell);
+    recalcTables(table);
+    syncBody();
   }
 });
-function addTableRow(table){const tbody=table.querySelector("tbody")||table;const cols=table.querySelector("tr").children.length;const tr=document.createElement("tr");for(let c=0;c<cols;c++){const td=document.createElement("td");td.innerHTML="\u200b";tr.appendChild(td);}tbody.appendChild(tr);syncBody();}
+function addTableRow(table){const tbody=table.querySelector("tbody")||table;const cols=table.rows[0]?table.rows[0].children.length:1;const tr=document.createElement("tr");for(let c=0;c<cols;c++){const td=document.createElement("td");td.innerHTML="\u200b";tr.appendChild(td);}tbody.appendChild(tr);syncBody();}
 function focusCell(cell){const r=document.createRange();r.selectNodeContents(cell);r.collapse(true);const sel=window.getSelection();sel.removeAllRanges();sel.addRange(r);}
+
+/* ---- Tabelle bearbeiten: Zeilen/Spalten einfügen & löschen ---- */
+function cellPosition(cell){
+  const tr=cell.parentElement;const table=cell.closest("table");
+  const rowIdx=[...table.rows].indexOf(tr);
+  const colIdx=[...tr.children].indexOf(cell);
+  return {table,rowIdx,colIdx,tr};
+}
+function tableInsertRow(cell,after){
+  const {table,rowIdx}=cellPosition(cell);
+  const cols=table.rows[0].children.length;
+  const tr=document.createElement("tr");
+  for(let c=0;c<cols;c++){const td=document.createElement("td");td.innerHTML="\u200b";tr.appendChild(td);}
+  const ref=table.rows[rowIdx];
+  if(after){ref.after(tr);}else{ref.before(tr);}
+  recalcTables(table);syncBody();
+}
+function tableInsertCol(cell,after){
+  const {table,colIdx}=cellPosition(cell);
+  [...table.rows].forEach((row,ri)=>{
+    const isHeadRow=row.querySelector("th")&&!row.querySelector("td");
+    const newCell=document.createElement(isHeadRow?"th":"td");newCell.innerHTML="\u200b";
+    const refCell=row.children[colIdx];
+    if(refCell){if(after)refCell.after(newCell);else refCell.before(newCell);}
+    else row.appendChild(newCell);
+  });
+  recalcTables(table);syncBody();
+}
+function tableDeleteRow(cell){
+  const {table,rowIdx}=cellPosition(cell);
+  if(table.rows.length<=1){tableDelete(table);return;}
+  table.rows[rowIdx].remove();recalcTables(table);syncBody();
+}
+function tableDeleteCol(cell){
+  const {table,colIdx}=cellPosition(cell);
+  if(table.rows[0].children.length<=1){tableDelete(table);return;}
+  [...table.rows].forEach(row=>{if(row.children[colIdx])row.children[colIdx].remove();});
+  recalcTables(table);syncBody();
+}
+function tableDelete(table){
+  const next=table.nextElementSibling;
+  table.remove();syncBody();
+  // Cursor sinnvoll platzieren
+  if(next){const r=document.createRange();r.selectNodeContents(next);r.collapse(true);const sel=window.getSelection();sel.removeAllRanges();sel.addRange(r);}
+}
+function tableMenu(cell){
+  modal({title:"Tabelle bearbeiten",body:'<p style="font-size:12.5px;color:var(--text-dim);margin-top:0;">Bezogen auf die angetippte Zelle.</p>'+
+    '<div class="tbl-menu" style="display:flex;flex-direction:column;gap:7px;">'+
+    '<button class="tbl-op btn-ghost" data-op="rowAfter">Zeile darunter einfügen</button>'+
+    '<button class="tbl-op btn-ghost" data-op="rowBefore">Zeile darüber einfügen</button>'+
+    '<button class="tbl-op btn-ghost" data-op="colAfter">Spalte rechts einfügen</button>'+
+    '<button class="tbl-op btn-ghost" data-op="colBefore">Spalte links einfügen</button>'+
+    '<button class="tbl-op btn-red" data-op="delRow">Diese Zeile löschen</button>'+
+    '<button class="tbl-op btn-red" data-op="delCol">Diese Spalte löschen</button>'+
+    '<button class="tbl-op btn-red" data-op="delTable">Ganze Tabelle löschen</button>'+
+    '</div>',
+    buttons:[{label:"Schliessen",cls:"btn-ghost",act:closeModal}]});
+  document.querySelectorAll(".tbl-op").forEach(b=>b.addEventListener("click",()=>{
+    const op=b.dataset.op;
+    if(op==="rowAfter")tableInsertRow(cell,true);
+    else if(op==="rowBefore")tableInsertRow(cell,false);
+    else if(op==="colAfter")tableInsertCol(cell,true);
+    else if(op==="colBefore")tableInsertCol(cell,false);
+    else if(op==="delRow")tableDeleteRow(cell);
+    else if(op==="delCol")tableDeleteCol(cell);
+    else if(op==="delTable")tableDelete(cell.closest("table"));
+    closeModal();toast("Tabelle aktualisiert");
+  }));
+}
 
 /* ===== Rechnen in Tabellen =====
    Eine Zelle, deren Inhalt mit "=" beginnt, ist eine Formel. Unterstützt:
