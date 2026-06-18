@@ -158,6 +158,15 @@
   .ed-body a{color:var(--blue-600);text-decoration:underline;cursor:pointer;}
   .ed-body a[data-note]{text-decoration:none;border-bottom:1px dashed var(--blue-500);font-weight:600;}
   .ed-body a[data-note]:before{content:"\21AA ";opacity:.6;}
+  .ed-body .toc{background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin:.8em 0;}
+  .ed-body .toc-title{font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-dim);margin-bottom:8px;}
+  .ed-body .toc a{display:block;text-decoration:none;color:var(--blue-600);padding:3px 0;font-size:14px;border:none;font-weight:500;}
+  .ed-body .toc a:hover{text-decoration:underline;}
+  .ed-body .toc a.lvl2{padding-left:16px;font-size:13.5px;}
+  .ed-body .toc a.lvl3{padding-left:32px;font-size:13px;opacity:.85;}
+  .ed-body .toc a:before{content:none;}
+  .ed-body td.formula{background:rgba(59,130,246,.06);}
+  html[data-theme="dark"] .ed-body td.formula{background:rgba(59,130,246,.12);}
   .ed-body hr{border:none;border-top:1px solid var(--line);margin:1.2em 0;}
   .ed-body img{max-width:100%;border-radius:8px;margin:6px 0;display:block;}
   .ed-body ul.checklist{list-style:none;padding-left:2px;}
@@ -415,6 +424,7 @@
           <div class="ed-nb"><select id="edNbSelect" title="Notizbuch"></select></div>
           <div class="ed-spacer"></div>
           <button class="ed-act" id="printBtn" title="Drucken / als PDF"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-2M6 14h12v7H6z"/></svg></button>
+          <button class="ed-act" id="historyBtn" title="Versionsverlauf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v5h5M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l3 2"/></svg></button>
           <button class="ed-act" id="pinBtn" title="Favorit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.7 5.7 21l2.3-7.1-6-4.5h7.6z"/></svg></button>
           <button class="ed-act danger" id="trashBtn" title="In Papierkorb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6"/></svg></button>
           <button class="ed-act" id="restoreBtn" title="Wiederherstellen" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg></button>
@@ -440,6 +450,7 @@
           <button class="tb-btn" id="codeBtn" title="Codeblock">&lt;/&gt;</button>
           <button class="tb-btn" id="linkBtn" title="Web-Link einfügen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.5 1.5M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1.5-1.5"/></svg></button>
           <button class="tb-btn" id="noteLinkBtn" title="Andere Notiz verlinken">↪</button>
+          <button class="tb-btn" id="tocBtn" title="Inhaltsverzeichnis einfügen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h2M4 12h2M4 18h2M9 6h11M9 12h11M9 18h11"/></svg></button>
           <button class="tb-btn" id="hrBtn" title="Trennlinie">—</button>
           <span class="tb-sep"></span>
           <button class="tb-btn" id="imgBtn" title="Bild einfügen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 16l-5-5L5 20"/></svg></button>
@@ -470,6 +481,11 @@
               <button id="attachAddBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12l-9.5 9.5a4 4 0 0 1-5.7-5.7L15 6.6a2.5 2.5 0 0 1 3.5 3.5L9 19.6"/></svg> Datei anhängen</button>
             </div>
             <div class="attach-grid" id="attachGrid"></div>
+          </div>
+
+          <div class="attach-section" id="backlinkSection" style="display:none;">
+            <div class="attach-head">Rückverweise <span id="backlinkCount"></span></div>
+            <div id="backlinkList" style="display:flex;flex-direction:column;gap:6px;"></div>
           </div>
         </div>
 
@@ -561,6 +577,7 @@ $("pw").addEventListener("keydown",e=>{if(e.key==="Enter")doUnlock();});
 $("pw2").addEventListener("keydown",e=>{if(e.key==="Enter")doUnlock();});
 async function doUnlock(){
   const msg=$("lockMsg");msg.className="lock-msg";msg.textContent="";
+  await recoverInterruptedPwChange();
   const pw=$("pw").value;const cfg=await idbGet("meta","config");const isSetup=!cfg;
   if(!pw){msg.classList.add("err");msg.textContent="Bitte Passwort eingeben.";return;}
   if(isSetup&&pw.length<10){msg.classList.add("err");msg.textContent="Bitte eine längere Passphrase wählen (mind. 10 Zeichen, am besten mehrere Wörter).";return;}
@@ -587,7 +604,7 @@ function freshVault(){const nbId=uid();return {version:2,notebooks:[{id:nbId,nam
     tags:["willkommen"],attachments:[],pinned:true,trashed:false,created:now(),updated:now()}],
   settings:{theme:"light",sort:"updated"}};}
 
-async function launchApp(){$("lock").classList.add("hidden");$("app").classList.remove("hidden");applyTheme(vault.settings.theme||"light");$("sortSelect").value=vault.settings.sort||"updated";currentView={type:"all"};renderAll();resetAutolock();backInit();startReminderWatch();await loadSyncCfg();updateSyncUI();const hadPending=!!pendingOAuth;await maybeCompleteOAuth();if(!hadPending&&sync&&sync.autoSync)syncNow(true);}
+async function launchApp(){$("lock").classList.add("hidden");$("app").classList.remove("hidden");applyTheme(vault.settings.theme||"light");$("sortSelect").value=vault.settings.sort||"updated";currentView={type:"all"};renderAll();resetAutolock();backInit();startReminderWatch();maybeHandleShare();await loadSyncCfg();updateSyncUI();const hadPending=!!pendingOAuth;await maybeCompleteOAuth();if(!hadPending&&sync&&sync.autoSync)syncNow(true);}
 
 /* ---- Persistenz ---- */
 function markDirty(){dirty=true;updateSaveState();clearTimeout(saveTimer);saveTimer=setTimeout(persist,600);}
@@ -626,7 +643,7 @@ function renderSidebar(){
   const tags=Object.keys(tagMap).sort((a,b)=>a.localeCompare(b,"de"));
   const tagList=$("tagList");tagList.innerHTML="";
   if(!tags.length)tagList.innerHTML='<div class="nav-empty">Noch keine Schlagwörter</div>';
-  tags.forEach(t=>{const b=document.createElement("button");b.className="nav-item"+(currentView.type==="tag"&&currentView.id===t?" active":"");b.innerHTML='<span class="tag-dot"></span><span class="tag-name"></span><span class="count">'+tagMap[t]+'</span>';b.querySelector(".tag-name").textContent="#"+t;b.addEventListener("click",()=>{currentView={type:"tag",id:t};currentNoteId=null;closeSidebar();renderAll();});tagList.appendChild(b);});
+  tags.forEach(t=>{const b=document.createElement("button");b.className="nav-item"+(currentView.type==="tag"&&currentView.id===t?" active":"");b.innerHTML='<span class="tag-dot"></span><span class="tag-name"></span><span class="count">'+tagMap[t]+'</span>';b.querySelector(".tag-name").textContent="#"+t;b.addEventListener("click",()=>{currentView={type:"tag",id:t};currentNoteId=null;closeSidebar();renderAll();});b.addEventListener("contextmenu",e=>{e.preventDefault();tagMenu(t);});b.addEventListener("dblclick",()=>tagMenu(t));tagList.appendChild(b);});
   document.querySelectorAll('.nav-item[data-view]').forEach(el=>{el.classList.toggle("active",currentView.type===el.dataset.view);el.onclick=()=>{currentView={type:el.dataset.view};currentNoteId=null;closeSidebar();renderAll();};});
 }
 
@@ -681,7 +698,7 @@ function renderEditor(){
   $("trashBtn").style.display=n.trashed?"none":"";$("restoreBtn").style.display=n.trashed?"":"none";
   $("edBody").contentEditable=n.trashed?"false":"true";$("edTitle").disabled=!!n.trashed;
   $("dateInfo").textContent="Erstellt "+fmtDate(n.created);
-  updateCounts();hydrateImages();renderAttachments(n);bindChecklistEvents();renderReminderChip(n);
+  updateCounts();hydrateImages();renderAttachments(n);bindChecklistEvents();renderReminderChip(n);buildTocs();recalcTables();renderBacklinks(n);
   edLoading=false;
 }
 function renderReminderChip(n){
@@ -694,15 +711,38 @@ function renderTagbar(n){const bar=$("tagbar");bar.querySelectorAll(".tag-chip")
   (n.tags||[]).forEach(t=>{const chip=document.createElement("span");chip.className="tag-chip";const span=document.createElement("span");span.textContent="#"+t;const x=document.createElement("button");x.textContent="×";x.title="Entfernen";x.addEventListener("click",()=>{n.tags=n.tags.filter(y=>y!==t);n.updated=now();markDirty();renderTagbar(n);renderSidebar();renderNoteList();});chip.appendChild(span);chip.appendChild(x);bar.insertBefore(chip,input);});}
 
 $("edTitle").addEventListener("input",()=>{if(edLoading)return;const n=cur();if(!n)return;n.title=$("edTitle").value;n.updated=now();markDirty();liveListUpdate();});
-$("edBody").addEventListener("input",()=>{if(edLoading)return;syncBody();liveListUpdate();});
+$("edBody").addEventListener("input",()=>{if(edLoading)return;syncBody();liveListUpdate();liveTocUpdate();});
 $("edNbSelect").addEventListener("change",()=>{const n=cur();if(!n)return;n.notebookId=$("edNbSelect").value;n.updated=now();markDirty();renderSidebar();renderNoteList();});
 
 let listUpdTimer=null;function liveListUpdate(){clearTimeout(listUpdTimer);listUpdTimer=setTimeout(renderNoteList,400);}
+let tocUpdTimer=null;function liveTocUpdate(){if(!$("edBody").querySelector(".toc[data-toc]"))return;clearTimeout(tocUpdTimer);tocUpdTimer=setTimeout(()=>{buildTocs();syncBody();},600);}
 function cur(){return vault?vault.notes.find(x=>x.id===currentNoteId):null;}
 function sanitizeForStore(html){return sanitizeHtml(html);}
 function reconcileInline(n,html){const d=document.createElement("div");d.innerHTML=html;const present=new Set();d.querySelectorAll("img[data-att]").forEach(i=>present.add(i.getAttribute("data-att")));n.attachments=(n.attachments||[]).filter(a=>!a.inline||present.has(a.id));}
-function syncBody(){const n=cur();if(!n||n.trashed)return;const html=sanitizeForStore($("edBody").innerHTML);reconcileInline(n,html);n.html=html;n.updated=now();updateCounts();markDirty();}
+function syncBody(){const n=cur();if(!n||n.trashed)return;const html=sanitizeForStore($("edBody").innerHTML);snapshotNote(n,html,n.title);reconcileInline(n,html);n.html=html;n.updated=now();updateCounts();markDirty();}
 function saveCurrentNote(silent){const n=cur();if(!n||n.trashed)return;n.title=$("edTitle").value;const html=sanitizeForStore($("edBody").innerHTML);reconcileInline(n,html);n.html=html;if(!silent)markDirty();}
+
+/* ---- Versionsverlauf ---- */
+const HISTORY_MAX=20;          // wie viele Fassungen pro Notiz aufbewahrt werden
+const HISTORY_MIN_GAP=120000;  // frühestens 2 Min nach dem letzten Snapshot ein neuer
+/* Sichert den AKTUELL gespeicherten Stand der Notiz als Schnappschuss, bevor er überschrieben wird. */
+function snapshotNote(n,newHtml,newTitle){
+  if(!n)return;
+  n.history=n.history||[];
+  const last=n.history[n.history.length-1];
+  const curHtml=n.html||"", curTitle=n.title||"";
+  // nichts sichern, wenn sich nichts geändert hat
+  if(curHtml===(newHtml||"")&&curTitle===(newTitle||""))return;
+  // nicht zu häufig: wenn der letzte Snapshot denselben Inhalt hat oder sehr jung ist, überspringen
+  if(last&&last.html===curHtml&&last.title===curTitle)return;
+  if(last&&(now()-last.ts)<HISTORY_MIN_GAP&&last.html!==curHtml){
+    // innerhalb des Zeitfensters: letzten Snapshot durch den noch älteren Stand NICHT ersetzen,
+    // sondern den vorhandenen behalten (wir sichern nur den ersten Stand im Fenster)
+    return;
+  }
+  n.history.push({ts:now(),title:curTitle,html:curHtml});
+  if(n.history.length>HISTORY_MAX)n.history=n.history.slice(n.history.length-HISTORY_MAX);
+}
 function updateCounts(){const text=htmlToText($("edBody").innerHTML).trim();const words=text?text.split(/\s+/).length:0;$("wordCount").textContent=words+(words===1?" Wort":" Wörter");$("charCount").textContent=text.length+" Zeichen";}
 
 /* ---- Tags input ---- */
@@ -716,6 +756,34 @@ $("pinBtn").addEventListener("click",()=>{const n=cur();if(!n)return;n.pinned=!n
 $("trashBtn").addEventListener("click",()=>{const n=cur();if(!n)return;n.trashed=true;n.updated=now();markDirty();currentNoteId=null;revokeUrls();renderAll();toast("In Papierkorb verschoben");});
 $("restoreBtn").addEventListener("click",()=>{const n=cur();if(!n)return;n.trashed=false;n.updated=now();markDirty();renderAll();toast("Wiederhergestellt");});
 $("printBtn").addEventListener("click",()=>{const n=cur();if(!n)return;const pa=$("printArea");pa.innerHTML="";const h=document.createElement("h1");h.textContent=n.title||"Ohne Titel";const body=$("edBody").cloneNode(true);pa.appendChild(h);pa.appendChild(body);window.print();});
+$("historyBtn").addEventListener("click",openHistoryModal);
+function openHistoryModal(){
+  const n=cur();if(!n){toast("Keine Notiz geöffnet");return;}
+  syncBody(); // aktuellen Stand sichern, damit der Verlauf vollständig ist
+  const hist=(n.history||[]).slice().reverse();
+  if(!hist.length){modal({title:"Versionsverlauf",body:'<p style="color:var(--text-dim);font-size:13px;">Noch keine früheren Fassungen vorhanden. Sobald du die Notiz änderst, werden frühere Stände hier gesichert (die letzten '+HISTORY_MAX+').</p>',buttons:[{label:"Schliessen",cls:"btn-ghost",act:closeModal}]});return;}
+  const items=hist.map((h,i)=>{
+    const preview=htmlToText(h.html).slice(0,90).replace(/</g,"&lt;");
+    return '<button class="hist-item" data-i="'+i+'" style="display:block;width:100%;text-align:left;padding:10px 12px;border:1px solid var(--line);border-radius:8px;margin-bottom:8px;background:var(--panel);"><div style="font-size:12px;color:var(--blue-600);font-weight:600;">'+fmtHistTime(h.ts)+'</div><div style="font-size:13px;font-weight:600;margin:2px 0;">'+(escapeHtml(h.title||"Ohne Titel"))+'</div><div style="font-size:12px;color:var(--text-dim);">'+escapeHtml(preview)+'…</div></button>';
+  }).join("");
+  modal({title:"Versionsverlauf",body:'<p style="font-size:12.5px;color:var(--text-dim);margin-top:0;">Tippe auf eine Fassung, um sie anzusehen und wiederherzustellen. Der aktuelle Stand bleibt dabei als jüngste Version erhalten.</p><div style="max-height:50vh;overflow:auto;">'+items+'</div>',buttons:[{label:"Schliessen",cls:"btn-ghost",act:closeModal}]});
+  document.querySelectorAll(".hist-item").forEach(btn=>btn.addEventListener("click",()=>{const i=parseInt(btn.dataset.i);showHistoryVersion(hist[i]);}));
+}
+function fmtHistTime(ts){const d=new Date(ts);return d.toLocaleDateString("de-CH",{day:"2-digit",month:"2-digit",year:"numeric"})+" "+d.toLocaleTimeString("de-CH",{hour:"2-digit",minute:"2-digit"});}
+function showHistoryVersion(h){
+  const safe=sanitizeHtml(h.html||"");
+  modal({title:"Fassung vom "+fmtHistTime(h.ts),body:'<div style="max-height:48vh;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:12px;font-size:14px;"><div style="font-weight:700;margin-bottom:8px;">'+escapeHtml(h.title||"Ohne Titel")+'</div>'+safe+'</div>',buttons:[{label:"Zurück",cls:"btn-ghost",act:openHistoryModal},{label:"Diese Fassung wiederherstellen",cls:"btn-blue",act:()=>restoreHistoryVersion(h)}]});
+}
+function restoreHistoryVersion(h){
+  const n=cur();if(!n)return;
+  // aktuellen Stand zuerst als Snapshot sichern, dann die alte Fassung laden
+  snapshotNote(n,h.html,h.title);
+  n.title=h.title||"";n.html=sanitizeForStore(h.html||"");n.updated=now();markDirty();
+  $("edTitle").value=n.title;
+  edLoading=true;$("edBody").innerHTML=sanitizeHtml(n.html);edLoading=false;
+  hydrateImages();bindChecklistEvents();buildTocs();recalcTables();renderNoteList();
+  closeModal();toast("Fassung wiederhergestellt");
+}
 
 /* ---- New note ---- */
 $("newNoteBtn").addEventListener("click",()=>{saveCurrentNote(true);revokeUrls();let nbId=currentView.type==="notebook"?currentView.id:(vault.notebooks[0]&&vault.notebooks[0].id);if(!nbId){const id=uid();vault.notebooks.push({id,name:"Notizen",created:now()});nbId=id;}const n={id:uid(),notebookId:nbId,title:"",html:"",tags:currentView.type==="tag"?[currentView.id]:[],attachments:[],pinned:false,trashed:false,created:now(),updated:now()};vault.notes.push(n);if(currentView.type==="trash"||currentView.type==="pinned")currentView={type:"all"};currentNoteId=n.id;markDirty();renderAll();setTimeout(()=>$("edTitle").focus(),50);});
@@ -760,6 +828,106 @@ $("edBody").addEventListener("keydown",e=>{
 });
 function addTableRow(table){const tbody=table.querySelector("tbody")||table;const cols=table.querySelector("tr").children.length;const tr=document.createElement("tr");for(let c=0;c<cols;c++){const td=document.createElement("td");td.innerHTML="\u200b";tr.appendChild(td);}tbody.appendChild(tr);syncBody();}
 function focusCell(cell){const r=document.createRange();r.selectNodeContents(cell);r.collapse(true);const sel=window.getSelection();sel.removeAllRanges();sel.addRange(r);}
+
+/* ===== Rechnen in Tabellen =====
+   Eine Zelle, deren Inhalt mit "=" beginnt, ist eine Formel. Unterstützt:
+   - Zellbezüge wie A1, B2 (Spalte A..., Zeile 1...)
+   - Bereiche in Funktionen: SUM(A1:A3), AVG/MITTELWERT, MIN, MAX, COUNT, PRODUCT
+   - Grundrechenarten + - * / ( ) und Zahlen
+   Die Formel wird in data-formula gespeichert, angezeigt wird das Ergebnis. */
+function colLettersToIndex(letters){let n=0;for(const ch of letters.toUpperCase())n=n*26+(ch.charCodeAt(0)-64);return n-1;}
+function getCellByRef(table,ref){
+  const m=/^([A-Za-z]+)(\d+)$/.exec(ref.trim());if(!m)return null;
+  const col=colLettersToIndex(m[1]); const row=parseInt(m[2],10)-1;
+  const rows=[...table.rows];if(row<0||row>=rows.length)return null;
+  const cells=[...rows[row].cells];if(col<0||col>=cells.length)return null;
+  return cells[col];
+}
+function cellNumericValue(table,ref){
+  const cell=getCellByRef(table,ref);if(!cell)return 0;
+  // Wenn die referenzierte Zelle selbst eine Formel ist, deren bereits berechnetes Ergebnis nehmen (steht als Text drin)
+  const raw=(cell.textContent||"").replace(/\u200b/g,"").trim().replace(/'/g,"").replace(",",".");
+  const v=parseFloat(raw);return isNaN(v)?0:v;
+}
+function expandRange(table,a,b){
+  const ma=/^([A-Za-z]+)(\d+)$/.exec(a.trim()),mb=/^([A-Za-z]+)(\d+)$/.exec(b.trim());
+  if(!ma||!mb)return [];
+  let c1=colLettersToIndex(ma[1]),r1=parseInt(ma[2],10),c2=colLettersToIndex(mb[1]),r2=parseInt(mb[2],10);
+  if(c1>c2){const t=c1;c1=c2;c2=t;} if(r1>r2){const t=r1;r1=r2;r2=t;}
+  const refs=[];
+  for(let r=r1;r<=r2;r++)for(let c=c1;c<=c2;c++)refs.push(colIndexToLetters(c)+r);
+  return refs;
+}
+function colIndexToLetters(idx){let s="";idx=idx+1;while(idx>0){const m=(idx-1)%26;s=String.fromCharCode(65+m)+s;idx=Math.floor((idx-1)/26);}return s;}
+function evalTableFormula(table,formula){
+  let expr=formula.replace(/^=/,"").trim();
+  // Funktionen mit Bereichen/Listen auswerten
+  expr=expr.replace(/\b(SUM|SUMME|AVG|AVERAGE|MITTELWERT|MIN|MAX|COUNT|ANZAHL|PRODUCT|PRODUKT)\s*\(([^()]*)\)/gi,(all,fn,args)=>{
+    fn=fn.toUpperCase();
+    let values=[];
+    args.split(/[;,]/).forEach(part=>{
+      part=part.trim();if(!part)return;
+      const rng=/^([A-Za-z]+\d+)\s*:\s*([A-Za-z]+\d+)$/.exec(part);
+      if(rng){expandRange(table,rng[1],rng[2]).forEach(ref=>values.push(cellNumericValue(table,ref)));}
+      else if(/^[A-Za-z]+\d+$/.test(part)){values.push(cellNumericValue(table,part));}
+      else{const v=parseFloat(part.replace(",","."));if(!isNaN(v))values.push(v);}
+    });
+    let res=0;
+    if(fn==="SUM"||fn==="SUMME")res=values.reduce((a,b)=>a+b,0);
+    else if(fn==="AVG"||fn==="AVERAGE"||fn==="MITTELWERT")res=values.length?values.reduce((a,b)=>a+b,0)/values.length:0;
+    else if(fn==="MIN")res=values.length?Math.min(...values):0;
+    else if(fn==="MAX")res=values.length?Math.max(...values):0;
+    else if(fn==="COUNT"||fn==="ANZAHL")res=values.length;
+    else if(fn==="PRODUCT"||fn==="PRODUKT")res=values.reduce((a,b)=>a*b,1);
+    return "("+res+")";
+  });
+  // Einzelne Zellbezüge durch Werte ersetzen
+  expr=expr.replace(/\b([A-Za-z]+\d+)\b/g,(all,ref)=>"("+cellNumericValue(table,ref)+")");
+  // Dezimalkomma -> Punkt
+  expr=expr.replace(/(\d),(\d)/g,"$1.$2");
+  // Nur erlaubte Zeichen zulassen (Sicherheit: keine beliebige Code-Ausführung)
+  if(!/^[0-9+\-*/().\s]*$/.test(expr))return "#FEHLER";
+  try{
+    // sichere Auswertung eines reinen Arithmetik-Ausdrucks
+    const val=Function('"use strict";return ('+expr+')')();
+    if(typeof val!=="number"||!isFinite(val))return "#FEHLER";
+    return (Math.round(val*1e6)/1e6).toString().replace(".",",");
+  }catch(e){return "#FEHLER";}
+}
+/* Alle Formelzellen einer Tabelle (oder aller Tabellen) neu berechnen. */
+function recalcTables(scope){
+  const tables=scope&&scope.tagName==="TABLE"?[scope]:[...$("edBody").querySelectorAll("table")];
+  tables.forEach(table=>{
+    // mehrere Durchläufe, damit Formeln, die auf andere Formeln verweisen, sich stabilisieren
+    for(let pass=0;pass<3;pass++){
+      table.querySelectorAll("td[data-formula],th[data-formula]").forEach(cell=>{
+        const f=cell.getAttribute("data-formula");if(!f)return;
+        cell.textContent=evalTableFormula(table,f);
+        cell.classList.add("formula");
+      });
+    }
+  });
+}
+/* Wandelt eine bearbeitete Zelle in eine Formelzelle, sobald ihr Inhalt mit = beginnt. */
+function commitCellFormula(cell){
+  const txt=(cell.textContent||"").replace(/\u200b/g,"").trim();
+  if(txt.startsWith("=")){
+    cell.setAttribute("data-formula",txt);
+    const table=cell.closest("table");if(table)recalcTables(table);
+  }else{
+    // kein "=" mehr -> Formel entfernen
+    if(cell.hasAttribute("data-formula")){cell.removeAttribute("data-formula");cell.classList.remove("formula");}
+  }
+}
+/* Beim Fokussieren einer Formelzelle die Formel zum Bearbeiten anzeigen, beim Verlassen Ergebnis berechnen. */
+$("edBody").addEventListener("focusin",e=>{
+  const cell=e.target&&e.target.closest?e.target.closest("td[data-formula],th[data-formula]"):null;
+  if(cell){cell.textContent=cell.getAttribute("data-formula");}
+});
+$("edBody").addEventListener("focusout",e=>{
+  const cell=e.target&&e.target.closest?e.target.closest("td,th"):null;
+  if(cell){commitCellFormula(cell);syncBody();}
+});
 
 /* ---- Erinnerungen ---- */
 $("reminderBtn").addEventListener("mousedown",e=>e.preventDefault());
@@ -1199,8 +1367,39 @@ $("noteLinkBtn").addEventListener("click",()=>{
   wrap.querySelectorAll("button").forEach(btn=>{btn.addEventListener("click",()=>{const id=btn.dataset.id;const target=vault.notes.find(x=>x.id===id);const t=(target&&target.title)||"Ohne Titel";closeModal();restoreSelection();document.execCommand("insertHTML",false,'<a data-note="'+id+'" href="#">'+escapeHtml(t)+'</a> ');syncBody();});});
 });
 
+/* ---- Inhaltsverzeichnis ---- */
+$("tocBtn").addEventListener("mousedown",e=>e.preventDefault());
+$("tocBtn").addEventListener("click",()=>{
+  const eb=$("edBody");
+  const heads=eb.querySelectorAll("h1,h2,h3");
+  if(!heads.length){toast("Erst Überschriften (H1–H3) erstellen, dann Inhaltsverzeichnis einfügen");return;}
+  if(eb.querySelector(".toc")){toast("Es gibt bereits ein Inhaltsverzeichnis");return;}
+  const toc=document.createElement("div");toc.className="toc";toc.setAttribute("contenteditable","false");toc.setAttribute("data-toc","1");
+  eb.insertBefore(toc,eb.firstChild);
+  // leerer Absatz davor und danach, damit man den Cursor immer daneben setzen kann
+  if(!toc.nextSibling||toc.nextSibling.nodeName!=="P"){const p=document.createElement("p");p.innerHTML="<br>";toc.after(p);}
+  buildTocs();
+  syncBody();
+  toast("Inhaltsverzeichnis eingefügt (Doppelklick darauf entfernt es)");
+});
+/* Vergibt stabile IDs an Überschriften und füllt alle TOC-Container mit aktuellen Sprungmarken. */
+function buildTocs(){
+  const eb=$("edBody");if(!eb)return;
+  const heads=[...eb.querySelectorAll("h1,h2,h3")];
+  heads.forEach(h=>{if(!h.id)h.id="h"+uid();});
+  eb.querySelectorAll(".toc[data-toc]").forEach(toc=>{
+    toc.innerHTML='<div class="toc-title">Inhalt</div>'+heads.map(h=>{
+      const lvl=h.tagName==="H1"?1:(h.tagName==="H2"?2:3);
+      return '<a href="#'+h.id+'" data-toc-jump="'+h.id+'" class="lvl'+lvl+'">'+escapeHtml(h.textContent||"")+'</a>';
+    }).join("");
+  });
+}
+
+/* Doppelklick auf das Inhaltsverzeichnis entfernt es */
+$("edBody").addEventListener("dblclick",e=>{const toc=e.target&&e.target.closest?e.target.closest(".toc[data-toc]"):null;if(toc){toc.remove();syncBody();toast("Inhaltsverzeichnis entfernt");}});
+
 /* ---- Link clicks in body ---- */
-$("edBody").addEventListener("click",e=>{const a=e.target.closest("a");if(!a)return;if(a.dataset.note){e.preventDefault();const t=vault.notes.find(x=>x.id===a.dataset.note);if(t&&!t.trashed)openNote(t.id);else toast("Verlinkte Notiz nicht gefunden");return;}const href=a.getAttribute("href");if(href&&/^(https?:|mailto:)/i.test(href)){e.preventDefault();window.open(href,"_blank","noopener,noreferrer");}});
+$("edBody").addEventListener("click",e=>{const a=e.target.closest("a");if(!a)return;if(a.dataset.tocJump){e.preventDefault();const h=document.getElementById(a.dataset.tocJump);if(h)h.scrollIntoView({behavior:"smooth",block:"start"});return;}if(a.dataset.note){e.preventDefault();const t=vault.notes.find(x=>x.id===a.dataset.note);if(t&&!t.trashed)openNote(t.id);else toast("Verlinkte Notiz nicht gefunden");return;}const href=a.getAttribute("href");if(href&&/^(https?:|mailto:)/i.test(href)){e.preventDefault();window.open(href,"_blank","noopener,noreferrer");}});
 
 /* ---- Keyboard ---- */
 $("edBody").addEventListener("keydown",e=>{
@@ -1315,6 +1514,28 @@ $("imgFile").addEventListener("change",async e=>{const f=e.target.files[0];e.tar
 $("attachAddBtn").addEventListener("click",()=>$("attachFile").click());
 $("attachFile").addEventListener("change",async e=>{const files=[...e.target.files];e.target.value="";for(const f of files){if(f.type.startsWith("image/"))await insertInlineImage(f);else await addAttachment(f,false);}const n=cur();renderAttachments(n);renderNoteList();toast(files.length+" Anhang/Anhänge hinzugefügt");});
 
+function renderBacklinks(n){
+  const sec=$("backlinkSection"),list=$("backlinkList");if(!sec||!list)return;
+  if(!n||n.trashed){sec.style.display="none";return;}
+  const refs=activeNotes().filter(other=>{
+    if(other.id===n.id)return false;
+    if(!other.html||other.html.indexOf("data-note")<0)return false;
+    const d=document.createElement("div");d.innerHTML=other.html;
+    return !![...d.querySelectorAll("a[data-note]")].find(a=>a.getAttribute("data-note")===n.id);
+  }).sort((a,b)=>b.updated-a.updated);
+  if(!refs.length){sec.style.display="none";return;}
+  sec.style.display="";
+  $("backlinkCount").textContent="("+refs.length+")";
+  list.innerHTML="";
+  refs.forEach(r=>{
+    const btn=document.createElement("button");
+    btn.style.cssText="text-align:left;padding:8px 11px;border:1px solid var(--line);border-radius:8px;background:var(--panel);font-size:13px;display:flex;align-items:center;gap:7px;";
+    btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:14px;height:14px;flex:0 0 14px;color:var(--blue-500);"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1.5-1.5"/></svg>';
+    const span=document.createElement("span");span.textContent=r.title||"Ohne Titel";btn.appendChild(span);
+    btn.addEventListener("click",()=>openNote(r.id));
+    list.appendChild(btn);
+  });
+}
 function renderAttachments(n){const grid=$("attachGrid");grid.innerHTML="";const files=(n.attachments||[]).filter(a=>!a.inline);$("attachCount").textContent=files.length?"("+files.length+")":"";if(!files.length){grid.innerHTML='<div style="grid-column:1/-1;color:var(--text-dim);font-size:12.5px;">Noch keine angehängten Dateien. Bilder im Text erscheinen direkt in der Notiz.</div>';return;}
   files.forEach(att=>{const card=document.createElement("div");const isImg=(att.type||"").startsWith("image/");const isPdf=(att.type||"").includes("pdf");const isAudio=(att.type||"").startsWith("audio/");const ext=(att.name.split(".").pop()||"").slice(0,4).toUpperCase();card.className="att-card"+(isAudio?" att-audio":"")+(isPdf?" att-pdf":"");
     card.innerHTML='<div class="att-thumb">'+(isImg?'<img alt="">':(isAudio?'<audio controls></audio>':(isPdf?'<canvas></canvas><span class="att-pagecount" id="pc_'+att.id+'"></span>':'<span class="ficon">'+(ext||"DAT")+'</span>')))+'</div><div class="att-info"><div class="att-name"></div><div class="att-size">'+fmtSize(att.size)+'</div></div><div class="att-actions"><button class="open" title="Öffnen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3h7v7M21 3l-9 9M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/></svg></button><button class="dl" title="Herunterladen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg></button>'+(isImg?'<button class="ocr" title="OCR">OCR</button>':'')+'<button class="del" title="Entfernen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button></div>';
@@ -1489,6 +1710,23 @@ function notebookMenu(nb){modal({title:nb.name,body:'<p>Was möchtest du mit die
   {label:"Löschen",cls:"btn-red",act:()=>{const cnt=vault.notes.filter(n=>n.notebookId===nb.id&&!n.trashed).length;modal({title:"Notizbuch löschen",body:'<p>'+(cnt?cnt+" Notiz(en) werden in den Papierkorb verschoben.":"Dieses Notizbuch ist leer.")+'</p>',buttons:[{label:"Abbrechen",cls:"btn-ghost",act:closeModal},{label:"Löschen",cls:"btn-red",act:()=>{vault.notes.forEach(n=>{if(n.notebookId===nb.id)n.trashed=true;});vault.notebooks=vault.notebooks.filter(x=>x.id!==nb.id);if(currentView.type==="notebook"&&currentView.id===nb.id)currentView={type:"all"};markDirty();renderAll();closeModal();toast("Notizbuch gelöscht");}}]});}},
   {label:"Abbrechen",cls:"btn-ghost",act:closeModal}]});}
 
+function tagMenu(tag){
+  const cnt=activeNotes().filter(n=>(n.tags||[]).includes(tag)).length;
+  modal({title:"#"+tag,body:'<p>'+cnt+' Notiz(en) mit diesem Schlagwort. Beim Umbenennen auf einen bereits vorhandenen Namen werden die Schlagwörter zusammengeführt.</p>',buttons:[
+    {label:"Umbenennen",cls:"btn-blue",act:()=>promptModal("Schlagwort umbenennen","Neuer Name",tag,name=>{
+      name=(name||"").trim().replace(/^#/,"").toLowerCase();if(!name||name===tag)return;
+      activeNotes().forEach(n=>{if(n.tags&&n.tags.includes(tag)){n.tags=n.tags.filter(t=>t!==tag);if(!n.tags.includes(name))n.tags.push(name);n.updated=now();}});
+      if(currentView.type==="tag"&&currentView.id===tag)currentView={type:"tag",id:name};
+      markDirty();renderAll();toast("Schlagwort umbenannt");
+    })},
+    {label:"Löschen",cls:"btn-red",act:()=>{
+      activeNotes().forEach(n=>{if(n.tags)n.tags=n.tags.filter(t=>t!==tag);});
+      if(currentView.type==="tag"&&currentView.id===tag)currentView={type:"all"};
+      markDirty();renderAll();closeModal();toast("Schlagwort entfernt");
+    }},
+    {label:"Abbrechen",cls:"btn-ghost",act:closeModal}]});
+}
+
 /* ---- Trash ---- */
 $("emptyTrashBtn").addEventListener("click",()=>{const trashed=vault.notes.filter(n=>n.trashed);if(!trashed.length){toast("Papierkorb ist leer");return;}modal({title:"Papierkorb leeren",body:'<p>'+trashed.length+' Notiz(en) und deren Anhänge werden <b>endgültig</b> gelöscht.</p>',buttons:[{label:"Abbrechen",cls:"btn-ghost",act:closeModal},{label:"Endgültig löschen",cls:"btn-red",act:async()=>{const ids=[];trashed.forEach(n=>(n.attachments||[]).forEach(a=>ids.push(a.id)));vault.notes=vault.notes.filter(n=>!n.trashed);if(cur()&&cur().trashed)currentNoteId=null;for(const id of ids)await idbDelete("blobs",id);markDirty();renderAll();closeModal();toast("Papierkorb geleert");}}]});});
 
@@ -1513,16 +1751,47 @@ async function doChangePassword(){
   try{
     const cfg=await idbGet("meta","config");
     const oldKey=await deriveKey(o,b64d(cfg.salt),cfg.iter||PBKDF2_ITER);
-    await decryptObj(oldKey,await idbGet("vault","vault"));
+    await decryptObj(oldKey,await idbGet("vault","vault")); // verifiziert altes Passwort
     const salt=crypto.getRandomValues(new Uint8Array(16));
     const newKey=await deriveKey(n1,salt,PBKDF2_ITER);
+    // 1) Alles NEU verschlüsselt in TEMPORÄRE Datensätze schreiben (Originale bleiben unangetastet)
     const blobs=await idbGetAll("blobs");
-    for(const rec of blobs){const pt=await decryptBytes(oldKey,rec);const {iv,ct}=await encryptBytes(newKey,pt);await idbPut("blobs",{id:rec.id,iv,ct});}
+    for(const rec of blobs){const pt=await decryptBytes(oldKey,rec);const {iv,ct}=await encryptBytes(newKey,pt);await idbPut("blobs",{id:"__tmp_"+rec.id,iv,ct});}
     const vblob=await encryptObj(newKey,vault);
+    await idbPut("vault",{id:"__tmp_vault",...vblob});
+    await idbPut("meta",{id:"__pwchange",salt:b64e(salt),iter:PBKDF2_ITER,started:now(),count:blobs.length});
+    // 2) UMSCHALTEN: temporäre Datensätze an ihren endgültigen Platz übernehmen
+    for(const rec of blobs){const tmp=await idbGet("blobs","__tmp_"+rec.id);await idbPut("blobs",{id:rec.id,iv:tmp.iv,ct:tmp.ct});}
+    const tmpVault=await idbGet("vault","__tmp_vault");
+    await idbPut("vault",{id:"vault",iv:tmpVault.iv,ct:tmpVault.ct});
     await idbPut("meta",{id:"config",salt:b64e(salt),iter:PBKDF2_ITER});
-    await idbPut("vault",{id:"vault",...vblob});
+    // 3) AUFRÄUMEN: temporäre Datensätze entfernen
+    for(const rec of blobs){await idbDelete("blobs","__tmp_"+rec.id);}
+    await idbDelete("vault","__tmp_vault");
+    await idbDelete("meta","__pwchange");
     cryptoKey=newKey;closeModal();toast("Passwort geändert");
   }catch(err){pm.textContent="Aktuelles Passwort ist falsch.";}
+}
+/* Stellt nach einem unterbrochenen Passwortwechsel einen konsistenten Zustand wieder her.
+   Wird beim App-Start aufgerufen, bevor entschlüsselt wird. */
+async function recoverInterruptedPwChange(){
+  let marker=null;try{marker=await idbGet("meta","__pwchange");}catch(e){}
+  let tmpVault=null;try{tmpVault=await idbGet("vault","__tmp_vault");}catch(e){}
+  // Nur wenn Marker UND vollständige temporäre Daten vorhanden sind, gilt der Wechsel als "fast fertig"
+  // und der neue Stand wird übernommen. Andernfalls werden nur die Reste verworfen (alter Tresor bleibt gültig).
+  try{
+    if(marker&&tmpVault){
+      const blobs=await idbGetAll("blobs");
+      for(const rec of blobs){if(rec.id.indexOf("__tmp_")===0){const realId=rec.id.slice(6);await idbPut("blobs",{id:realId,iv:rec.iv,ct:rec.ct});}}
+      await idbPut("vault",{id:"vault",iv:tmpVault.iv,ct:tmpVault.ct});
+      await idbPut("meta",{id:"config",salt:marker.salt,iter:marker.iter});
+    }
+    // Temporäre Reste IMMER entfernen (auch bei Abbruch vor dem Marker)
+    const allBlobs=await idbGetAll("blobs");
+    for(const rec of allBlobs){if(rec.id.indexOf("__tmp_")===0)await idbDelete("blobs",rec.id);}
+    try{await idbDelete("vault","__tmp_vault");}catch(e){}
+    try{await idbDelete("meta","__pwchange");}catch(e){}
+  }catch(e){}
 }
 
 /* ---- Export / Import ---- */
@@ -1572,13 +1841,24 @@ function cleanAttrs(el){
   [...el.attributes].forEach(a=>{
     const name=a.name.toLowerCase(); const val=(a.value||"").trim(); let keep=false;
     if(name.startsWith("on")) keep=false;
-    else if(name==="href"&&tag==="A") keep=/^(https?:|mailto:)/i.test(val);
+    else if(name==="href"&&tag==="A") keep=/^(https?:|mailto:)/i.test(val)||/^#/.test(val);
     else if(name==="data-note"&&tag==="A") keep=true;
+    else if(name==="data-toc-jump"&&tag==="A") keep=true;
     else if(name==="data-att"&&tag==="IMG") keep=true;
     else if(name==="alt"&&tag==="IMG") keep=true;
     else if(name==="type"&&tag==="INPUT") keep=(val.toLowerCase()==="checkbox");
     else if(name==="checked"&&tag==="INPUT") keep=true;
-    else if(name==="class"&&(tag==="UL"||tag==="LI")) keep=true;
+    else if(name==="id"&&(tag==="H1"||tag==="H2"||tag==="H3")) keep=/^h[a-z0-9]+$/i.test(val);
+    else if(name==="data-toc"&&tag==="DIV") keep=true;
+    else if(name==="contenteditable"&&tag==="DIV"&&el.classList.contains("toc")) keep=(val==="false");
+    else if(name==="data-formula"&&(tag==="TD"||tag==="TH")) keep=true;
+    else if(name==="class"){
+      if(tag==="UL"||tag==="LI") keep=true;
+      else if(tag==="DIV"&&(val==="toc")) keep=true;
+      else if(tag==="DIV"&&val==="toc-title") keep=true;
+      else if(tag==="A"&&/^(lvl[123])$/.test(val)) keep=true;
+      else if((tag==="TD"||tag==="TH")&&val==="formula") keep=true;
+    }
     if(!keep) el.removeAttribute(a.name);
   });
   if(tag==="INPUT"&&el.getAttribute("type")!=="checkbox"){el.remove();return;}
@@ -1658,6 +1938,35 @@ function cancelRecording(){clearInterval(recTimer);if(mediaRecorder){mediaRecord
 
 /* ---- PWA: Service Worker + Installation ---- */
 if("serviceWorker" in navigator){window.addEventListener("load",()=>{navigator.serviceWorker.register("sw.js").catch(()=>{});});}
+
+/* Web Share Target: aus anderen Apps geteilte Inhalte (Text/Link/Titel) beim Laden einsammeln.
+   Wird nach dem Entsperren in launchApp verarbeitet. */
+let pendingShare=null;
+(function captureShare(){
+  try{
+    const q=new URLSearchParams(location.search);
+    const title=q.get("title"), text=q.get("text"), url=q.get("url");
+    if(title||text||url){
+      pendingShare={title:title||"",text:text||"",url:url||""};
+      // URL bereinigen, damit ein Reload nicht erneut teilt
+      try{history.replaceState({},"",location.pathname);}catch(e){}
+    }
+  }catch(e){}
+})();
+function maybeHandleShare(){
+  if(!pendingShare||!vault)return;
+  const s=pendingShare;pendingShare=null;
+  let bodyParts=[];
+  if(s.text)bodyParts.push(escapeHtml(s.text));
+  if(s.url)bodyParts.push('<a href="'+escapeHtml(s.url)+'">'+escapeHtml(s.url)+'</a>');
+  const html=bodyParts.map(p=>"<p>"+p+"</p>").join("")||"<p><br></p>";
+  const title=s.title||(s.text?s.text.slice(0,60):"")||"Geteilte Notiz";
+  const nbId=(vault.notebooks[0]&&vault.notebooks[0].id)||(function(){const id=uid();vault.notebooks.push({id,name:"Notizen",created:now()});return id;})();
+  const n={id:uid(),notebookId:nbId,title,html:sanitizeForStore(html),tags:[],attachments:[],pinned:false,trashed:false,created:now(),updated:now()};
+  vault.notes.push(n);currentNoteId=n.id;currentView={type:"all"};markDirty();renderAll();if(isMobile())$("editor").classList.add("open");
+  toast("Geteilter Inhalt als Notiz gespeichert");
+}
+
 let deferredPrompt=null;
 window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredPrompt=e;$("installBanner").classList.add("show");});
 $("installGo").addEventListener("click",async()=>{$("installBanner").classList.remove("show");if(deferredPrompt){deferredPrompt.prompt();try{await deferredPrompt.userChoice;}catch(e){}deferredPrompt=null;}});
