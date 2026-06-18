@@ -220,6 +220,14 @@
   .tbl-menu .tbl-op{width:100%;text-align:left;padding:11px 13px;border:1px solid var(--line);border-radius:9px;background:var(--panel);font-size:14px;font-weight:500;}
   .tbl-menu .tbl-op:hover{background:var(--line-2);}
   .tbl-menu .tbl-op.btn-red{color:var(--danger);border-color:color-mix(in srgb,var(--danger) 30%,var(--line));}
+  .ctxmenu{position:fixed;z-index:1200;min-width:200px;max-width:280px;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.22);padding:5px;font-size:14px;overflow:hidden;}
+  html[data-theme="dark"] .ctxmenu{box-shadow:0 8px 30px rgba(0,0,0,.5);}
+  .ctxmenu button{display:flex;align-items:center;gap:9px;width:100%;text-align:left;padding:8px 11px;border-radius:7px;color:var(--text);background:none;font-size:13.5px;}
+  .ctxmenu button:hover{background:var(--line-2);}
+  .ctxmenu button.danger{color:var(--danger);}
+  .ctxmenu button svg{width:16px;height:16px;flex:0 0 16px;opacity:.8;}
+  .ctxmenu .ctx-sep{height:1px;background:var(--line);margin:5px 4px;}
+  .ctxmenu .ctx-label{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-dim);padding:6px 11px 3px;}
   .btn-blue{background:var(--blue-600);color:#fff;} .btn-blue:hover{background:var(--blue-700);}
   .btn-red{background:var(--danger);color:#fff;} .btn-red:hover{background:#b91c1c;}
   .note-pick{max-height:240px;overflow:auto;margin-bottom:14px;border:1px solid var(--line);border-radius:8px;}
@@ -683,8 +691,36 @@ function renderNoteList(){
     card.querySelector(".nc-nb").textContent=nbName(n.notebookId);
     const tagEls=card.querySelectorAll(".nc-tag");(n.tags||[]).slice(0,3).forEach((t,i)=>{if(tagEls[i])tagEls[i].textContent="#"+t;});
     card.addEventListener("click",()=>openNote(n.id));
+    card.addEventListener("contextmenu",e=>{if(isMobile())return;e.preventDefault();noteCardCtx(e.clientX,e.clientY,n);});
     scroll.appendChild(card);
   });
+}
+function noteCardCtx(x,y,n){
+  const items=[];
+  if(n.trashed){
+    items.push({label:"Wiederherstellen",icon:ICN.hist,act:()=>{n.trashed=false;n.updated=now();markDirty();renderAll();toast("Wiederhergestellt");}});
+    items.push({label:"Endgültig löschen",icon:ICN.trash,danger:true,act:()=>{(n.attachments||[]).forEach(a=>idbDelete("blobs",a.id));vault.notes=vault.notes.filter(x=>x.id!==n.id);if(currentNoteId===n.id)currentNoteId=null;markDirty();renderAll();toast("Gelöscht");}});
+  }else{
+    items.push({label:"Öffnen",icon:ICN.open,act:()=>openNote(n.id)});
+    items.push({label:n.pinned?"Favorit entfernen":"Als Favorit",icon:ICN.pin,act:()=>{n.pinned=!n.pinned;n.updated=now();markDirty();renderAll();}});
+    items.push({label:"Duplizieren",icon:ICN.dup,act:()=>duplicateNote(n)});
+    items.push({sep:true});
+    items.push({label:"Notizbuch wechseln…",act:()=>moveNoteModal(n)});
+    items.push({sep:true});
+    items.push({label:"In Papierkorb",icon:ICN.trash,danger:true,act:()=>{n.trashed=true;n.updated=now();if(currentNoteId===n.id)currentNoteId=null;markDirty();renderAll();toast("In Papierkorb");}});
+  }
+  showCtxMenu(x,y,items);
+}
+function duplicateNote(n){
+  const copy=JSON.parse(JSON.stringify({notebookId:n.notebookId,title:(n.title||"Ohne Titel")+" (Kopie)",html:n.html,tags:n.tags||[],pinned:false}));
+  copy.id=uid();copy.attachments=[];copy.trashed=false;copy.created=now();copy.updated=now();copy.history=[];
+  // Hinweis: Anhänge werden aus Sicherheits-/Komplexitätsgründen nicht mitkopiert (verschlüsselte Blobs)
+  vault.notes.push(copy);markDirty();renderNoteList();toast(n.attachments&&n.attachments.length?"Dupliziert (ohne Anhänge)":"Dupliziert");
+}
+function moveNoteModal(n){
+  const opts=vault.notebooks.map(nb=>'<button class="tbl-op btn-ghost" data-nb="'+nb.id+'" style="width:100%;text-align:left;padding:10px 12px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;background:var(--panel);">'+escapeHtml(nb.name)+(nb.id===n.notebookId?" ✓":"")+'</button>').join("");
+  modal({title:"Notizbuch wechseln",body:'<div style="display:flex;flex-direction:column;">'+opts+'</div>',buttons:[{label:"Abbrechen",cls:"btn-ghost",act:closeModal}]});
+  document.querySelectorAll("[data-nb]").forEach(b=>b.addEventListener("click",()=>{n.notebookId=b.dataset.nb;n.updated=now();markDirty();renderAll();closeModal();toast("Verschoben");}));
 }
 
 /* ---- Editor ---- */
@@ -945,7 +981,7 @@ function getCellByRef(table,ref){
 function cellNumericValue(table,ref){
   const cell=getCellByRef(table,ref);if(!cell)return 0;
   // Wenn die referenzierte Zelle selbst eine Formel ist, deren bereits berechnetes Ergebnis nehmen (steht als Text drin)
-  const raw=(cell.textContent||"").replace(/\u200b/g,"").trim().replace(/'/g,"").replace(",",".");
+  const raw=(cell.textContent||"").replace(/[\u200b\u200c\u200d\ufeff\u00a0\u2007\u202f]/g,"").trim().replace(/'/g,"").replace(",",".");
   const v=parseFloat(raw);return isNaN(v)?0:v;
 }
 function expandRange(table,a,b){
@@ -959,7 +995,13 @@ function expandRange(table,a,b){
 }
 function colIndexToLetters(idx){let s="";idx=idx+1;while(idx>0){const m=(idx-1)%26;s=String.fromCharCode(65+m)+s;idx=Math.floor((idx-1)/26);}return s;}
 function evalTableFormula(table,formula){
-  let expr=formula.replace(/^=/,"").trim();
+  let expr=String(formula||"")
+    .replace(/[\u200b\u200c\u200d\ufeff]/g,"")   // Zero-Width-Zeichen entfernen
+    .replace(/[\u00a0\u2007\u202f]/g," ")        // geschützte/schmale Leerzeichen -> normales Leerzeichen
+    .replace(/[\u2212\u2012\u2013\u2014]/g,"-")  // Minus/Gedankenstriche -> Bindestrich
+    .replace(/[\u00d7\u22c5\u2217]/g,"*")        // ×, ⋅, ∗ -> *
+    .replace(/[\u00f7\u2215]/g,"/")              // ÷, ∕ -> /
+    .replace(/^=/,"").trim();
   // Funktionen mit Bereichen/Listen auswerten
   expr=expr.replace(/\b(SUM|SUMME|AVG|AVERAGE|MITTELWERT|MIN|MAX|COUNT|ANZAHL|PRODUCT|PRODUKT)\s*\(([^()]*)\)/gi,(all,fn,args)=>{
     fn=fn.toUpperCase();
@@ -983,9 +1025,10 @@ function evalTableFormula(table,formula){
   // Einzelne Zellbezüge durch Werte ersetzen
   expr=expr.replace(/\b([A-Za-z]+\d+)\b/g,(all,ref)=>"("+cellNumericValue(table,ref)+")");
   // Dezimalkomma -> Punkt
-  expr=expr.replace(/(\d),(\d)/g,"$1.$2");
+  expr=expr.replace(/(\d)\s*,\s*(\d)/g,"$1.$2");
   // Nur erlaubte Zeichen zulassen (Sicherheit: keine beliebige Code-Ausführung)
   if(!/^[0-9+\-*/().\s]*$/.test(expr))return "#FEHLER";
+  if(!expr.trim())return "";
   try{
     // sichere Auswertung eines reinen Arithmetik-Ausdrucks
     const val=Function('"use strict";return ('+expr+')')();
@@ -1009,7 +1052,7 @@ function recalcTables(scope){
 }
 /* Wandelt eine bearbeitete Zelle in eine Formelzelle, sobald ihr Inhalt mit = beginnt. */
 function commitCellFormula(cell){
-  const txt=(cell.textContent||"").replace(/\u200b/g,"").trim();
+  const txt=(cell.textContent||"").replace(/[\u200b\u200c\u200d\ufeff]/g,"").replace(/[\u00a0\u2007\u202f]/g," ").trim();
   if(txt.startsWith("=")){
     cell.setAttribute("data-formula",txt);
     const table=cell.closest("table");if(table)recalcTables(table);
@@ -1985,6 +2028,87 @@ function promptModalPw(title,placeholder,cb){modal({title,body:'<input type="pas
 
 /* ---- Toast ---- */
 let toastTimer=null;function toast(msg){const t=$("toast");t.textContent=msg;t.classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove("show"),2400);}
+
+/* ---- Rechtsklick-Kontextmenü (Desktop) ---- */
+function closeCtxMenu(){const m=document.getElementById("ctxMenu");if(m)m.remove();document.removeEventListener("click",closeCtxMenu);document.removeEventListener("scroll",closeCtxMenu,true);}
+/* items: Array von {label, icon?, danger?, act} oder {sep:true} oder {label:'...', heading:true} */
+function showCtxMenu(x,y,items){
+  closeCtxMenu();
+  const m=document.createElement("div");m.className="ctxmenu";m.id="ctxMenu";
+  items.forEach(it=>{
+    if(it.sep){const s=document.createElement("div");s.className="ctx-sep";m.appendChild(s);return;}
+    if(it.heading){const h=document.createElement("div");h.className="ctx-label";h.textContent=it.label;m.appendChild(h);return;}
+    const b=document.createElement("button");if(it.danger)b.className="danger";
+    b.innerHTML=(it.icon||"")+"<span></span>";b.querySelector("span").textContent=it.label;
+    b.addEventListener("click",ev=>{ev.stopPropagation();closeCtxMenu();it.act();});
+    m.appendChild(b);
+  });
+  document.body.appendChild(m);
+  // Position so anpassen, dass das Menü im Viewport bleibt
+  const r=m.getBoundingClientRect();
+  let px=x,py=y;
+  if(px+r.width>window.innerWidth-8)px=window.innerWidth-r.width-8;
+  if(py+r.height>window.innerHeight-8)py=window.innerHeight-r.height-8;
+  m.style.left=Math.max(8,px)+"px";m.style.top=Math.max(8,py)+"px";
+  setTimeout(()=>{document.addEventListener("click",closeCtxMenu);document.addEventListener("scroll",closeCtxMenu,true);},0);
+}
+const ICN={
+  cut:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.12 15.88M14.47 14.48L20 20M8.12 8.12L12 12"/></svg>',
+  copy:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+  paste:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>',
+  bold:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4h8a4 4 0 0 1 0 8H6zM6 12h9a4 4 0 0 1 0 8H6z"/></svg>',
+  link:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1.5-1.5"/></svg>',
+  table:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 9h18M3 15h18M9 4v16M15 4v16"/></svg>',
+  trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>',
+  rowAdd:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="6" rx="1"/><path d="M12 14v6M9 17h6"/></svg>',
+  colAdd:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="3" width="6" height="18" rx="1"/><path d="M17 9v6M14 12h6"/></svg>',
+  open:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 3h7v7M21 3l-9 9M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/></svg>',
+  pin:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.7 5.7 21l2.3-7.1-6-4.5h7.6z"/></svg>',
+  dup:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+  hist:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v5h5M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l3 2"/></svg>'
+};
+function clipboardWrite(text){try{if(navigator.clipboard&&navigator.clipboard.writeText)return navigator.clipboard.writeText(text);}catch(e){}return Promise.resolve();}
+
+/* Rechtsklick im Editor */
+$("edBody").addEventListener("contextmenu",e=>{
+  if(isMobile())return; // auf Touch das System-Menü lassen
+  e.preventDefault();
+  const sel=window.getSelection();
+  const hasSel=sel&&!sel.isCollapsed&&sel.toString().trim().length>0;
+  let node=e.target;
+  const cell=node&&node.closest?node.closest("td,th"):null;
+  const link=node&&node.closest?node.closest("a[data-note],a[href]"):null;
+  const items=[];
+  if(hasSel){
+    items.push({label:"Ausschneiden",icon:ICN.cut,act:()=>{document.execCommand("cut");syncBody();}});
+    items.push({label:"Kopieren",icon:ICN.copy,act:()=>{document.execCommand("copy");}});
+  }
+  items.push({label:"Einfügen",icon:ICN.paste,act:async()=>{try{const t=await navigator.clipboard.readText();restoreSelection();document.execCommand("insertText",false,t);syncBody();}catch(err){toast("Einfügen via Tastatur: Strg+V");}}});
+  if(hasSel){
+    items.push({sep:true});
+    items.push({label:"Fett",icon:ICN.bold,act:()=>{document.execCommand("bold");syncBody();}});
+    items.push({label:"Kursiv",act:()=>{document.execCommand("italic");syncBody();}});
+    items.push({label:"Web-Link einfügen…",icon:ICN.link,act:()=>{$("linkBtn").click();}});
+    items.push({label:"Notiz verlinken…",act:()=>{$("noteLinkBtn").click();}});
+  }
+  if(link){
+    items.push({sep:true});
+    if(link.dataset.note)items.push({label:"Verlinkte Notiz öffnen",icon:ICN.open,act:()=>{const t=vault.notes.find(x=>x.id===link.dataset.note);if(t&&!t.trashed)openNote(t.id);}});
+    else if(link.getAttribute("href"))items.push({label:"Link öffnen",icon:ICN.open,act:()=>window.open(link.getAttribute("href"),"_blank","noopener")});
+  }
+  if(cell){
+    items.push({sep:true});
+    items.push({label:"Tabelle",heading:true});
+    items.push({label:"Zeile darunter",icon:ICN.rowAdd,act:()=>tableInsertRow(cell,true)});
+    items.push({label:"Zeile darüber",icon:ICN.rowAdd,act:()=>tableInsertRow(cell,false)});
+    items.push({label:"Spalte rechts",icon:ICN.colAdd,act:()=>tableInsertCol(cell,true)});
+    items.push({label:"Spalte links",icon:ICN.colAdd,act:()=>tableInsertCol(cell,false)});
+    items.push({label:"Zeile löschen",danger:true,act:()=>tableDeleteRow(cell)});
+    items.push({label:"Spalte löschen",danger:true,act:()=>tableDeleteCol(cell)});
+    items.push({label:"Tabelle löschen",icon:ICN.trash,danger:true,act:()=>tableDelete(cell.closest("table"))});
+  }
+  showCtxMenu(e.clientX,e.clientY,items);
+});
 
 /* ---- Mobile-Navigation (Evernote-Stil) ---- */
 function isMobile(){return window.matchMedia("(max-width:860px)").matches;}
