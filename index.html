@@ -610,10 +610,96 @@ async function doUnlock(){
   finally{$("unlockBtn").disabled=false;$("unlockBtn").textContent=isSetup?"Tresor erstellen":"Entsperren";}
 }
 function freshVault(){const nbId=uid();return {version:2,notebooks:[{id:nbId,name:"Mein erstes Notizbuch",created:now()}],
-  notes:[{id:uid(),notebookId:nbId,title:"Willkommen 👋",
-    html:"<p>Willkommen in deinem privaten Notiz-Tresor.</p><p>Alles wird <b>lokal</b> mit AES-256 verschlüsselt – Texte <i>und</i> Anhänge. Ziehe Bilder oder PDFs einfach hinein.</p><ul class='checklist'><li><input type='checkbox'> Erste Notiz erstellen</li><li><input type='checkbox'> Datei anhängen</li><li><input type='checkbox'> Backup exportieren</li></ul>",
-    tags:["willkommen"],attachments:[],pinned:true,trashed:false,created:now(),updated:now()}],
+  notes:[
+    {id:uid(),notebookId:nbId,title:"📖 Handbuch – alle Funktionen",
+      html:manualNoteHtml(),
+      tags:["handbuch"],attachments:[],pinned:true,trashed:false,created:now(),updated:now()},
+    {id:uid(),notebookId:nbId,title:"Willkommen 👋",
+      html:"<p>Willkommen in deinem privaten Notiz-Tresor.</p><p>Alles wird <b>lokal</b> mit AES-256 verschlüsselt – Texte <i>und</i> Anhänge. Ziehe Bilder oder PDFs einfach hinein.</p><p>Eine ausführliche Beschreibung aller Funktionen findest du in der angehefteten Notiz <b>„📖 Handbuch – alle Funktionen“</b>.</p><ul class='checklist'><li><input type='checkbox'><span>Handbuch lesen</span></li><li><input type='checkbox'><span>Erste eigene Notiz erstellen</span></li><li><input type='checkbox'><span>Backup exportieren</span></li></ul>",
+      tags:["willkommen"],attachments:[],pinned:true,trashed:false,created:now(),updated:now()}
+  ],
   settings:{theme:"light",sort:"updated"}};}
+
+/* Ausführliche Handbuch-Notiz – beschreibt alle Funktionen. Wird in jedem frischen Tresor angelegt
+   und kann über die Einstellungen jederzeit neu eingefügt werden. */
+function manualNoteHtml(){return ""+
+  "<h1>Benutzerhandbuch</h1>"+
+  "<p>Dieser Notiz-Tresor speichert alles <b>lokal und Ende-zu-Ende-verschlüsselt</b> (AES-256). Niemand ausser dir – mit deinem Master-Passwort – kann die Inhalte lesen. Es gibt keinen Server, der deine Notizen kennt.</p>"+
+
+  "<h2>Grundlagen</h2>"+
+  "<ul>"+
+  "<li><b>Notiz erstellen:</b> Plus-Knopf bzw. der Schreib-Knopf. Titel oben, Inhalt darunter.</li>"+
+  "<li><b>Automatisches Speichern:</b> Änderungen werden laufend verschlüsselt gespeichert. Der Status steht unten im Editor.</li>"+
+  "<li><b>Automatische Sperre:</b> Nach einigen Minuten Inaktivität sperrt sich der Tresor selbst. Mit dem Master-Passwort wieder entsperren.</li>"+
+  "<li><b>Notizbücher &amp; Schlagwörter:</b> In der Seitenleiste. Notizbücher gruppieren Notizen, Schlagwörter (#tags) verschlagworten sie quer dazu.</li>"+
+  "<li><b>Favoriten:</b> Stern-Symbol – wichtige Notizen bleiben oben.</li>"+
+  "<li><b>Suche:</b> Durchsucht Titel, Inhalt, Schlagwörter und sogar den Text von PDF-Anhängen.</li>"+
+  "<li><b>Papierkorb:</b> Gelöschte Notizen landen dort und können wiederhergestellt werden.</li>"+
+  "<li><b>Dark Mode:</b> In den Einstellungen umschaltbar.</li>"+
+  "</ul>"+
+
+  "<h2>Text formatieren</h2>"+
+  "<p>Über die Werkzeugleiste: Überschriften (H1–H3), <b>fett</b>, <i>kursiv</i>, <u>unterstrichen</u>, durchgestrichen, Aufzählungen, nummerierte Listen, Checklisten, Zitate, Code und Trennlinien.</p>"+
+  "<ul class='checklist'><li><input type='checkbox'><span>Checklisten funktionieren so – Haken setzen zum Abhaken</span></li></ul>"+
+  "<p><b>Listen-Tipp:</b> Enter setzt die Liste fort, Enter in einer leeren Zeile beendet sie.</p>"+
+
+  "<h2>Verknüpfungen &amp; Struktur</h2>"+
+  "<ul>"+
+  "<li><b>Interne Verknüpfung:</b> Mit dem ↪-Symbol auf eine andere Notiz verlinken. Ein Klick öffnet sie.</li>"+
+  "<li><b>Rückverweise:</b> Unter jeder Notiz steht automatisch, welche anderen Notizen auf sie verweisen.</li>"+
+  "<li><b>Inhaltsverzeichnis:</b> Erst Überschriften erstellen, dann das Listen-Symbol – es baut automatisch ein anklickbares Verzeichnis. Doppelklick darauf entfernt es.</li>"+
+  "<li><b>Web-Links:</b> Über das Ketten-Symbol normale Internet-Links einfügen.</li>"+
+  "</ul>"+
+
+  "<h2>Tabellen</h2>"+
+  "<p>Über das Tabellen-Symbol einfügen. Mit <b>Tab</b> zwischen Zellen springen. Steht der Cursor in einer Tabelle, öffnet dasselbe Symbol (oder Rechtsklick am Computer) ein Menü zum Einfügen/Löschen von Zeilen und Spalten.</p>"+
+  "<h3>Rechnen in Tabellen</h3>"+
+  "<p>Eine Zelle, die mit <b>=</b> beginnt, ist eine Formel. Spalten sind Buchstaben (A, B, C … von links), Zeilen Zahlen (1, 2, 3 … von oben). Berechnet wird bei Enter, Tab oder beim Verlassen der Zelle.</p>"+
+  "<ul>"+
+  "<li>Grundrechnen: <code>=A1+B1</code>, <code>=A1-B1</code>, <code>=A1*B1</code>, <code>=A1/B1</code>, mit Klammern <code>=(A1+B1)*2</code></li>"+
+  "<li>Summe: <code>=SUMME(A1:A5)</code> (oder <code>SUM</code>)</li>"+
+  "<li>Durchschnitt: <code>=MITTELWERT(A1:A5)</code> (oder <code>AVG</code>)</li>"+
+  "<li>Weitere: <code>=MIN(...)</code>, <code>=MAX(...)</code>, <code>=ANZAHL(...)</code>, <code>=PRODUKT(...)</code></li>"+
+  "<li>Ganze Spalte: <code>=SUMME(B:B)</code> &nbsp; Ganze Zeile: <code>=SUMME(2:2)</code></li>"+
+  "<li>Dezimal mit Komma oder Punkt: <code>=A1*1,5</code></li>"+
+  "</ul>"+
+
+  "<h2>Anhänge &amp; Medien</h2>"+
+  "<ul>"+
+  "<li><b>Bilder &amp; Dateien:</b> Per Drag &amp; Drop, Einfügen oder über den Anhängen-Bereich. Alles wird verschlüsselt.</li>"+
+  "<li><b>PDF-Vorschau:</b> PDFs zeigen ein Vorschaubild; Antippen öffnet eine Leseansicht mit eigener Volltextsuche.</li>"+
+  "<li><b>Audio-Notizen:</b> Über das Mikrofon-Symbol direkt aufnehmen.</li>"+
+  "<li><b>OCR:</b> Aus Bildern Text erkennen (sofern eingerichtet).</li>"+
+  "</ul>"+
+
+  "<h2>Dokumentenscanner</h2>"+
+  "<p>Über das Kamera-Symbol. Foto aufnehmen, die App schlägt die vier Dokumentecken vor (mit Lupe genau justierbar), entzerrt das Bild gerade und bietet Farbe/Graustufen/Schwarz-Weiss. Speichern als Bild in der Notiz oder als eigenständiges PDF.</p>"+
+
+  "<h2>Erinnerungen</h2>"+
+  "<p>Über das Glocken-Symbol Datum und Uhrzeit setzen. Hinweis: Eine Benachrichtigung erscheint nur, solange die App geöffnet oder im Hintergrund aktiv ist – es gibt bewusst keinen externen Push-Server.</p>"+
+
+  "<h2>Versionsverlauf</h2>"+
+  "<p>Das Uhr-Symbol oben im Editor zeigt frühere Fassungen einer Notiz (die letzten 20). Du kannst sie ansehen und wiederherstellen; der aktuelle Stand bleibt dabei als jüngste Version erhalten.</p>"+
+
+  "<h2>PDF-Export / Drucken</h2>"+
+  "<p>Das Drucker-Symbol öffnet den System-Druckdialog. Dort lässt sich die Notiz drucken oder als PDF speichern.</p>"+
+
+  "<h2>Teilen an die App</h2>"+
+  "<p>Nach der Installation erscheint die App im Teilen-Menü des Geräts. Aus anderen Apps geteilter Text oder Link wird zu einer neuen Notiz.</p>"+
+
+  "<h2>Rechtsklick-Menüs (am Computer)</h2>"+
+  "<p>Rechtsklick im Text bietet Ausschneiden/Kopieren/Einfügen, Formatierung und Verlinkungen; in einer Tabelle alle Zeilen-/Spalten-Aktionen; auf einer Notiz in der Liste Öffnen, Favorit, Duplizieren, Notizbuch wechseln und Papierkorb.</p>"+
+
+  "<h2>Sicherheit &amp; Backup</h2>"+
+  "<ul>"+
+  "<li><b>Master-Passwort ändern:</b> In den Einstellungen. Der Vorgang ist absturzsicher.</li>"+
+  "<li><b>Backup exportieren/importieren:</b> Erstellt eine verschlüsselte Sicherungsdatei. Bewahre sie sicher auf – sie lässt sich nur mit deinem Passwort öffnen.</li>"+
+  "<li><b>Cloud-Sync:</b> Optional über OneDrive/pCloud. Es wird nur das <i>verschlüsselte</i> Paket übertragen.</li>"+
+  "<li><b>Alles zurücksetzen:</b> In den Einstellungen – löscht den gesamten Tresor unwiderruflich und stellt den Auslieferungszustand wieder her. Nur mit doppelter Bestätigung.</li>"+
+  "</ul>"+
+
+  "<p><i>Diese Handbuch-Notiz kannst du bearbeiten oder löschen. Über die Einstellungen lässt sie sich jederzeit neu einfügen.</i></p>";
+}
 
 async function launchApp(){$("lock").classList.add("hidden");$("app").classList.remove("hidden");applyTheme(vault.settings.theme||"light");$("sortSelect").value=vault.settings.sort||"updated";currentView={type:"all"};renderAll();resetAutolock();backInit();startReminderWatch();maybeHandleShare();await loadSyncCfg();updateSyncUI();const hadPending=!!pendingOAuth;await maybeCompleteOAuth();if(!hadPending&&sync&&sync.autoSync)syncNow(true);}
 
@@ -993,6 +1079,30 @@ function expandRange(table,a,b){
   for(let r=r1;r<=r2;r++)for(let c=c1;c<=c2;c++)refs.push(colIndexToLetters(c)+r);
   return refs;
 }
+/* Ganze Spalte(n): B:B oder B:D. Alle Datenzeilen, aber Formelzellen werden ausgelassen
+   (damit eine Summenzelle in derselben Spalte sich nicht selbst mitzählt). */
+function expandColRange(table,colA,colB){
+  let c1=colLettersToIndex(colA),c2=colLettersToIndex(colB);
+  if(c1>c2){const t=c1;c1=c2;c2=t;}
+  const refs=[];const nRows=table.rows.length;
+  for(let c=c1;c<=c2;c++)for(let r=1;r<=nRows;r++){
+    const cell=getCellByRef(table,colIndexToLetters(c)+r);
+    if(cell&&cell.hasAttribute("data-formula"))continue;
+    refs.push(colIndexToLetters(c)+r);
+  }
+  return refs;
+}
+/* Ganze Zeile(n): 2:2 oder 2:4. Alle Spalten, Formelzellen ausgelassen. */
+function expandRowRange(table,r1,r2){
+  if(r1>r2){const t=r1;r1=r2;r2=t;}
+  const refs=[];const nCols=table.rows[0]?table.rows[0].children.length:0;
+  for(let r=r1;r<=r2;r++)for(let c=0;c<nCols;c++){
+    const cell=getCellByRef(table,colIndexToLetters(c)+r);
+    if(cell&&cell.hasAttribute("data-formula"))continue;
+    refs.push(colIndexToLetters(c)+r);
+  }
+  return refs;
+}
 function colIndexToLetters(idx){let s="";idx=idx+1;while(idx>0){const m=(idx-1)%26;s=String.fromCharCode(65+m)+s;idx=Math.floor((idx-1)/26);}return s;}
 function evalTableFormula(table,formula){
   let expr=String(formula||"")
@@ -1008,8 +1118,12 @@ function evalTableFormula(table,formula){
     let values=[];
     args.split(/[;,]/).forEach(part=>{
       part=part.trim();if(!part)return;
-      const rng=/^([A-Za-z]+\d+)\s*:\s*([A-Za-z]+\d+)$/.exec(part);
-      if(rng){expandRange(table,rng[1],rng[2]).forEach(ref=>values.push(cellNumericValue(table,ref)));}
+      const cellRng=/^([A-Za-z]+\d+)\s*:\s*([A-Za-z]+\d+)$/.exec(part);
+      const colRng=/^([A-Za-z]+)\s*:\s*([A-Za-z]+)$/.exec(part);   // ganze Spalte(n): B:B, B:D
+      const rowRng=/^(\d+)\s*:\s*(\d+)$/.exec(part);               // ganze Zeile(n): 2:2, 2:4
+      if(cellRng){expandRange(table,cellRng[1],cellRng[2]).forEach(ref=>values.push(cellNumericValue(table,ref)));}
+      else if(colRng){expandColRange(table,colRng[1],colRng[2]).forEach(ref=>values.push(cellNumericValue(table,ref)));}
+      else if(rowRng){expandRowRange(table,parseInt(rowRng[1],10),parseInt(rowRng[2],10)).forEach(ref=>values.push(cellNumericValue(table,ref)));}
       else if(/^[A-Za-z]+\d+$/.test(part)){values.push(cellNumericValue(table,part));}
       else{const v=parseFloat(part.replace(",","."));if(!isNaN(v))values.push(v);}
     });
@@ -1923,8 +2037,50 @@ $("themeBtn").addEventListener("click",()=>{const t=vault.settings.theme==="dark
 /* ---- Settings ---- */
 $("settingsBtn").addEventListener("click",async()=>{
   const blobs=await idbGetAll("blobs");let bytes=0;blobs.forEach(b=>{bytes+=(b.ct&&b.ct.byteLength)||0;});
-  modal({title:"Einstellungen",body:'<p>Notizen: '+vault.notes.filter(n=>!n.trashed).length+' · Notizbücher: '+vault.notebooks.length+' · Anhänge: '+blobs.length+' ('+fmtSize(bytes)+')</p><p style="font-size:12px;">Verschlüsselung: AES-256-GCM · PBKDF2-SHA256 ('+PBKDF2_ITER.toLocaleString("de-CH")+' Iterationen). Auto-Sperre nach 15 Min.</p>',buttons:[{label:"Passwort ändern",cls:"btn-blue",act:changePasswordModal},{label:"Schliessen",cls:"btn-ghost",act:closeModal}]});
+  modal({title:"Einstellungen",body:'<p>Notizen: '+vault.notes.filter(n=>!n.trashed).length+' · Notizbücher: '+vault.notebooks.length+' · Anhänge: '+blobs.length+' ('+fmtSize(bytes)+')</p><p style="font-size:12px;">Verschlüsselung: AES-256-GCM · PBKDF2-SHA256 ('+PBKDF2_ITER.toLocaleString("de-CH")+' Iterationen). Auto-Sperre nach 15 Min.</p>',buttons:[
+    {label:"Passwort ändern",cls:"btn-blue",act:changePasswordModal},
+    {label:"Handbuch-Notiz neu einfügen",cls:"btn-ghost",act:reinsertManual},
+    {label:"Alles zurücksetzen…",cls:"btn-red",act:resetVaultStep1},
+    {label:"Schliessen",cls:"btn-ghost",act:closeModal}]});
 });
+/* Fügt die Handbuch-Notiz erneut ein (falls gelöscht oder bei Bedarf). */
+function reinsertManual(){
+  const nbId=(vault.notebooks[0]&&vault.notebooks[0].id)||(function(){const id=uid();vault.notebooks.push({id,name:"Notizen",created:now()});return id;})();
+  const n={id:uid(),notebookId:nbId,title:"📖 Handbuch – alle Funktionen",html:sanitizeForStore(manualNoteHtml()),tags:["handbuch"],attachments:[],pinned:true,trashed:false,created:now(),updated:now()};
+  vault.notes.push(n);currentNoteId=n.id;currentView={type:"all"};markDirty();renderAll();renderEditor();if(isMobile())$("editor").classList.add("open");
+  closeModal();toast("Handbuch-Notiz eingefügt");
+}
+/* ---- Alles zurücksetzen (Doppelbestätigung) ---- */
+function resetVaultStep1(){
+  modal({title:"⚠️ Alles zurücksetzen?",body:'<p><b>Alle Notizen, Notizbücher, Anhänge und Einstellungen werden unwiderruflich gelöscht.</b></p><p>Der Tresor wird auf den Auslieferungszustand zurückgesetzt. Dein Master-Passwort bleibt bestehen.</p><p style="font-size:12.5px;color:var(--text-dim);">Tipp: Exportiere vorher ein Backup, falls du die Daten doch noch brauchst.</p>',buttons:[
+    {label:"Abbrechen",cls:"btn-ghost",act:closeModal},
+    {label:"Weiter zum Zurücksetzen",cls:"btn-red",act:resetVaultStep2}]});
+}
+function resetVaultStep2(){
+  modal({title:"Zweite Bestätigung",body:'<p>Dies ist endgültig und kann <b>nicht rückgängig</b> gemacht werden.</p><p>Tippe zur Bestätigung das Wort <b>LÖSCHEN</b> in das Feld:</p><input type="text" id="__rconf" placeholder="LÖSCHEN" autocomplete="off"><p id="__rmsg" style="color:var(--danger);min-height:14px;margin:4px 0 0;font-size:12px;"></p>',buttons:[
+    {label:"Abbrechen",cls:"btn-ghost",act:closeModal},
+    {label:"Endgültig zurücksetzen",cls:"btn-red",act:doResetVault}]});
+  setTimeout(()=>{const i=$("__rconf");if(i)i.focus();},30);
+}
+async function doResetVault(){
+  const val=($("__rconf").value||"").trim().toUpperCase();
+  if(val!=="LÖSCHEN"&&val!=="LOESCHEN"){$("__rmsg").textContent='Bitte genau das Wort „LÖSCHEN" eingeben.';return;}
+  try{
+    // Alle Anhang-Blobs löschen
+    const blobs=await idbGetAll("blobs");
+    for(const b of blobs){if(b&&b.id)await idbDelete("blobs",b.id);}
+    // Sync-Konfiguration zurücksetzen
+    try{await idbDelete("meta","synccfg");}catch(e){}
+    sync=null;pendingOAuth=null;
+    // Frischen Tresor anlegen (inkl. Handbuch- und Willkommens-Notiz) und verschlüsselt speichern
+    vault=freshVault();currentNoteId=null;currentView={type:"all"};
+    await persist();
+    revokeUrls();
+    closeModal();
+    renderAll();
+    toast("Tresor wurde zurückgesetzt");
+  }catch(e){$("__rmsg").textContent="Zurücksetzen fehlgeschlagen.";}
+}
 function changePasswordModal(){modal({title:"Master-Passwort ändern",body:'<input type="password" id="__o" placeholder="Aktuelles Passwort"><input type="password" id="__n1" placeholder="Neues Passwort (min. 6 Zeichen)"><input type="password" id="__n2" placeholder="Neues Passwort bestätigen"><p id="__pm" style="color:var(--danger);min-height:14px;margin:0;font-size:12px;"></p>',buttons:[{label:"Abbrechen",cls:"btn-ghost",act:closeModal},{label:"Ändern",cls:"btn-blue",act:doChangePassword}]});setTimeout(()=>$("__o").focus(),30);}
 async function doChangePassword(){
   const o=$("__o").value,n1=$("__n1").value,n2=$("__n2").value,pm=$("__pm");pm.textContent="";
