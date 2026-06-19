@@ -1314,7 +1314,7 @@ async function openScanner(file,reuseHistory){
   const img=await loadImageBitmapish(file);
   if(!img){toast("Bild konnte nicht geladen werden");return;}
   const root=document.createElement("div");root.className="scan-bg";
-  root.innerHTML='<div class="scan-bar"><button id="scClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button><span class="sb-title">Ecken anpassen</span><button id="scAuto" title="Automatisch erkennen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg></button></div><div class="scan-stage" id="scStage"><canvas id="scCanvas"></canvas></div><div class="scan-foot"><button class="sf-retake" id="scRetake">Neu aufnehmen</button><button class="sf-confirm" id="scConfirm">Zuschneiden &amp; weiter</button></div>';
+  root.innerHTML='<div class="scan-bar"><button id="scClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button><span class="sb-title">Ecken anpassen</span><button id="scSnap" title="An Kanten einrasten"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 9V5h4M15 5h4v4M19 15v4h-4M9 19H5v-4"/><circle cx="12" cy="12" r="2.5"/></svg></button><button id="scAuto" title="Automatisch erkennen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg></button></div><div class="scan-stage" id="scStage"><canvas id="scCanvas"></canvas></div><div class="scan-foot"><button class="sf-retake" id="scRetake">Neu aufnehmen</button><button class="sf-confirm" id="scConfirm">Zuschneiden &amp; weiter</button></div>';
   document.body.appendChild(root);
   if(!reuseHistory){try{history.pushState({s:1,viewer:1},"");}catch(e){}}
   let closed=false;function close(){if(closed)return;closed=true;root.remove();const ix=viewerCloseFns.indexOf(close);if(ix>=0)viewerCloseFns.splice(ix,1);}
@@ -1325,6 +1325,10 @@ async function openScanner(file,reuseHistory){
   const maxW=Math.min(1400,img.width), scale0=Math.min(1,maxW/img.width);
   const fullCanvas=document.createElement("canvas");fullCanvas.width=Math.round(img.width*scale0);fullCanvas.height=Math.round(img.height*scale0);
   fullCanvas.getContext("2d").drawImage(img,0,0,fullCanvas.width,fullCanvas.height);
+
+  // Gradientenkarte (Kantenstärke) einmalig berechnen – für das Einrasten der Ecken an Blattränder.
+  const gradMap=buildGradientMap(fullCanvas);
+  let snapEnabled=true;
 
   function fitStage(){
     const sw=stage.clientWidth,sh=stage.clientHeight;
@@ -1398,12 +1402,22 @@ async function openScanner(file,reuseHistory){
       showLoupe(corners[i].x,corners[i].y);
     });
     h.addEventListener("pointermove",e=>{if(dragging)onMove(e.clientX,e.clientY);});
-    const end=()=>{dragging=false;h.classList.remove("active");hideLoupe();};
+    const end=()=>{
+      if(dragging&&snapEnabled){
+        const snapped=snapCorner(gradMap,corners[i].x,corners[i].y,fullCanvas.width,fullCanvas.height);
+        if(snapped){corners[i]=snapped;drawOverlay();layoutHandles();}
+      }
+      dragging=false;h.classList.remove("active");hideLoupe();
+    };
     h.addEventListener("pointerup",end);
     h.addEventListener("pointercancel",end);
   });
 
   root.querySelector("#scAuto").addEventListener("click",()=>{const c=detectCorners(fullCanvas);if(c){corners=c;drawOverlay();layoutHandles();toast("Kanten erkannt");}else toast("Keine klaren Kanten gefunden");});
+  const snapBtn=root.querySelector("#scSnap");
+  function updateSnapBtn(){snapBtn.style.opacity=snapEnabled?"1":"0.4";}
+  updateSnapBtn();
+  snapBtn.addEventListener("click",()=>{snapEnabled=!snapEnabled;updateSnapBtn();toast(snapEnabled?"Einrasten an Kanten: ein":"Einrasten an Kanten: aus");});
   root.querySelector("#scRetake").addEventListener("click",()=>{closeNoHistory(close);$("scanFile").click();});
   root.querySelector("#scConfirm").addEventListener("click",()=>{
     const warped=warpPerspective(fullCanvas,corners);
@@ -1476,8 +1490,56 @@ function detectCorners(srcCanvas){
   }catch(e){return null;}
 }
 
+/* Baut eine herunterskalierte Gradienten-(Kantenstärke-)Karte des Bildes für das Einrasten der Ecken.
+   Liefert {data:Float32Array, gw, gh, scale} – scale = Faktor von Vollbild- zu Karten-Koordinaten. */
+function buildGradientMap(srcCanvas){
+  try{
+    const w=srcCanvas.width,h=srcCanvas.height;
+    const gw=Math.max(1,Math.round(Math.min(500,w)));const scale=gw/w;const gh=Math.round(h*scale);
+    const work=document.createElement("canvas");work.width=gw;work.height=gh;
+    const wctx=work.getContext("2d");wctx.drawImage(srcCanvas,0,0,gw,gh);
+    const id=wctx.getImageData(0,0,gw,gh).data;
+    const gray=new Float32Array(gw*gh);
+    for(let i=0;i<gw*gh;i++){gray[i]=0.299*id[i*4]+0.587*id[i*4+1]+0.114*id[i*4+2];}
+    const mag=new Float32Array(gw*gh);
+    for(let y=1;y<gh-1;y++)for(let x=1;x<gw-1;x++){
+      const i=y*gw+x;
+      const gx=gray[i-1]-gray[i+1];
+      const gy=gray[i-gw]-gray[i+gw];
+      mag[i]=Math.sqrt(gx*gx+gy*gy);
+    }
+    return {data:mag,gw,gh,scale};
+  }catch(e){return null;}
+}
+/* Sucht in einem Umkreis um (fx,fy) (Vollbild-Koordinaten) den Punkt mit der stärksten Kante und gibt
+   dessen Vollbild-Koordinaten zurück. Findet sich keine ausreichend starke Kante, wird null zurückgegeben
+   (dann bleibt die Ecke, wo der Nutzer sie hingezogen hat). */
+function snapCorner(gradMap,fx,fy,fullW,fullH){
+  if(!gradMap)return null;
+  const {data,gw,gh,scale}=gradMap;
+  const cx=Math.round(fx*scale), cy=Math.round(fy*scale);
+  const radius=Math.max(6,Math.round(Math.min(gw,gh)*0.05)); // Suchradius ~5% der Bildgrösse
+  let best=-1,bx=cx,by=cy;
+  for(let y=Math.max(1,cy-radius);y<=Math.min(gh-2,cy+radius);y++){
+    for(let x=Math.max(1,cx-radius);x<=Math.min(gw-2,cx+radius);x++){
+      const dx=x-cx,dy=y-cy;if(dx*dx+dy*dy>radius*radius)continue;
+      const m=data[y*gw+x];
+      // leichte Bevorzugung näher gelegener Punkte, damit nicht weit entfernte Kanten "gewinnen"
+      const dist=Math.sqrt(dx*dx+dy*dy);
+      const score=m*(1-0.5*(dist/radius));
+      if(score>best){best=score;bx=x;by=y;}
+    }
+  }
+  // Schwelle: nur einrasten, wenn die gefundene Kante deutlich genug ist
+  let avg=0,cnt=0;for(let i=0;i<data.length;i+=7){avg+=data[i];cnt++;}avg/=Math.max(1,cnt);
+  if(best < avg*3)return null; // keine markante Kante in der Nähe -> nicht einrasten
+  const nx=Math.max(0,Math.min(fullW,bx/scale)), ny=Math.max(0,Math.min(fullH,by/scale));
+  return {x:nx,y:ny};
+}
+
 /* Perspektivische Entzerrung über bilineare Rückwärts-Abbildung (reine Canvas/JS-Implementierung, keine Bibliothek nötig) */
 function warpPerspective(srcCanvas,corners){
+  const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
   const [tl,tr,br,bl]=corners;
   const wTop=dist(tl,tr),wBot=dist(bl,br),outW=Math.round(Math.max(wTop,wBot));
   const hLeft=dist(tl,bl),hRight=dist(tr,br),outH=Math.round(Math.max(hLeft,hRight));
