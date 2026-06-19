@@ -406,6 +406,7 @@
         <button class="nav-item" id="syncBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 18a4 4 0 0 1 0-8 5 5 0 0 1 9.6-1.3A3.6 3.6 0 0 1 18 18z"/></svg> <span id="syncLabel">Cloud-Sync</span></button>
         <button class="nav-item" id="exportBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg> Backup exportieren</button>
         <button class="nav-item" id="importBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21V9M7 14l5-5 5 5M5 3h14"/></svg> Backup importieren</button>
+        <button class="nav-item" id="deviceSyncBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 2l4 4-4 4M21 6H7a4 4 0 0 0-4 4v1M7 22l-4-4 4-4M3 18h14a4 4 0 0 0 4-4v-1"/></svg> Geräte-Sync (Syncthing)</button>
         <input type="file" id="importFile" accept=".vault,.json" class="hidden">
       </div>
     </aside>
@@ -2165,6 +2166,104 @@ async function doImport(pkg,importedKey,imported,replace){
   }catch(err){toast("Import fehlgeschlagen");}
 }
 async function gcBlobs(){const referenced=new Set();vault.notes.forEach(n=>(n.attachments||[]).forEach(a=>referenced.add(a.id)));const all=await idbGetAll("blobs");for(const rec of all){if(!referenced.has(rec.id))await idbDelete("blobs",rec.id);}}
+
+/* ---- Geräte-Sync (Syncthing & Co.) ----
+   Anders als Backup-Export (Dateiname mit Datum) schreibt diese Funktion IMMER denselben
+   Dateinamen, damit ein Sync-Tool wie Syncthing es als fortlaufende Version derselben Datei
+   erkennt statt als neue Datei. Es ist kein automatischer Hintergrund-Sync, sondern bewusst
+   ein gezielter "Jetzt aktualisieren" / "Jetzt einlesen"-Knopf. */
+const SYNC_FILENAME="notizen-sync.vault";
+let syncDirHandle=null; // gemerkt für die Dauer der Sitzung, falls File System Access API verfügbar ist
+function fsApiAvailable(){return "showSaveFilePicker" in window && "showOpenFilePicker" in window;}
+
+$("deviceSyncBtn").addEventListener("click",openDeviceSyncModal);
+function openDeviceSyncModal(){
+  modal({title:"Geräte-Sync (Syncthing & Co.)",body:
+    '<p style="font-size:12.5px;color:var(--text-dim);">Schreibt eine verschlüsselte Datei mit immer demselben Namen ("'+SYNC_FILENAME+'"). Ein Sync-Programm wie Syncthing kann diesen Ordner zwischen deinen Geräten abgleichen. Kein automatischer Zusammenführen-Mechanismus wie bei Cloud-Sync – auf jedem Gerät selbst "Aktualisieren" bzw. "Einlesen" antippen.</p>'+
+    '<div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;">'+
+    '<button class="tbl-op btn-blue" id="dsUpdate" style="background:var(--blue-600);color:#fff;border:none;">Sync-Datei jetzt aktualisieren (Export)</button>'+
+    '<button class="tbl-op btn-ghost" id="dsRead">Sync-Datei jetzt einlesen (Import)</button>'+
+    '</div>'+
+    '<p id="dsMsg" style="font-size:12px;color:var(--text-dim);margin-top:8px;min-height:14px;"></p>',
+    buttons:[{label:"Schliessen",cls:"btn-ghost",act:closeModal}]});
+  $("dsUpdate").addEventListener("click",deviceSyncExport);
+  $("dsRead").addEventListener("click",deviceSyncImport);
+}
+async function deviceSyncExport(){
+  const msg=$("dsMsg");msg.textContent="Wird vorbereitet …";
+  try{
+    const bytes=await buildPackageBytes();
+    if(fsApiAvailable()){
+      try{
+        // Erstes Mal: Speicherort wählen lassen; merkt sich den Handle für die Sitzung, damit künftige
+        // Updates ohne erneuten Dialog denselben Ort treffen (sofern der Browser das Handle wiederverwendet).
+        let handle=syncDirHandle;
+        if(!handle){
+          handle=await window.showSaveFilePicker({suggestedName:SYNC_FILENAME,types:[{description:"Notizen-Sync",accept:{"application/octet-stream":[".vault"]}}]});
+          syncDirHandle=handle;
+        }
+        const writable=await handle.createWritable();
+        await writable.write(bytes);await writable.close();
+        msg.textContent="Aktualisiert: "+SYNC_FILENAME+" · "+fmtDate(now());
+        toast("Sync-Datei aktualisiert");
+        return;
+      }catch(err){
+        if(err&&err.name==="AbortError"){msg.textContent="Abgebrochen.";return;}
+        // Fällt durch zum normalen Download-Fallback
+      }
+    }
+    // Fallback ohne File System Access API: normaler Download mit festem Dateinamen
+    const blob=new Blob([bytes],{type:"application/octet-stream"});const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");a.href=url;a.download=SYNC_FILENAME;a.click();URL.revokeObjectURL(url);
+    msg.textContent="Heruntergeladen als "+SYNC_FILENAME+". Falls dein Browser automatisch nummeriert (z.B. „(1)“), lege den Ordner in den Downloads-Einstellungen fest und überschreibe die Datei manuell, damit Syncthing sie wiedererkennt.";
+    toast("Sync-Datei heruntergeladen");
+  }catch(e){msg.textContent="Fehler beim Exportieren.";}
+}
+async function deviceSyncImport(){
+  const msg=$("dsMsg");msg.textContent="";
+  if(fsApiAvailable()){
+    try{
+      const [handle]=await window.showOpenFilePicker({types:[{description:"Notizen-Sync",accept:{"application/octet-stream":[".vault"]}}]});
+      const file=await handle.getFile();
+      syncDirHandle=handle; // merken für künftige Updates an denselben Ort
+      await deviceSyncImportFile(file);
+      return;
+    }catch(err){
+      if(err&&err.name==="AbortError"){return;}
+      // Fällt durch zum klassischen Dateiauswahl-Fallback
+    }
+  }
+  // Fallback: normalen Datei-Auswahldialog nutzen (bestehender Import-Mechanismus)
+  closeModal();
+  $("importFile").click();
+}
+async function deviceSyncImportFile(file){
+  const msg=$("dsMsg");
+  let pkg;try{pkg=JSON.parse(await file.text());}catch(err){if(msg)msg.textContent="Ungültige Sync-Datei.";return;}
+  if(!pkg.format||pkg.format.indexOf("encrypted-vault")!==0){if(msg)msg.textContent="Unbekanntes Dateiformat.";return;}
+  try{
+    // Eigenes Passwort probieren (Normalfall: dieselbe Person, derselbe Tresor auf beiden Geräten)
+    const imported=await decryptObj(cryptoKey,{iv:pkg.iv,ct:pkg.ct});
+    closeModal();
+    modal({title:"Sync-Datei einlesen",body:'<p>'+((imported.notes||[]).length)+' Notiz(en) in der Sync-Datei gefunden.</p><p style="font-size:12.5px;color:var(--text-dim);">"Zusammenführen" übernimmt nur neuere/fehlende Notizen, ohne Vorhandenes zu verlieren. "Alles ersetzen" überschreibt deinen aktuellen Tresor komplett mit dem Inhalt der Sync-Datei.</p>',buttons:[
+      {label:"Zusammenführen",cls:"btn-blue",act:()=>doImport(pkg,cryptoKey,imported,false)},
+      {label:"Alles ersetzen",cls:"btn-red",act:()=>doImport(pkg,cryptoKey,imported,true)},
+      {label:"Abbrechen",cls:"btn-ghost",act:closeModal}]});
+  }catch(err){
+    // Aktuelles Passwort passt nicht -> evtl. anderes Tresor-Passwort abfragen (wie beim klassischen Import)
+    closeModal();
+    promptModalPw("Sync-Datei einlesen","Mit dem aktuellen Master-Passwort nicht lesbar. Passwort dieser Sync-Datei eingeben",async pw=>{
+      try{
+        const importedKey=await deriveKey(pw,b64d(pkg.salt),pkg.iter||PBKDF2_ITER);
+        const imported=await decryptObj(importedKey,{iv:pkg.iv,ct:pkg.ct});
+        modal({title:"Sync-Datei einlesen",body:'<p>'+((imported.notes||[]).length)+' Notiz(en) gefunden.</p>',buttons:[
+          {label:"Zusammenführen",cls:"btn-blue",act:()=>doImport(pkg,importedKey,imported,false)},
+          {label:"Alles ersetzen",cls:"btn-red",act:()=>doImport(pkg,importedKey,imported,true)},
+          {label:"Abbrechen",cls:"btn-ghost",act:closeModal}]});
+      }catch(err2){toast("Falsches Passwort für diese Sync-Datei");}
+    });
+  }
+}
 
 /* ---- Mobile ---- */
 $("menuToggle").addEventListener("click",()=>$("sidebar").classList.toggle("open"));
