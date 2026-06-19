@@ -2204,8 +2204,14 @@ let syncDirHandle=null; // gemerkt für die Dauer der Sitzung, falls File System
 function fsApiAvailable(){return "showSaveFilePicker" in window && "showOpenFilePicker" in window;}
 
 $("deviceSyncBtn").addEventListener("click",openDeviceSyncModal);
+let preparedSyncFile=null,preparedSyncPromise=null;
 function openDeviceSyncModal(){
   const canShareFiles=!!(navigator.share && navigator.canShare);
+  // Paket SOFORT im Hintergrund vorbereiten (Verschlüsselung etc.), bevor "Teilen" angetippt wird.
+  // navigator.share() muss möglichst unmittelbar auf den Klick folgen, sonst verweigert Android
+  // die Berechtigung ("Permission denied"), weil die Nutzer-Geste als abgelaufen gilt.
+  preparedSyncFile=null;
+  preparedSyncPromise=buildPackageBytes().then(bytes=>{preparedSyncFile=new File([bytes],SYNC_FILENAME,{type:"application/octet-stream"});return preparedSyncFile;}).catch(()=>null);
   modal({title:"Geräte-Sync (Syncthing & Co.)",body:
     '<p style="font-size:12.5px;color:var(--text-dim);">Schreibt eine verschlüsselte Datei mit immer demselben Namen ("'+SYNC_FILENAME+'"). Ein Sync-Programm wie Syncthing kann diesen Ordner zwischen deinen Geräten abgleichen, oder du teilst die Datei direkt an eine Cloud-App. Kein automatischer Zusammenführen-Mechanismus wie bei Cloud-Sync – auf jedem Gerät selbst "Aktualisieren" bzw. "Einlesen" antippen.</p>'+
     '<div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;">'+
@@ -2223,20 +2229,27 @@ function openDeviceSyncModal(){
    Dort erscheinen Cloud-Apps wie OneDrive zuverlässiger als im "Speichern unter"-Dialog
    des Storage Access Framework, bei dem sich manche Apps (insbesondere OneDrive) nicht
    als Speicherziel registrieren – das ist ein bekanntes, app-seitiges Verhalten, keine
-   Einschränkung dieser App. */
-async function deviceSyncShare(){
-  const msg=$("dsMsg");msg.textContent="Wird vorbereitet …";
-  try{
-    const bytes=await buildPackageBytes();
-    const file=new File([bytes],SYNC_FILENAME,{type:"application/octet-stream"});
-    if(!navigator.canShare({files:[file]})){msg.textContent="Dieses Gerät unterstützt kein Datei-Teilen. Nutze stattdessen „Datei nur speichern“.";return;}
-    await navigator.share({files:[file],title:"Notizen-Sync"});
+   Einschränkung dieser App.
+   WICHTIG: navigator.share() muss SOFORT bei der Klick-Geste aufgerufen werden, ohne await
+   davor – sonst verweigert Android die Berechtigung ("transient activation" verstrichen).
+   Deshalb wird das Paket schon beim Öffnen des Dialogs im Hintergrund vorbereitet (s.o.). */
+function deviceSyncShare(){
+  const msg=$("dsMsg");
+  const file=preparedSyncFile;
+  if(!file){
+    // Noch nicht fertig vorbereitet (sehr seltener Fall bei langsamen Geräten) -> kurz nachfassen,
+    // auch wenn das Risiko eines Permission-Fehlers dabei minimal steigt.
+    msg.textContent="Bereite Datei vor … bitte gleich nochmal auf „An App senden“ tippen.";
+    return;
+  }
+  if(!navigator.canShare({files:[file]})){msg.textContent="Dieses Gerät unterstützt kein Datei-Teilen. Nutze stattdessen „Datei nur speichern“.";return;}
+  navigator.share({files:[file],title:"Notizen-Sync"}).then(()=>{
     msg.textContent="Geteilt: "+SYNC_FILENAME+" · "+fmtDate(now());
     toast("Sync-Datei geteilt");
-  }catch(err){
+  }).catch(err=>{
     if(err&&err.name==="AbortError"){msg.textContent="Abgebrochen.";return;}
     msg.textContent="Teilen fehlgeschlagen: "+((err&&err.message)||err);
-  }
+  });
 }
 async function deviceSyncExport(){
   const msg=$("dsMsg");msg.textContent="Wird vorbereitet …";
