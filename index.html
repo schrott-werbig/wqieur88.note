@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; connect-src 'self' https://*.pcloud.com https://login.microsoftonline.com https://graph.microsoft.com https://*.onedrive.com https://*.1drv.com https://*.sharepoint.com; font-src 'none'; media-src blob:; object-src 'none'; frame-src 'none'; worker-src 'self' blob:; child-src 'none'; manifest-src 'self'; base-uri 'none'; form-action 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; connect-src 'self' https: https://*.pcloud.com https://login.microsoftonline.com https://graph.microsoft.com https://*.onedrive.com https://*.1drv.com https://*.sharepoint.com; font-src 'none'; media-src blob:; object-src 'none'; frame-src 'none'; worker-src 'self' blob:; child-src 'none'; manifest-src 'self'; base-uri 'none'; form-action 'none';">
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#13233f">
 <meta name="mobile-web-app-capable" content="yes">
@@ -2462,9 +2462,51 @@ async function mergeRemotePackage(pkg){
 
 /* Provider-Dispatch */
 async function providerEnsureToken(){if(sync.provider==="onedrive"){if(!sync.expiresAt||Date.now()>sync.expiresAt-60000)await odRefresh();}}
-function providerRemoteMeta(){return sync.provider==="pcloud"?pcMeta():odMeta();}
-function providerUpload(b){return sync.provider==="pcloud"?pcUpload(b):odUpload(b);}
-function providerDownload(){return sync.provider==="pcloud"?pcDownload():odDownload();}
+function providerRemoteMeta(){return sync.provider==="pcloud"?pcMeta():(sync.provider==="webdav"?wdMeta():odMeta());}
+function providerUpload(b){return sync.provider==="pcloud"?pcUpload(b):(sync.provider==="webdav"?wdUpload(b):odUpload(b));}
+function providerDownload(){return sync.provider==="pcloud"?pcDownload():(sync.provider==="webdav"?wdDownload():odDownload());}
+
+/* --- WebDAV (NAS, Nextcloud, viele Cloud-Anbieter) --- */
+/* Zugangsdaten (URL, Benutzer, Passwort) liegen im verschlüsselten sync-Objekt. Übertragen wird nur
+   das ohnehin verschlüsselte Paket. Authentifizierung per Basic-Auth über HTTPS. */
+function wdAuthHeader(){return "Basic "+btoa(unescape(encodeURIComponent((sync.user||"")+":"+(sync.pass||""))));}
+function wdFileUrl(){
+  // sync.baseUrl ist das Zielverzeichnis; Dateiname anhängen
+  let base=sync.baseUrl||"";
+  if(!/\/$/.test(base))base+="/";
+  return base+"notizen.vault";
+}
+async function wdMeta(){
+  // PROPFIND auf die Datei: Existenz + Änderungsdatum
+  const r=await fetch(wdFileUrl(),{method:"PROPFIND",headers:{Authorization:wdAuthHeader(),Depth:"0","Content-Type":"application/xml"},body:'<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:getlastmodified/></d:prop></d:propfind>'});
+  if(r.status===404)return null;
+  if(r.status===401)throw new Error("Anmeldung fehlgeschlagen (Benutzer/Passwort)");
+  if(!(r.ok||r.status===207))throw new Error("WebDAV PROPFIND HTTP "+r.status);
+  const text=await r.text();
+  const m=/<d:getlastmodified[^>]*>([^<]+)<\/d:getlastmodified>/i.exec(text)||/<getlastmodified[^>]*>([^<]+)<\/getlastmodified>/i.exec(text);
+  const modified=m?Date.parse(m[1])||0:0;
+  return {modified};
+}
+async function wdDownload(){
+  const r=await fetch(wdFileUrl(),{method:"GET",headers:{Authorization:wdAuthHeader()}});
+  if(r.status===404)return null;
+  if(r.status===401)throw new Error("Anmeldung fehlgeschlagen (Benutzer/Passwort)");
+  if(!r.ok)throw new Error("WebDAV Download HTTP "+r.status);
+  return new Uint8Array(await r.arrayBuffer());
+}
+async function wdUpload(bytes){
+  const r=await fetch(wdFileUrl(),{method:"PUT",headers:{Authorization:wdAuthHeader(),"Content-Type":"application/octet-stream"},body:bytes});
+  if(r.status===401)throw new Error("Anmeldung fehlgeschlagen (Benutzer/Passwort)");
+  if(!(r.ok||r.status===201||r.status===204))throw new Error("WebDAV Upload HTTP "+r.status);
+}
+/* Verbindung testen: einfacher PROPFIND aufs Verzeichnis. */
+async function wdTest(){
+  let base=sync.baseUrl||"";if(!/\/$/.test(base))base+="/";
+  const r=await fetch(base,{method:"PROPFIND",headers:{Authorization:wdAuthHeader(),Depth:"0","Content-Type":"application/xml"},body:'<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:resourcetype/></d:prop></d:propfind>'});
+  if(r.status===401)throw new Error("Anmeldung fehlgeschlagen – Benutzer oder Passwort falsch");
+  if(!(r.ok||r.status===207))throw new Error("Server antwortet mit HTTP "+r.status+" – URL prüfen");
+  return true;
+}
 
 /* --- OneDrive (Microsoft Graph, App-Ordner) --- */
 const GRAPH="https://graph.microsoft.com/v1.0/me/drive/special/approot:/notizen.vault";
@@ -2505,28 +2547,71 @@ async function syncNow(silent){
 async function pushOnly(){if(!sync||!sync.provider||syncing)return;try{await providerEnsureToken();const up=await buildPackageBytes();await providerUpload(up);sync.lastSync=now();const m=await providerRemoteMeta();sync.lastRemoteModified=(m&&m.modified)||now();await saveSyncCfg();}catch(e){}}
 
 /* UI */
-function updateSyncUI(s){const el=$("syncLabel");if(!el)return;if(s)el.textContent=s;else if(sync&&sync.provider)el.textContent="Sync: "+(sync.provider==="pcloud"?"pCloud":"OneDrive");else el.textContent="Cloud-Sync";}
+function provName(p){return p==="pcloud"?"pCloud":(p==="webdav"?"WebDAV":"OneDrive");}
+function updateSyncUI(s){const el=$("syncLabel");if(!el)return;if(s)el.textContent=s;else if(sync&&sync.provider)el.textContent="Sync: "+provName(sync.provider);else el.textContent="Cloud-Sync";}
 function openSyncModal(){
   closeSidebar();
   if(sync&&sync.provider){
-    const name=sync.provider==="pcloud"?"pCloud":"OneDrive";const last=sync.lastSync?fmtDate(sync.lastSync):"noch nie";
+    const name=provName(sync.provider);const last=sync.lastSync?fmtDate(sync.lastSync):"noch nie";
     modal({title:"Cloud-Sync",body:'<p>Verbunden mit <b>'+name+'</b>. Letzter Sync: '+last+'.<br>Übertragen wird nur das <b>verschlüsselte</b> Paket – die Cloud sieht keinen Klartext.</p><label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:6px;"><input type="checkbox" id="__auto" '+(sync.autoSync?"checked":"")+'> Automatisch beim Start &amp; Schliessen synchronisieren</label>',buttons:[
       {label:"Jetzt synchronisieren",cls:"btn-blue",act:()=>{sync.autoSync=$("__auto").checked;saveSyncCfg();$("modalRoot").innerHTML="";syncNow(false);}},
       {label:"Trennen",cls:"btn-red",act:()=>{$("modalRoot").innerHTML="";modal({title:"Verbindung trennen",body:'<p>Cloud-Verbindung trennen? Deine lokalen Notizen bleiben vollständig erhalten.</p>',buttons:[{label:"Abbrechen",cls:"btn-ghost",act:closeModal},{label:"Trennen",cls:"btn-red",act:async()=>{await disconnectSync();closeModal();updateSyncUI();toast("Getrennt");}}]});}},
       {label:"Schliessen",cls:"btn-ghost",act:()=>{sync.autoSync=$("__auto").checked;saveSyncCfg();closeModal();}}]});
   }else{
     modal({title:"Cloud-Sync einrichten",body:
-      '<p>Anbieter wählen und die Client-ID deiner eigenen registrierten App eintragen.</p>'+
-      '<label style="display:flex;gap:8px;align-items:center;font-size:13px;margin-bottom:6px;"><input type="radio" name="__prov" value="pcloud" checked> pCloud</label>'+
+      '<label style="display:flex;gap:8px;align-items:center;font-size:13px;margin-bottom:6px;"><input type="radio" name="__prov" value="webdav" checked> WebDAV (NAS, Nextcloud u.a.)</label>'+
+      '<label style="display:flex;gap:8px;align-items:center;font-size:13px;margin-bottom:6px;"><input type="radio" name="__prov" value="pcloud"> pCloud</label>'+
       '<label style="display:flex;gap:8px;align-items:center;font-size:13px;margin-bottom:12px;"><input type="radio" name="__prov" value="onedrive"> OneDrive (Microsoft)</label>'+
-      '<input type="text" id="__cid" placeholder="Client-ID / App-ID">'+
-      '<p style="font-size:11.5px;margin-bottom:4px;">Diese Redirect-URI bei der App-Registrierung hinterlegen:</p>'+
-      '<p style="font-family:monospace;font-size:11.5px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:8px;word-break:break-all;color:var(--text);" id="__ruri"></p>'+
-      '<p id="__provhint" style="font-size:11.5px;"></p>',
-      buttons:[{label:"Abbrechen",cls:"btn-ghost",act:closeModal},{label:"Verbinden",cls:"btn-blue",act:()=>{const prov=document.querySelector('input[name=__prov]:checked').value;const cid=$("__cid").value.trim();if(!cid){$("__cid").focus();return;}startAuth(prov,cid);}}]});
+      '<div id="__webdavFields">'+
+        '<input type="text" id="__wurl" placeholder="WebDAV-Adresse, z.B. https://nas.example.com/remote.php/dav/files/mike/Notizen/" autocomplete="off">'+
+        '<input type="text" id="__wuser" placeholder="Benutzername" autocomplete="off">'+
+        '<input type="password" id="__wpass" placeholder="Passwort (ggf. App-Passwort)" autocomplete="new-password">'+
+        '<p style="font-size:11.5px;color:var(--text-dim);margin:2px 0 0;">Die Adresse muss auf ein <b>bestehendes Verzeichnis</b> zeigen und mit <b>https://</b> beginnen. Zugangsdaten werden verschlüsselt lokal gespeichert. In die Cloud kommt nur das verschlüsselte Paket.</p>'+
+      '</div>'+
+      '<div id="__oauthFields" style="display:none;">'+
+        '<input type="text" id="__cid" placeholder="Client-ID / App-ID">'+
+        '<p style="font-size:11.5px;margin-bottom:4px;">Diese Redirect-URI bei der App-Registrierung hinterlegen:</p>'+
+        '<p style="font-family:monospace;font-size:11.5px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:8px;word-break:break-all;color:var(--text);" id="__ruri"></p>'+
+        '<p id="__provhint" style="font-size:11.5px;"></p>'+
+      '</div>'+
+      '<p id="__wmsg" style="color:var(--danger);min-height:14px;margin:6px 0 0;font-size:12px;"></p>',
+      buttons:[{label:"Abbrechen",cls:"btn-ghost",act:closeModal},{label:"Verbinden",cls:"btn-blue",act:connectFromModal}]});
     $("__ruri").textContent=redirectUri();
-    const hint=()=>{const prov=document.querySelector('input[name=__prov]:checked').value;$("__provhint").innerHTML=prov==="pcloud"?'pCloud: App im pCloud-Entwicklerbereich („My applications") anlegen, obige Redirect-URI eintragen, Client-ID hier einfügen.':'OneDrive: in <b>Azure Portal → App-Registrierungen</b> anlegen, Plattform <b>Single-page application (SPA)</b> mit obiger Redirect-URI, API-Berechtigung <b>Files.ReadWrite.AppFolder</b> und <b>offline_access</b>.';};
-    document.querySelectorAll('input[name=__prov]').forEach(r=>r.addEventListener("change",hint));hint();
+    const refresh=()=>{
+      const prov=document.querySelector('input[name=__prov]:checked').value;
+      $("__webdavFields").style.display=prov==="webdav"?"":"none";
+      $("__oauthFields").style.display=prov==="webdav"?"none":"";
+      if(prov!=="webdav"){$("__provhint").innerHTML=prov==="pcloud"?'pCloud: App im pCloud-Entwicklerbereich („My applications") anlegen, obige Redirect-URI eintragen, Client-ID hier einfügen.':'OneDrive: in <b>Azure Portal → App-Registrierungen</b> anlegen, Plattform <b>Single-page application (SPA)</b> mit obiger Redirect-URI, API-Berechtigung <b>Files.ReadWrite.AppFolder</b> und <b>offline_access</b>.';}
+    };
+    document.querySelectorAll('input[name=__prov]').forEach(r=>r.addEventListener("change",refresh));refresh();
+  }
+}
+async function connectFromModal(){
+  const prov=document.querySelector('input[name=__prov]:checked').value;
+  if(prov==="webdav"){
+    const url=($("__wurl").value||"").trim();
+    const user=($("__wuser").value||"").trim();
+    const pass=$("__wpass").value||"";
+    const msg=$("__wmsg");msg.textContent="";
+    if(!/^https:\/\//i.test(url)){msg.textContent="Die Adresse muss mit https:// beginnen.";return;}
+    if(!user){msg.textContent="Bitte einen Benutzernamen eingeben.";return;}
+    // Temporär sync setzen für den Test
+    const prevSync=sync;
+    sync={provider:"webdav",baseUrl:url,user,pass,autoSync:true,lastSync:0,lastRemoteModified:0};
+    msg.style.color="var(--text-dim)";msg.textContent="Verbindung wird getestet…";
+    try{
+      await wdTest();
+      await saveSyncCfg();
+      msg.style.color="var(--text-dim)";
+      closeModal();updateSyncUI();toast("WebDAV verbunden");
+      syncNow(false);
+    }catch(err){
+      sync=prevSync;
+      msg.style.color="var(--danger)";msg.textContent=(err&&err.message)||"Verbindung fehlgeschlagen";
+    }
+  }else{
+    const cid=$("__cid").value.trim();if(!cid){$("__cid").focus();return;}
+    startAuth(prov,cid);
   }
 }
 $("syncBtn").addEventListener("click",openSyncModal);
