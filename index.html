@@ -340,8 +340,10 @@
   .scan-bar .sb-title{flex:1;font-size:13.5px;font-weight:600;}
   .scan-stage{flex:1;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;touch-action:none;}
   .scan-stage canvas{max-width:100%;max-height:100%;}
-  .scan-handle{position:absolute;width:26px;height:26px;border-radius:50%;background:var(--blue-500);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5);transform:translate(-50%,-50%);touch-action:none;}
-  .scan-loupe{position:absolute;width:120px;height:120px;border-radius:50%;border:3px solid #fff;box-shadow:0 4px 16px rgba(0,0,0,.6);overflow:hidden;pointer-events:none;z-index:20;display:none;background:#000;}
+  .scan-handle{position:absolute;width:24px;height:24px;border-radius:50%;background:var(--blue-500);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5);transform:translate(-50%,-50%);touch-action:none;z-index:15;}
+  .scan-handle::before{content:"";position:absolute;left:50%;top:50%;width:64px;height:64px;transform:translate(-50%,-50%);border-radius:50%;}
+  .scan-handle.active{background:#fff;border-color:var(--blue-500);width:30px;height:30px;}
+  .scan-loupe{position:absolute;width:148px;height:148px;border-radius:50%;border:3px solid #fff;box-shadow:0 4px 16px rgba(0,0,0,.6);overflow:hidden;pointer-events:none;z-index:20;display:none;background:#000;}
   .scan-loupe canvas{position:absolute;left:0;top:0;}
   .scan-loupe .lp-cross{position:absolute;left:50%;top:50%;width:18px;height:18px;transform:translate(-50%,-50%);}
   .scan-loupe .lp-cross::before,.scan-loupe .lp-cross::after{content:"";position:absolute;background:var(--blue-500);}
@@ -1339,23 +1341,26 @@ async function openScanner(file,reuseHistory){
   const handles=[0,1,2,3].map(i=>{const h=document.createElement("div");h.className="scan-handle";stage.appendChild(h);return h;});
   // Lupe
   const loupe=document.createElement("div");loupe.className="scan-loupe";
-  const loupeCanvas=document.createElement("canvas");loupeCanvas.width=120;loupeCanvas.height=120;
+  const loupeCanvas=document.createElement("canvas");loupeCanvas.width=148;loupeCanvas.height=148;
   const cross=document.createElement("div");cross.className="lp-cross";
   loupe.appendChild(loupeCanvas);loupe.appendChild(cross);stage.appendChild(loupe);
-  const LOUPE_ZOOM=2.6;
+  const LOUPE_SIZE=148;
+  const LOUPE_ZOOM=3.2;
   function showLoupe(cx,cy){
-    // cx,cy = Koordinaten im fullCanvas
+    // cx,cy = Koordinaten im fullCanvas. Lupe zeigt vergrösserten Ausschnitt um den Eckpunkt.
     const lc=loupeCanvas.getContext("2d");
-    lc.clearRect(0,0,120,120);
-    const srcSize=120/LOUPE_ZOOM;
+    lc.clearRect(0,0,LOUPE_SIZE,LOUPE_SIZE);
+    const srcSize=LOUPE_SIZE/LOUPE_ZOOM;
     lc.imageSmoothingEnabled=true;
-    lc.drawImage(fullCanvas, cx-srcSize/2, cy-srcSize/2, srcSize, srcSize, 0,0,120,120);
-    // Position: über/neben dem Finger, im Stage-Koordinatensystem
+    lc.drawImage(fullCanvas, cx-srcSize/2, cy-srcSize/2, srcSize, srcSize, 0,0,LOUPE_SIZE,LOUPE_SIZE);
+    // Lupe FEST in einer oberen Ecke (vom Finger nie verdeckt). Wenn der Eckpunkt selbst oben liegt
+    // und die Lupe verdecken würde, in die andere obere Ecke wechseln.
     const rect=canvas.getBoundingClientRect(),stageRect=stage.getBoundingClientRect();
-    const px=rect.left-stageRect.left+cx*dispScale, py=rect.top-stageRect.top+cy*dispScale;
-    let lx=px-60, ly=py-150; // standardmässig oberhalb
-    if(ly<6)ly=py+40; // wenn oben kein Platz, unterhalb
-    lx=Math.max(6,Math.min(stage.clientWidth-126,lx));
+    const px=rect.left-stageRect.left+cx*dispScale;
+    const fingerLeftHalf=px < stage.clientWidth/2;
+    // Lupe gegenüber der Fingerseite zeigen
+    let lx=fingerLeftHalf ? (stage.clientWidth-LOUPE_SIZE-10) : 10;
+    let ly=10;
     loupe.style.left=lx+"px";loupe.style.top=ly+"px";loupe.style.display="block";
   }
   function hideLoupe(){loupe.style.display="none";}
@@ -1374,17 +1379,28 @@ async function openScanner(file,reuseHistory){
   drawOverlay();layoutHandles();
 
   handles.forEach((h,i)=>{
-    let dragging=false;
+    let dragging=false, grabDX=0, grabDY=0;
     function onMove(clientX,clientY){
       const rect=canvas.getBoundingClientRect();
-      let x=(clientX-rect.left)/dispScale, y=(clientY-rect.top)/dispScale;
+      // Greif-Offset anwenden: der Punkt bleibt dort, wo er beim Antippen relativ zum Finger war,
+      // statt zur Fingermitte zu springen. Das macht feines Justieren möglich.
+      let x=(clientX-rect.left)/dispScale + grabDX, y=(clientY-rect.top)/dispScale + grabDY;
       x=Math.max(0,Math.min(fullCanvas.width,x));y=Math.max(0,Math.min(fullCanvas.height,y));
       corners[i]={x,y};drawOverlay();layoutHandles();showLoupe(x,y);
     }
-    h.addEventListener("pointerdown",e=>{dragging=true;h.setPointerCapture(e.pointerId);e.preventDefault();showLoupe(corners[i].x,corners[i].y);});
+    h.addEventListener("pointerdown",e=>{
+      dragging=true;h.setPointerCapture(e.pointerId);e.preventDefault();
+      const rect=canvas.getBoundingClientRect();
+      // Differenz zwischen aktuellem Eckpunkt und Berührungspunkt merken
+      grabDX=corners[i].x-(e.clientX-rect.left)/dispScale;
+      grabDY=corners[i].y-(e.clientY-rect.top)/dispScale;
+      h.classList.add("active");
+      showLoupe(corners[i].x,corners[i].y);
+    });
     h.addEventListener("pointermove",e=>{if(dragging)onMove(e.clientX,e.clientY);});
-    h.addEventListener("pointerup",()=>{dragging=false;hideLoupe();});
-    h.addEventListener("pointercancel",()=>{dragging=false;hideLoupe();});
+    const end=()=>{dragging=false;h.classList.remove("active");hideLoupe();};
+    h.addEventListener("pointerup",end);
+    h.addEventListener("pointercancel",end);
   });
 
   root.querySelector("#scAuto").addEventListener("click",()=>{const c=detectCorners(fullCanvas);if(c){corners=c;drawOverlay();layoutHandles();toast("Kanten erkannt");}else toast("Keine klaren Kanten gefunden");});
