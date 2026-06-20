@@ -128,6 +128,15 @@
   .tb-btn.on{background:var(--blue-50);color:var(--blue-700);}
   .tb-btn svg{width:16px;height:16px;}
   .tb-sep{width:1px;height:20px;background:var(--line);margin:0 4px;}
+  .more-tools{position:absolute;z-index:60;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:6px;display:grid;grid-template-columns:1fr 1fr;gap:2px;max-width:380px;}
+  html[data-theme="dark"] .more-tools{box-shadow:0 8px 30px rgba(0,0,0,.5);}
+  .more-tools.hidden{display:none;}
+  .mt-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:var(--text);font-size:13.5px;text-align:left;width:100%;}
+  .mt-item:hover{background:var(--line-2);}
+  .mt-item .mt-ic{flex:0 0 22px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:12px;}
+  .mt-item .mt-ic svg{width:17px;height:17px;}
+  .color-sw{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:17px;font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.2);cursor:pointer;}
+  .color-sw:hover{transform:scale(1.08);}
   .tb-btn b{font-weight:800;} .tb-btn i{font-style:italic;} .tb-btn u{text-decoration:underline;} .tb-btn s{text-decoration:line-through;}
 
   .ed-scroll{flex:1;overflow-y:auto;min-height:0;position:relative;}
@@ -293,10 +302,11 @@
     .fab svg{width:26px;height:26px;}
     .ed-bar{padding:7px 10px;gap:4px;}
     .ed-nb select{max-width:150px;}
-    .toolbar{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:4px 10px;gap:1px;}
+    .toolbar{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:5px 10px;gap:2px;}
     .toolbar::-webkit-scrollbar{display:none;}
-    .tb-btn{flex:0 0 auto;}
-    .tb-sep{margin:0 3px;}
+    .tb-btn{flex:0 0 auto;min-width:40px;height:40px;font-size:15px;}
+    .tb-btn svg{width:21px;height:21px;}
+    .tb-sep{margin:0 4px;}
     .ed-title{font-size:21px;margin-bottom:4px;}
     .tagbar{padding:4px 0 8px;margin-bottom:10px;}
     .ed-body{font-size:16px;min-height:140px;}
@@ -448,32 +458,45 @@
         <div class="toolbar" id="toolbar">
           <button class="tb-btn" data-cmd="formatBlock" data-val="h1" title="Überschrift 1">H1</button>
           <button class="tb-btn" data-cmd="formatBlock" data-val="h2" title="Überschrift 2">H2</button>
-          <button class="tb-btn" data-cmd="formatBlock" data-val="h3" title="Überschrift 3">H3</button>
           <button class="tb-btn" data-cmd="formatBlock" data-val="p" title="Fliesstext">¶</button>
           <span class="tb-sep"></span>
           <button class="tb-btn" data-cmd="bold" title="Fett (Strg+B)"><b>B</b></button>
           <button class="tb-btn" data-cmd="italic" title="Kursiv (Strg+I)"><i>I</i></button>
           <button class="tb-btn" data-cmd="underline" title="Unterstrichen (Strg+U)"><u>U</u></button>
-          <button class="tb-btn" data-cmd="strikeThrough" title="Durchgestrichen"><s>S</s></button>
           <span class="tb-sep"></span>
           <button class="tb-btn" data-cmd="insertUnorderedList" title="Aufzählung">•</button>
-          <button class="tb-btn" data-cmd="insertOrderedList" title="Nummerierte Liste">1.</button>
           <button class="tb-btn" id="checklistBtn" title="Checkliste">☑</button>
-          <button class="tb-btn" id="tableBtn" title="Tabelle einfügen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 9h18M3 15h18M9 4v16M15 4v16"/></svg></button>
-          <span class="tb-sep"></span>
-          <button class="tb-btn" data-cmd="formatBlock" data-val="blockquote" title="Zitat">❝</button>
-          <button class="tb-btn" id="codeBtn" title="Codeblock">&lt;/&gt;</button>
-          <button class="tb-btn" id="linkBtn" title="Web-Link einfügen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.5 1.5M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1.5-1.5"/></svg></button>
-          <button class="tb-btn" id="noteLinkBtn" title="Andere Notiz verlinken">↪</button>
-          <button class="tb-btn" id="tocBtn" title="Inhaltsverzeichnis einfügen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h2M4 12h2M4 18h2M9 6h11M9 12h11M9 18h11"/></svg></button>
-          <button class="tb-btn" id="hrBtn" title="Trennlinie">—</button>
-          <span class="tb-sep"></span>
+          <button class="tb-btn" id="tableBtn" title="Tabelle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 9h18M3 15h18M9 4v16M15 4v16"/></svg></button>
           <button class="tb-btn" id="imgBtn" title="Bild einfügen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 16l-5-5L5 20"/></svg></button>
           <button class="tb-btn" id="scanBtn" title="Dokument scannen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7V5a1 1 0 0 1 1-1h2M4 17v2a1 1 0 0 0 1 1h2M20 7V5a1 1 0 0 0-1-1h-2M20 17v2a1 1 0 0 1-1 1h-2"/><circle cx="12" cy="12" r="3.2"/></svg></button>
-          <button class="tb-btn" id="micBtn" title="Audio-Notiz aufnehmen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
-          <button class="tb-btn" id="ocrBtn" title="Text aus Bild erkennen (OCR)">OCR</button>
           <span class="tb-sep"></span>
-          <button class="tb-btn" id="reminderBtn" title="Erinnerung setzen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 6v6l4 2"/><circle cx="12" cy="13" r="8"/><path d="M9 2h6"/></svg></button>
+          <button class="tb-btn" id="moreBtn" title="Weitere Werkzeuge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+        </div>
+        <div id="moreTools" class="more-tools hidden">
+          <button class="mt-item" data-cmd="formatBlock" data-val="h3"><span class="mt-ic">H3</span>Überschrift 3</button>
+          <button class="mt-item" data-cmd="strikeThrough"><span class="mt-ic"><s>S</s></span>Durchgestrichen</button>
+          <button class="mt-item" data-cmd="insertOrderedList"><span class="mt-ic">1.</span>Nummerierte Liste</button>
+          <button class="mt-item" data-cmd="formatBlock" data-val="blockquote"><span class="mt-ic">❝</span>Zitat</button>
+          <button class="mt-item" id="codeBtn2"><span class="mt-ic">&lt;/&gt;</span>Codeblock</button>
+          <button class="mt-item" id="hrBtn2"><span class="mt-ic">—</span>Trennlinie</button>
+          <button class="mt-item" id="linkBtn2"><span class="mt-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.5 1.5M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1.5-1.5"/></svg></span>Web-Link</button>
+          <button class="mt-item" id="noteLinkBtn2"><span class="mt-ic">↪</span>Andere Notiz verlinken</button>
+          <button class="mt-item" id="tocBtn2"><span class="mt-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h2M4 12h2M4 18h2M9 6h11M9 12h11M9 18h11"/></svg></span>Inhaltsverzeichnis</button>
+          <button class="mt-item" id="micBtn2"><span class="mt-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span>Audio-Notiz</button>
+          <button class="mt-item" id="ocrBtn2"><span class="mt-ic">OCR</span>Text aus Bild erkennen</button>
+          <button class="mt-item" id="reminderBtn2"><span class="mt-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 6v6l4 2"/><circle cx="12" cy="13" r="8"/></svg></span>Erinnerung setzen</button>
+          <button class="mt-item" id="colorBtn2"><span class="mt-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="10.5" r="2.5"/><circle cx="8.5" cy="7.5" r="2.5"/><circle cx="6.5" cy="12.5" r="2.5"/><path d="M12 2a10 10 0 0 0 0 20 2 2 0 0 0 2-2 2 2 0 0 1 2-2h1a4 4 0 0 0 4-4 8 8 0 0 0-9-10z"/></svg></span>Notizfarbe</button>
+        </div>
+        <!-- versteckte Original-Buttons, damit bestehende Handler weiter funktionieren -->
+        <div style="display:none">
+          <button id="codeBtn"></button>
+          <button id="linkBtn"></button>
+          <button id="noteLinkBtn"></button>
+          <button id="tocBtn"></button>
+          <button id="hrBtn"></button>
+          <button id="micBtn"></button>
+          <button id="ocrBtn"></button>
+          <button id="reminderBtn"></button>
         </div>
 
         <div id="reminderChip" class="hidden" style="margin:0 16px 0;padding:8px 12px;background:var(--blue-50);color:var(--blue-700);border-radius:8px;font-size:12.5px;display:flex;align-items:center;gap:8px;">
@@ -571,7 +594,17 @@ let viewerCloseFns=[];
 let currentView={type:"all"}, currentNoteId=null;
 let saveTimer=null, dirty=false, autolockTimer=null, edLoading=false, savedRange=null;
 let noteObjectUrls=[];
-const AUTOLOCK_MS=15*60*1000;
+let AUTOLOCK_MS=15*60*1000;
+/* Notizfarben (Google-Keep-Stil) – dezente Farbstreifen/Hintergründe, auch im Dark Mode lesbar. */
+const NOTE_COLORS={
+  rot:{bar:"#ef4444",bg:"rgba(239,68,68,.06)",label:"Rot"},
+  orange:{bar:"#f59e0b",bg:"rgba(245,158,11,.07)",label:"Orange"},
+  gelb:{bar:"#eab308",bg:"rgba(234,179,8,.08)",label:"Gelb"},
+  gruen:{bar:"#22c55e",bg:"rgba(34,197,94,.07)",label:"Grün"},
+  blau:{bar:"#3b82f6",bg:"rgba(59,130,246,.07)",label:"Blau"},
+  violett:{bar:"#a855f7",bg:"rgba(168,85,247,.07)",label:"Violett"},
+};
+function applyAutolockSetting(){const min=(vault&&vault.settings&&vault.settings.autolockMin)||15;AUTOLOCK_MS=min*60*1000;}
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const now=()=>Date.now();
 const $=id=>document.getElementById(id);
@@ -672,6 +705,7 @@ function manualNoteHtml(){return ""+
   "<p>Über die Werkzeugleiste: Überschriften (H1–H3), <b>fett</b>, <i>kursiv</i>, <u>unterstrichen</u>, durchgestrichen, Aufzählungen, nummerierte Listen, Checklisten, Zitate, Code und Trennlinien.</p>"+
   "<ul class='checklist'><li><input type='checkbox'><span>Checklisten funktionieren so – Haken setzen zum Abhaken</span></li></ul>"+
   "<p><b>Listen-Tipp:</b> Enter setzt die Liste fort, Enter in einer leeren Zeile beendet sie.</p>"+
+  "<p><b>Markdown-Kurzbefehle:</b> Am Zeilenanfang ein Zeichen tippen und Leertaste drücken wandelt die Zeile automatisch um: <code># </code> Überschrift 1, <code>## </code> Überschrift 2, <code>### </code> Überschrift 3, <code>- </code> oder <code>* </code> Aufzählung, <code>1. </code> nummerierte Liste, <code>[] </code> Checkliste, <code>&gt; </code> Zitat.</p>"+
 
   "<h2>Verknüpfungen &amp; Struktur</h2>"+
   "<ul>"+
@@ -720,6 +754,11 @@ function manualNoteHtml(){return ""+
   "<h2>Rechtsklick-Menüs (am Computer)</h2>"+
   "<p>Rechtsklick im Text bietet Ausschneiden/Kopieren/Einfügen, Formatierung und Verlinkungen; in einer Tabelle alle Zeilen-/Spalten-Aktionen; auf einer Notiz in der Liste Öffnen, Favorit, Duplizieren, Notizbuch wechseln und Papierkorb.</p>"+
 
+  "<h2>Organisieren &amp; Export</h2>"+
+  "<ul>"+
+  "<li><b>Notizfarben:</b> Über das Notiz-Menü (Rechtsklick auf eine Notiz am Computer) oder im Werkzeug-Menü „⋯ → Notizfarbe“ lässt sich jeder Notiz eine Farbe geben – praktisch zum visuellen Sortieren.</li>"+
+  "<li><b>Markdown-Export:</b> Im Notiz-Menü „Als Markdown exportieren“ speichert die Notiz als <code>.md</code>-Datei – nützlich, um sie in anderen Programmen (z.B. Obsidian) weiterzuverwenden.</li>"+
+  "</ul>"+
   "<h2>Sicherheit &amp; Backup</h2>"+
   "<ul>"+
   "<li><b>Master-Passwort ändern:</b> In den Einstellungen. Der Vorgang ist absturzsicher.</li>"+
@@ -731,7 +770,7 @@ function manualNoteHtml(){return ""+
   "<p><i>Diese Handbuch-Notiz kannst du bearbeiten oder löschen. Über die Einstellungen lässt sie sich jederzeit neu einfügen.</i></p>";
 }
 
-async function launchApp(){$("lock").classList.add("hidden");$("app").classList.remove("hidden");applyTheme(vault.settings.theme||"light");$("sortSelect").value=vault.settings.sort||"updated";currentView={type:"all"};renderAll();resetAutolock();backInit();startReminderWatch();maybeHandleShare();await loadSyncCfg();updateSyncUI();const hadPending=!!pendingOAuth;await maybeCompleteOAuth();if(!hadPending&&sync&&sync.autoSync)syncNow(true);}
+async function launchApp(){$("lock").classList.add("hidden");$("app").classList.remove("hidden");applyTheme(vault.settings.theme||"light");applyAutolockSetting();$("sortSelect").value=vault.settings.sort||"updated";currentView={type:"all"};renderAll();resetAutolock();backInit();startReminderWatch();maybeHandleShare();await loadSyncCfg();updateSyncUI();const hadPending=!!pendingOAuth;await maybeCompleteOAuth();if(!hadPending&&sync&&sync.autoSync)syncNow(true);}
 
 /* ---- Persistenz ---- */
 function markDirty(){dirty=true;updateSaveState();clearTimeout(saveTimer);saveTimer=setTimeout(persist,600);}
@@ -743,7 +782,7 @@ function revokeUrls(){noteObjectUrls.forEach(u=>URL.revokeObjectURL(u));noteObje
 function lockApp(){clearTimeout(saveTimer);clearInterval(reminderTimer);saveCurrentNote(true);persist().finally(()=>{revokeUrls();cryptoKey=null;vault=null;currentNoteId=null;sync=null;pendingOAuth=null;updateSyncUI();$("app").classList.add("hidden");$("lock").classList.remove("hidden");$("lockMsg").textContent="";$("pw").value="";$("pw").focus();});}
 $("lockBtn").addEventListener("click",lockApp);
 function resetAutolock(){clearTimeout(autolockTimer);autolockTimer=setTimeout(()=>{if(cryptoKey)lockApp();},AUTOLOCK_MS);}
-["click","keydown","mousemove"].forEach(ev=>document.addEventListener(ev,()=>{if(cryptoKey)resetAutolock();},{passive:true}));
+["click","keydown","mousemove","touchstart","touchmove","pointerdown","scroll"].forEach(ev=>document.addEventListener(ev,()=>{if(cryptoKey)resetAutolock();},{passive:true,capture:true}));
 
 /* ---- Rendering ---- */
 function activeNotes(){return vault.notes.filter(n=>!n.trashed);}
@@ -798,6 +837,7 @@ function renderNoteList(){
   if(!list.length){scroll.innerHTML='<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8"/></svg><p>Keine Notizen hier.</p><p style="font-size:12px;">Erstelle oben links eine neue Notiz.</p></div>';return;}
   list.forEach(n=>{
     const card=document.createElement("div");card.className="note-card"+(n.id===currentNoteId?" active":"");
+    if(n.color&&NOTE_COLORS[n.color]){card.style.borderLeft="3px solid "+NOTE_COLORS[n.color].bar;card.style.background=NOTE_COLORS[n.color].bg;}
     const snippet=htmlToText(n.html).slice(0,160)||"Keine weiteren Inhalte";
     const hasAtt=(n.attachments||[]).length>0;
     const tagsHtml=(n.tags||[]).slice(0,3).map(()=>'<span class="nc-tag"></span>').join("");
@@ -820,6 +860,8 @@ function noteCardCtx(x,y,n){
     items.push({label:"Öffnen",icon:ICN.open,act:()=>openNote(n.id)});
     items.push({label:n.pinned?"Favorit entfernen":"Als Favorit",icon:ICN.pin,act:()=>{n.pinned=!n.pinned;n.updated=now();markDirty();renderAll();}});
     items.push({label:"Duplizieren",icon:ICN.dup,act:()=>duplicateNote(n)});
+    items.push({label:"Farbe…",act:()=>noteColorModal(n)});
+    items.push({label:"Als Markdown exportieren",act:()=>exportNoteAsMarkdown(n)});
     items.push({sep:true});
     items.push({label:"Notizbuch wechseln…",act:()=>moveNoteModal(n)});
     items.push({sep:true});
@@ -827,11 +869,36 @@ function noteCardCtx(x,y,n){
   }
   showCtxMenu(x,y,items);
 }
-function duplicateNote(n){
-  const copy=JSON.parse(JSON.stringify({notebookId:n.notebookId,title:(n.title||"Ohne Titel")+" (Kopie)",html:n.html,tags:n.tags||[],pinned:false}));
-  copy.id=uid();copy.attachments=[];copy.trashed=false;copy.created=now();copy.updated=now();copy.history=[];
-  // Hinweis: Anhänge werden aus Sicherheits-/Komplexitätsgründen nicht mitkopiert (verschlüsselte Blobs)
-  vault.notes.push(copy);markDirty();renderNoteList();toast(n.attachments&&n.attachments.length?"Dupliziert (ohne Anhänge)":"Dupliziert");
+/* Farbauswahl für eine Notiz (Google-Keep-Stil). */
+function noteColorModal(n){
+  let swatches='<button class="color-sw" data-c="" title="Keine Farbe" style="background:var(--panel);border:2px solid var(--line);">✕</button>';
+  Object.keys(NOTE_COLORS).forEach(k=>{const c=NOTE_COLORS[k];swatches+='<button class="color-sw" data-c="'+k+'" title="'+c.label+'" style="background:'+c.bar+';">'+(n.color===k?"✓":"")+'</button>';});
+  modal({title:"Notizfarbe",body:'<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;padding:6px 0;">'+swatches+'</div>',buttons:[{label:"Schliessen",cls:"btn-ghost",act:closeModal}]});
+  document.querySelectorAll(".color-sw").forEach(b=>b.addEventListener("click",()=>{
+    const c=b.dataset.c;
+    if(c)n.color=c;else delete n.color;
+    n.updated=now();markDirty();renderNoteList();renderEditor();closeModal();
+  }));
+}
+async function duplicateNote(n){
+  const copy=JSON.parse(JSON.stringify({notebookId:n.notebookId,title:(n.title||"Ohne Titel")+" (Kopie)",html:n.html,tags:n.tags||[],pinned:false,color:n.color}));
+  copy.id=uid();copy.trashed=false;copy.created=now();copy.updated=now();copy.history=[];copy.attachments=[];
+  // Anhänge mitkopieren: jeder Blob bekommt eine neue ID, HTML-Verweise (data-att) werden umgeschrieben
+  let html=copy.html||"";
+  try{
+    for(const att of (n.attachments||[])){
+      const rec=await idbGet("blobs",att.id);
+      const newId=uid();
+      if(rec){await idbPut("blobs",{...rec,id:newId});}
+      const newAtt={...att,id:newId};
+      copy.attachments.push(newAtt);
+      // Verweise im HTML (Inline-Bilder) auf neue ID umbiegen
+      html=html.split('data-att="'+att.id+'"').join('data-att="'+newId+'"');
+    }
+    copy.html=html;
+  }catch(e){/* falls etwas schiefgeht, bleibt zumindest der Text erhalten */}
+  vault.notes.push(copy);markDirty();renderNoteList();
+  toast((n.attachments&&n.attachments.length)?"Dupliziert (inkl. Anhänge)":"Dupliziert");
 }
 function moveNoteModal(n){
   const opts=vault.notebooks.map(nb=>'<button class="tbl-op btn-ghost" data-nb="'+nb.id+'" style="width:100%;text-align:left;padding:10px 12px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;background:var(--panel);">'+escapeHtml(nb.name)+(nb.id===n.notebookId?" ✓":"")+'</button>').join("");
@@ -941,7 +1008,8 @@ function restoreHistoryVersion(h){
 }
 
 /* ---- New note ---- */
-$("newNoteBtn").addEventListener("click",()=>{saveCurrentNote(true);revokeUrls();let nbId=currentView.type==="notebook"?currentView.id:(vault.notebooks[0]&&vault.notebooks[0].id);if(!nbId){const id=uid();vault.notebooks.push({id,name:"Notizen",created:now()});nbId=id;}const n={id:uid(),notebookId:nbId,title:"",html:"",tags:currentView.type==="tag"?[currentView.id]:[],attachments:[],pinned:false,trashed:false,created:now(),updated:now()};vault.notes.push(n);if(currentView.type==="trash"||currentView.type==="pinned")currentView={type:"all"};currentNoteId=n.id;markDirty();renderAll();setTimeout(()=>$("edTitle").focus(),50);});
+function createNewNote(focusTitle){saveCurrentNote(true);revokeUrls();let nbId=currentView.type==="notebook"?currentView.id:(vault.notebooks[0]&&vault.notebooks[0].id);if(!nbId){const id=uid();vault.notebooks.push({id,name:"Notizen",created:now()});nbId=id;}const n={id:uid(),notebookId:nbId,title:"",html:"",tags:currentView.type==="tag"?[currentView.id]:[],attachments:[],pinned:false,trashed:false,created:now(),updated:now()};vault.notes.push(n);if(currentView.type==="trash"||currentView.type==="pinned")currentView={type:"all"};currentNoteId=n.id;markDirty();renderAll();if(focusTitle!==false)setTimeout(()=>$("edTitle").focus(),50);return n;}
+$("newNoteBtn").addEventListener("click",()=>createNewNote(true));
 
 /* ---- Selection helpers ---- */
 document.addEventListener("selectionchange",()=>{const sel=window.getSelection();if(sel.rangeCount&&$("edBody").contains(sel.anchorNode))savedRange=sel.getRangeAt(0).cloneRange();});
@@ -951,7 +1019,29 @@ function restoreSelection(){$("edBody").focus();const sel=window.getSelection();
 $("edBody").addEventListener("keyup",updateToolbarState);
 $("edBody").addEventListener("mouseup",updateToolbarState);
 function updateToolbarState(){["bold","italic","underline","strikeThrough"].forEach(c=>{const btn=document.querySelector('.tb-btn[data-cmd="'+c+'"]');if(btn)try{btn.classList.toggle("on",document.queryCommandState(c));}catch(e){}});}
-document.querySelectorAll('.tb-btn[data-cmd]').forEach(btn=>{btn.addEventListener("mousedown",e=>e.preventDefault());btn.addEventListener("click",()=>{const cmd=btn.dataset.cmd,val=btn.dataset.val;$("edBody").focus();if(cmd==="formatBlock")document.execCommand("formatBlock",false,val);else document.execCommand(cmd,false,null);syncBody();updateToolbarState();});});
+document.querySelectorAll('.tb-btn[data-cmd],.mt-item[data-cmd]').forEach(btn=>{btn.addEventListener("mousedown",e=>e.preventDefault());btn.addEventListener("click",()=>{const cmd=btn.dataset.cmd,val=btn.dataset.val;$("edBody").focus();if(cmd==="formatBlock")document.execCommand("formatBlock",false,val);else document.execCommand(cmd,false,null);syncBody();updateToolbarState();closeMoreTools();});});
+
+/* "Mehr"-Werkzeuge-Menü öffnen/schliessen und Einträge an die bestehenden Funktionen weiterleiten */
+function closeMoreTools(){const m=$("moreTools");if(m){m.classList.add("hidden");document.removeEventListener("click",moreOutside,true);}}
+function moreOutside(e){const m=$("moreTools"),b=$("moreBtn");if(m&&!m.contains(e.target)&&e.target!==b&&!b.contains(e.target))closeMoreTools();}
+$("moreBtn").addEventListener("mousedown",e=>e.preventDefault());
+$("moreBtn").addEventListener("click",e=>{
+  const m=$("moreTools");
+  if(!m.classList.contains("hidden")){closeMoreTools();return;}
+  // Position unter dem Mehr-Knopf
+  const r=$("moreBtn").getBoundingClientRect();
+  m.classList.remove("hidden");
+  const mw=m.offsetWidth;
+  let left=r.right-mw; if(left<8)left=8;
+  m.style.left=left+"px";m.style.top=(r.bottom+4)+"px";
+  setTimeout(()=>document.addEventListener("click",moreOutside,true),0);
+});
+// Menü-Einträge leiten auf die (versteckten) Original-Buttons weiter
+[["codeBtn2","codeBtn"],["hrBtn2","hrBtn"],["linkBtn2","linkBtn"],["noteLinkBtn2","noteLinkBtn"],["tocBtn2","tocBtn"],["micBtn2","micBtn"],["ocrBtn2","ocrBtn"],["reminderBtn2","reminderBtn"]].forEach(([from,to])=>{
+  const f=$(from);if(f){f.addEventListener("mousedown",e=>e.preventDefault());f.addEventListener("click",()=>{closeMoreTools();$(to).click();});}
+});
+$("colorBtn2").addEventListener("mousedown",e=>e.preventDefault());
+$("colorBtn2").addEventListener("click",()=>{closeMoreTools();const n=cur();if(!n){toast("Keine Notiz geöffnet");return;}noteColorModal(n);});
 $("codeBtn").addEventListener("mousedown",e=>e.preventDefault());
 $("codeBtn").addEventListener("click",()=>{$("edBody").focus();document.execCommand("formatBlock",false,"pre");syncBody();});
 $("hrBtn").addEventListener("mousedown",e=>e.preventDefault());
@@ -1307,7 +1397,7 @@ function fireReminderNotification(n){
 /* ---- Dokumentenscanner ---- */
 let scanReuseHistory=false;
 $("scanBtn").addEventListener("mousedown",e=>e.preventDefault());
-$("scanBtn").addEventListener("click",()=>{if(!cur()){toast("Bitte erst eine Notiz öffnen");return;}scanReuseHistory=false;$("scanFile").click();});
+$("scanBtn").addEventListener("click",()=>{if(!cur()){createNewNote(false);if(isMobile())$("editor").classList.add("open");}scanReuseHistory=false;$("scanFile").click();});
 $("scanFile").addEventListener("change",async e=>{const f=e.target.files[0];e.target.value="";const reuse=scanReuseHistory;scanReuseHistory=false;if(f)openScanner(f,reuse);});
 
 async function openScanner(file,reuseHistory){
@@ -1806,9 +1896,54 @@ $("edBody").addEventListener("click",e=>{const a=e.target.closest("a");if(!a)ret
 /* ---- Keyboard ---- */
 $("edBody").addEventListener("keydown",e=>{
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"){e.preventDefault();syncBody();persist();toast("Gespeichert");return;}
+  if(e.key===" "){if(handleMarkdownShortcut(e))return;}
   if(e.key==="Enter"&&!e.shiftKey){if(handleListEnter(e))return;}
   if(e.key==="Backspace"){if(handleListBackspace(e))return;}
 });
+/* Markdown-Kurzbefehle: am Zeilenanfang ein Präfix + Leertaste wandelt die Zeile um.
+   # ## ### -> Überschriften, - oder * -> Aufzählung, 1. -> nummerierte Liste,
+   [] oder [ ] -> Checkliste, > -> Zitat. Gibt true zurück, wenn umgewandelt wurde. */
+function handleMarkdownShortcut(e){
+  const sel=window.getSelection();if(!sel.rangeCount)return false;
+  const range=sel.getRangeAt(0);if(!range.collapsed)return false;
+  let node=range.startContainer;
+  if(node.nodeType!==3)return false;
+  const offset=range.startOffset;
+  const prefix=node.textContent.slice(0,offset).replace(/\u200b/g,"");
+  // Nicht reagieren, wenn schon in einer Liste/Überschrift (verhindert doppelte Umwandlung)
+  let block=node.parentNode;
+  if(block&&block.closest&&block.closest("li,h1,h2,h3,blockquote,pre,td,th"))return false;
+  if(prefix==="[]"||prefix==="[ ]"){
+    e.preventDefault();
+    deleteLineagePrefix(node,offset);
+    insertChecklistItem();
+    syncBody();
+    return true;
+  }
+  const map={
+    "#":["formatBlock","h1"],"##":["formatBlock","h2"],"###":["formatBlock","h3"],
+    ">":["formatBlock","blockquote"],
+    "-":["insertUnorderedList",null],"*":["insertUnorderedList",null],
+    "1.":["insertOrderedList",null],
+  };
+  const action=map[prefix];
+  if(!action)return false;
+  e.preventDefault();
+  deleteLineagePrefix(node,offset);
+  $("edBody").focus();
+  if(action[0]==="formatBlock")document.execCommand("formatBlock",false,action[1]);
+  else document.execCommand(action[0],false,null);
+  syncBody();updateToolbarState();
+  return true;
+}
+/* Entfernt die Zeichen vor dem Cursor (das Markdown-Präfix) im aktuellen Textknoten. */
+function deleteLineagePrefix(node,offset){
+  const r=document.createRange();
+  r.setStart(node,0);r.setEnd(node,offset);
+  r.deleteContents();
+  const sel=window.getSelection();const c=document.createRange();
+  c.setStart(node,0);c.collapse(true);sel.removeAllRanges();sel.addRange(c);
+}
 function currentLi(){const sel=window.getSelection();if(!sel.rangeCount)return null;let node=sel.getRangeAt(0).startContainer;if(node.nodeType===3)node=node.parentNode;return node&&node.closest?node.closest("li"):null;}
 function liIsEmpty(li){
   const cb=li.querySelector('input[type="checkbox"]');
@@ -2143,11 +2278,17 @@ $("themeBtn").addEventListener("click",()=>{const t=vault.settings.theme==="dark
 /* ---- Settings ---- */
 $("settingsBtn").addEventListener("click",async()=>{
   const blobs=await idbGetAll("blobs");let bytes=0;blobs.forEach(b=>{bytes+=(b.ct&&b.ct.byteLength)||0;});
-  modal({title:"Einstellungen",body:'<p>Notizen: '+vault.notes.filter(n=>!n.trashed).length+' · Notizbücher: '+vault.notebooks.length+' · Anhänge: '+blobs.length+' ('+fmtSize(bytes)+')</p><p style="font-size:12px;">Verschlüsselung: AES-256-GCM · PBKDF2-SHA256 ('+PBKDF2_ITER.toLocaleString("de-CH")+' Iterationen). Auto-Sperre nach 15 Min.</p>',buttons:[
+  const curLock=(vault.settings&&vault.settings.autolockMin)||15;
+  const lockOpts=[1,5,15,30,60].map(m=>'<option value="'+m+'"'+(m===curLock?" selected":"")+'>'+(m<60?m+" Minuten":"1 Stunde")+'</option>').join("");
+  modal({title:"Einstellungen",body:'<p>Notizen: '+vault.notes.filter(n=>!n.trashed).length+' · Notizbücher: '+vault.notebooks.length+' · Anhänge: '+blobs.length+' ('+fmtSize(bytes)+')</p>'+
+    '<label style="display:block;font-size:13px;margin:14px 0 4px;">Automatisch sperren nach</label>'+
+    '<select id="__autolock" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--text);font-size:14px;">'+lockOpts+'</select>'+
+    '<p style="font-size:11.5px;color:var(--text-dim);margin:6px 0 0;">Bei Inaktivität wird der Tresor automatisch gesperrt und muss neu entsperrt werden.</p>'+
+    '<p style="font-size:12px;margin-top:12px;">Verschlüsselung: AES-256-GCM · PBKDF2-SHA256 ('+PBKDF2_ITER.toLocaleString("de-CH")+' Iterationen).</p>',buttons:[
     {label:"Passwort ändern",cls:"btn-blue",act:changePasswordModal},
     {label:"Handbuch-Notiz neu einfügen",cls:"btn-ghost",act:reinsertManual},
     {label:"Alles zurücksetzen…",cls:"btn-red",act:resetVaultStep1},
-    {label:"Schliessen",cls:"btn-ghost",act:closeModal}]});
+    {label:"Schliessen",cls:"btn-ghost",act:()=>{const sel=$("__autolock");if(sel){const m=parseInt(sel.value,10)||15;vault.settings=vault.settings||{};vault.settings.autolockMin=m;applyAutolockSetting();resetAutolock();markDirty();}closeModal();}}]});
 });
 /* Fügt die Handbuch-Notiz erneut ein (falls gelöscht oder bei Bedarf). */
 function reinsertManual(){
@@ -2187,7 +2328,7 @@ async function doResetVault(){
     toast("Tresor wurde zurückgesetzt");
   }catch(e){$("__rmsg").textContent="Zurücksetzen fehlgeschlagen.";}
 }
-function changePasswordModal(){modal({title:"Master-Passwort ändern",body:'<input type="password" id="__o" placeholder="Aktuelles Passwort"><input type="password" id="__n1" placeholder="Neues Passwort (min. 6 Zeichen)"><input type="password" id="__n2" placeholder="Neues Passwort bestätigen"><p id="__pm" style="color:var(--danger);min-height:14px;margin:0;font-size:12px;"></p>',buttons:[{label:"Abbrechen",cls:"btn-ghost",act:closeModal},{label:"Ändern",cls:"btn-blue",act:doChangePassword}]});setTimeout(()=>$("__o").focus(),30);}
+function changePasswordModal(){modal({title:"Master-Passwort ändern",body:'<input type="password" id="__o" placeholder="Aktuelles Passwort"><input type="password" id="__n1" placeholder="Neues Passwort (mind. 10 Zeichen)"><input type="password" id="__n2" placeholder="Neues Passwort bestätigen"><p id="__pm" style="color:var(--danger);min-height:14px;margin:0;font-size:12px;"></p>',buttons:[{label:"Abbrechen",cls:"btn-ghost",act:closeModal},{label:"Ändern",cls:"btn-blue",act:doChangePassword}]});setTimeout(()=>$("__o").focus(),30);}
 async function doChangePassword(){
   const o=$("__o").value,n1=$("__n1").value,n2=$("__n2").value,pm=$("__pm");pm.textContent="";
   if(n1.length<10){pm.textContent="Neue Passphrase zu kurz (mind. 10 Zeichen).";return;}
@@ -2412,6 +2553,72 @@ function closeSidebar(){$("sidebar").classList.remove("open");}
 /* ---- Helpers ---- */
 function escapeHtml(s){return (s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 function htmlToText(html){const doc=new DOMParser().parseFromString(String(html||""),"text/html");return (doc.body.textContent||"").replace(/\u00a0/g," ");}
+/* Wandelt das Notiz-HTML in Markdown um (für Export, z.B. nach Obsidian). Deckt die in der App
+   erzeugten Strukturen ab: Überschriften, fett/kursiv, Listen, Checklisten, Zitate, Code, Tabellen,
+   Links, Trennlinien. Bilder/Anhänge werden als Platzhalter notiert (Binärdaten liegen separat). */
+function htmlToMarkdown(html){
+  const doc=new DOMParser().parseFromString(String(html||""),"text/html");
+  function inline(node){
+    let out="";
+    node.childNodes.forEach(c=>{
+      if(c.nodeType===3){out+=c.textContent.replace(/\u200b/g,"");return;}
+      if(c.nodeType!==1){return;}
+      const t=c.tagName.toLowerCase();
+      if(t==="b"||t==="strong")out+="**"+inline(c)+"**";
+      else if(t==="i"||t==="em")out+="*"+inline(c)+"*";
+      else if(t==="u")out+=inline(c); // Markdown hat kein Unterstreichen
+      else if(t==="s"||t==="strike")out+="~~"+inline(c)+"~~";
+      else if(t==="code")out+="`"+inline(c)+"`";
+      else if(t==="a")out+="["+inline(c)+"]("+(c.getAttribute("href")||"")+")";
+      else if(t==="br")out+="  \n";
+      else if(t==="img")out+="![Bild]";
+      else out+=inline(c);
+    });
+    return out;
+  }
+  let md="";
+  doc.body.childNodes.forEach(node=>{
+    if(node.nodeType===3){const tx=node.textContent.replace(/\u200b/g,"").trim();if(tx)md+=tx+"\n\n";return;}
+    if(node.nodeType!==1)return;
+    const t=node.tagName.toLowerCase();
+    if(t==="h1")md+="# "+inline(node)+"\n\n";
+    else if(t==="h2")md+="## "+inline(node)+"\n\n";
+    else if(t==="h3")md+="### "+inline(node)+"\n\n";
+    else if(t==="blockquote")md+="> "+inline(node).replace(/\n/g,"\n> ")+"\n\n";
+    else if(t==="pre")md+="```\n"+(node.textContent||"").replace(/\u200b/g,"")+"\n```\n\n";
+    else if(t==="hr")md+="---\n\n";
+    else if(t==="ul"||t==="ol"){
+      const checklist=node.classList.contains("checklist");
+      [...node.children].forEach((li,i)=>{
+        if(li.tagName.toLowerCase()!=="li")return;
+        const cb=li.querySelector('input[type="checkbox"]');
+        let prefix=checklist||cb? ("- ["+(cb&&cb.checked?"x":" ")+"] ") : (t==="ol"? (i+1)+". " : "- ");
+        const clone=li.cloneNode(true);clone.querySelectorAll('input[type="checkbox"]').forEach(x=>x.remove());
+        md+=prefix+inline(clone).trim()+"\n";
+      });
+      md+="\n";
+    }
+    else if(t==="table"){
+      const rows=[...node.rows];
+      rows.forEach((row,ri)=>{
+        md+="| "+[...row.cells].map(c=>inline(c).trim().replace(/\|/g,"\\|")||" ").join(" | ")+" |\n";
+        if(ri===0)md+="| "+[...row.cells].map(()=>"---").join(" | ")+" |\n";
+      });
+      md+="\n";
+    }
+    else if(t==="div"&&node.classList.contains("toc")){/* Inhaltsverzeichnis überspringen */}
+    else {const line=inline(node).trim();if(line)md+=line+"\n\n";}
+  });
+  return md.replace(/\n{3,}/g,"\n\n").trim()+"\n";
+}
+function exportNoteAsMarkdown(n){
+  if(!n)return;
+  const md="# "+(n.title||"Ohne Titel")+"\n\n"+htmlToMarkdown(n.html||"");
+  const safeName=(n.title||"notiz").replace(/[^\wäöüÄÖÜ -]/g,"").trim().slice(0,60)||"notiz";
+  const blob=new Blob([md],{type:"text/markdown;charset=utf-8"});
+  const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=safeName+".md";a.click();URL.revokeObjectURL(url);
+  toast("Als Markdown exportiert");
+}
 const ALLOWED_TAGS=new Set(["P","DIV","BR","H1","H2","H3","B","STRONG","I","EM","U","S","STRIKE","UL","OL","LI","BLOCKQUOTE","PRE","CODE","A","HR","IMG","SPAN","INPUT","TABLE","TBODY","THEAD","TR","TD","TH"]);
 function cleanAttrs(el){
   const tag=el.tagName;
