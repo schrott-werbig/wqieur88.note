@@ -122,13 +122,15 @@
   .ed-act svg{width:17px;height:17px;display:block;}
   .ed-act.danger:hover{color:var(--danger);}
 
-  .toolbar{display:flex;align-items:center;gap:2px;padding:6px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap;flex:0 0 auto;}
+  .toolbar{display:flex;align-items:center;gap:2px;padding:6px 14px;border-bottom:1px solid var(--line);flex:0 0 auto;}
+  .tb-scroll{display:flex;align-items:center;gap:2px;flex-wrap:wrap;flex:1 1 auto;min-width:0;}
+  .tb-more{flex:0 0 auto;margin-left:auto;}
   .tb-btn{min-width:30px;height:30px;padding:0 7px;border-radius:6px;color:var(--text-dim);display:flex;align-items:center;justify-content:center;font-size:13px;}
   .tb-btn:hover{background:var(--line-2);color:var(--text);}
   .tb-btn.on{background:var(--blue-50);color:var(--blue-700);}
   .tb-btn svg{width:16px;height:16px;}
   .tb-sep{width:1px;height:20px;background:var(--line);margin:0 4px;}
-  .more-tools{position:absolute;z-index:60;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:6px;display:grid;grid-template-columns:1fr 1fr;gap:2px;max-width:380px;}
+  .more-tools{position:fixed;z-index:60;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:6px;display:grid;grid-template-columns:1fr 1fr;gap:2px;max-width:380px;}
   html[data-theme="dark"] .more-tools{box-shadow:0 8px 30px rgba(0,0,0,.5);}
   .more-tools.hidden{display:none;}
   .mt-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:var(--text);font-size:13.5px;text-align:left;width:100%;}
@@ -302,8 +304,11 @@
     .fab svg{width:26px;height:26px;}
     .ed-bar{padding:7px 10px;gap:4px;}
     .ed-nb select{max-width:150px;}
-    .toolbar{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:5px 10px;gap:2px;}
-    .toolbar::-webkit-scrollbar{display:none;}
+    .toolbar{padding:5px 8px;gap:2px;}
+    .tb-scroll{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+    .tb-scroll::-webkit-scrollbar{display:none;}
+    .tb-more{margin-left:4px;padding-left:8px;border-left:1px solid var(--line);position:relative;}
+    .more-tools{max-width:calc(100vw - 24px);}
     .tb-btn{flex:0 0 auto;min-width:40px;height:40px;font-size:15px;}
     .tb-btn svg{width:21px;height:21px;}
     .tb-sep{margin:0 4px;}
@@ -456,21 +461,22 @@
         </div>
 
         <div class="toolbar" id="toolbar">
-          <button class="tb-btn" data-cmd="formatBlock" data-val="h1" title="Überschrift 1">H1</button>
-          <button class="tb-btn" data-cmd="formatBlock" data-val="h2" title="Überschrift 2">H2</button>
-          <button class="tb-btn" data-cmd="formatBlock" data-val="p" title="Fliesstext">¶</button>
-          <span class="tb-sep"></span>
-          <button class="tb-btn" data-cmd="bold" title="Fett (Strg+B)"><b>B</b></button>
-          <button class="tb-btn" data-cmd="italic" title="Kursiv (Strg+I)"><i>I</i></button>
-          <button class="tb-btn" data-cmd="underline" title="Unterstrichen (Strg+U)"><u>U</u></button>
-          <span class="tb-sep"></span>
-          <button class="tb-btn" data-cmd="insertUnorderedList" title="Aufzählung">•</button>
-          <button class="tb-btn" id="checklistBtn" title="Checkliste">☑</button>
-          <button class="tb-btn" id="tableBtn" title="Tabelle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 9h18M3 15h18M9 4v16M15 4v16"/></svg></button>
-          <button class="tb-btn" id="imgBtn" title="Bild einfügen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 16l-5-5L5 20"/></svg></button>
-          <button class="tb-btn" id="scanBtn" title="Dokument scannen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7V5a1 1 0 0 1 1-1h2M4 17v2a1 1 0 0 0 1 1h2M20 7V5a1 1 0 0 0-1-1h-2M20 17v2a1 1 0 0 1-1 1h-2"/><circle cx="12" cy="12" r="3.2"/></svg></button>
-          <span class="tb-sep"></span>
-          <button class="tb-btn" id="moreBtn" title="Weitere Werkzeuge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+          <div class="tb-scroll" id="tbScroll">
+            <button class="tb-btn" data-cmd="formatBlock" data-val="h1" title="Überschrift 1">H1</button>
+            <button class="tb-btn" data-cmd="formatBlock" data-val="h2" title="Überschrift 2">H2</button>
+            <button class="tb-btn" data-cmd="formatBlock" data-val="p" title="Fliesstext">¶</button>
+            <span class="tb-sep"></span>
+            <button class="tb-btn" data-cmd="bold" title="Fett (Strg+B)"><b>B</b></button>
+            <button class="tb-btn" data-cmd="italic" title="Kursiv (Strg+I)"><i>I</i></button>
+            <button class="tb-btn" data-cmd="underline" title="Unterstrichen (Strg+U)"><u>U</u></button>
+            <span class="tb-sep"></span>
+            <button class="tb-btn" data-cmd="insertUnorderedList" title="Aufzählung">•</button>
+            <button class="tb-btn" id="checklistBtn" title="Checkliste">☑</button>
+            <button class="tb-btn" id="tableBtn" title="Tabelle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 9h18M3 15h18M9 4v16M15 4v16"/></svg></button>
+            <button class="tb-btn" id="imgBtn" title="Bild einfügen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 16l-5-5L5 20"/></svg></button>
+            <button class="tb-btn" id="scanBtn" title="Dokument scannen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7V5a1 1 0 0 1 1-1h2M4 17v2a1 1 0 0 0 1 1h2M20 7V5a1 1 0 0 0-1-1h-2M20 17v2a1 1 0 0 1-1 1h-2"/><circle cx="12" cy="12" r="3.2"/></svg></button>
+          </div>
+          <button class="tb-btn tb-more" id="moreBtn" title="Weitere Werkzeuge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
         </div>
         <div id="moreTools" class="more-tools hidden">
           <button class="mt-item" data-cmd="formatBlock" data-val="h3"><span class="mt-ic">H3</span>Überschrift 3</button>
