@@ -140,7 +140,9 @@
   .color-sw{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:17px;font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.2);cursor:pointer;}
   .color-sw:hover{transform:scale(1.08);}
   .tagindex{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:10px 0;background:var(--line-2);display:flex;flex-direction:column;gap:4px;}
-  .tagindex .ti-title{font-size:12px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.03em;margin-bottom:2px;}
+  .tagindex .ti-title{font-size:12px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.03em;margin-bottom:2px;display:flex;align-items:center;gap:8px;}
+  .block-del{margin-left:auto;background:none;border:none;color:var(--text-dim);font-size:13px;cursor:pointer;padding:2px 6px;border-radius:5px;line-height:1;flex:0 0 auto;}
+  .block-del:hover{background:var(--danger);color:#fff;}
   .tagindex a{color:var(--blue-600);text-decoration:none;padding:3px 0;cursor:pointer;}
   .tagindex a:hover{text-decoration:underline;}
   .tagindex .ti-empty{color:var(--text-dim);font-size:13px;font-style:italic;}
@@ -473,6 +475,8 @@
         <div class="ed-bar">
           <button class="ed-back" id="edBackBtn" title="Zurück"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
           <div class="ed-nb"><select id="edNbSelect" title="Notizbuch"></select></div>
+          <button class="ed-act" id="undoBtn" title="Rückgängig (Strg+Z)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a6 6 0 0 1 0 12h-3"/></svg></button>
+          <button class="ed-act" id="redoBtn" title="Wiederherstellen (Strg+Y)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 14l5-5-5-5"/><path d="M20 9H9a6 6 0 0 0 0 12h3"/></svg></button>
           <div class="ed-spacer"></div>
           <button class="ed-act" id="printBtn" title="Drucken / als PDF"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-2M6 14h12v7H6z"/></svg></button>
           <button class="ed-act" id="historyBtn" title="Versionsverlauf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v5h5M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l3 2"/></svg></button>
@@ -786,7 +790,8 @@ function manualNoteHtml(){return ""+
   "<h2>Organisieren &amp; Export</h2>"+
   "<ul>"+
   "<li><b>Notizfarben:</b> Über das Notiz-Menü (Rechtsklick auf eine Notiz am Computer) oder im Werkzeug-Menü „⋯ → Notizfarbe“ lässt sich jeder Notiz eine Farbe geben – praktisch zum visuellen Sortieren.</li>"+
-  "<li><b>Notiz einbetten:</b> Über „⋯ → Notiz einbetten“ lässt sich der Inhalt einer anderen Notiz lebendig einfügen. Du kannst den eingebetteten Text <b>direkt an Ort und Stelle bearbeiten</b> – die Änderung wird automatisch in der Originalnotiz gespeichert und erscheint überall, wo sie eingebettet ist. Für Bilder, Tabellen oder Checklisten in der eingebetteten Notiz „zum Original“ antippen.</li>"+
+  "<li><b>Notiz einbetten:</b> Über „⋯ → Notiz einbetten“ lässt sich der Inhalt einer anderen Notiz lebendig einfügen. Du kannst den eingebetteten Text <b>direkt an Ort und Stelle bearbeiten</b> – die Änderung wird automatisch in der Originalnotiz gespeichert und erscheint überall, wo sie eingebettet ist. Für Bilder, Tabellen oder Checklisten in der eingebetteten Notiz „zum Original“ antippen. Mit dem ✕ rechts im Block-Kopf lässt sich eine Einbettung oder ein Schlagwort-Verzeichnis wieder entfernen (die Originalnotiz bleibt dabei erhalten).</li>"+
+  "<li><b>Rückgängig/Wiederherstellen:</b> Oben in der Notiz-Leiste stehen die Pfeil-Knöpfe zum Rückgängigmachen und Wiederherstellen (auch per Strg+Z bzw. Strg+Y).</li>"+
   "</ul>"+
   "<h2>Sicherheit &amp; Backup</h2>"+
   "<ul>"+
@@ -1007,14 +1012,14 @@ function renderDynamicBlocks(n){
     const links=matches.length
       ? matches.map(x=>'<a href="#" data-note="'+x.id+'">'+escapeHtml(x.title||"Ohne Titel")+'</a>').join("")
       : '<span class="ti-empty">Noch keine Notizen mit #'+escapeHtml(tag)+'</span>';
-    box.innerHTML='<div class="ti-title">📑 Notizen mit #'+escapeHtml(tag)+' ('+matches.length+')</div>'+links;
+    box.innerHTML='<div class="ti-title">📑 Notizen mit #'+escapeHtml(tag)+' ('+matches.length+')<button class="block-del" data-block-del title="Block entfernen">✕</button></div>'+links;
   });
   // 2. Eingebettete Notizen
   eb.querySelectorAll('.embed[data-embed]').forEach(box=>{
     const tid=box.getAttribute("data-embed");
     const target=vault.notes.find(x=>x.id===tid&&!x.trashed);
-    if(!target){box.innerHTML='<div class="embed-head">⚠ Eingebettete Notiz nicht gefunden</div>';return;}
-    box.innerHTML='<div class="embed-head" contenteditable="false">⧉ '+escapeHtml(target.title||"Ohne Titel")+' <span class="embed-hint">direkt bearbeitbar</span><button class="embed-edit" data-embed-edit="'+tid+'">zum Original</button></div><div class="embed-body" contenteditable="true" data-embed-body="'+tid+'">'+sanitizeHtml(target.html||"")+'</div>';
+    if(!target){box.innerHTML='<div class="embed-head" contenteditable="false">⚠ Eingebettete Notiz nicht gefunden<button class="block-del" data-block-del title="Block entfernen">✕</button></div>';bindDynamicBlockEvents();return;}
+    box.innerHTML='<div class="embed-head" contenteditable="false">⧉ '+escapeHtml(target.title||"Ohne Titel")+' <span class="embed-hint">direkt bearbeitbar</span><button class="embed-edit" data-embed-edit="'+tid+'">zum Original</button><button class="block-del" data-block-del title="Einbettung entfernen">✕</button></div><div class="embed-body" contenteditable="true" data-embed-body="'+tid+'">'+sanitizeHtml(target.html||"")+'</div>';
   });
   bindDynamicBlockEvents();
 }
@@ -1028,9 +1033,12 @@ function bindDynamicBlockEvents(){
   eb.querySelectorAll('.embed-edit[data-embed-edit]').forEach(b=>{
     b.onclick=e=>{e.preventDefault();e.stopPropagation();const id=b.getAttribute("data-embed-edit");const t=vault.notes.find(x=>x.id===id);if(t&&!t.trashed)openNote(id);};
   });
+  // Lösch-Knopf entfernt den ganzen lebenden Block (Verzeichnis oder Einbettung) aus der Notiz.
+  // Entfernt nur den Block hier – die eingebettete Originalnotiz bleibt selbstverständlich bestehen.
+  eb.querySelectorAll('.block-del[data-block-del]').forEach(b=>{
+    b.onclick=e=>{e.preventDefault();e.stopPropagation();const block=b.closest(".tagindex,.embed");if(block){block.remove();syncBody();toast("Block entfernt");}};
+  });
   // Direkte Bearbeitung im eingebetteten Block: Änderungen in die ZIELnotiz zurückschreiben.
-  // Bewusst nur Text-/Textformatierung – die Spezial-Logik für Bilder/Tabellen/Checklisten hängt
-  // am Haupt-Editor, nicht am eingebetteten Block. Für solche Änderungen "zum Original" nutzen.
   eb.querySelectorAll('.embed-body[data-embed-body]').forEach(body=>{
     body.oninput=(e)=>{
       e.stopPropagation();
@@ -1041,7 +1049,6 @@ function bindDynamicBlockEvents(){
       target.updated=now();
       markDirty();
     };
-    // Verhindern, dass Klicks im Body den Block-Link-Handler auslösen
     body.onclick=e=>e.stopPropagation();
   });
 }
@@ -2097,10 +2104,19 @@ $("edBody").addEventListener("click",e=>{const a=e.target.closest("a");if(!a)ret
 /* ---- Keyboard ---- */
 $("edBody").addEventListener("keydown",e=>{
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"){e.preventDefault();syncBody();persist();toast("Gespeichert");return;}
+  if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&e.key.toLowerCase()==="y"){e.preventDefault();doRedo();return;}
+  if((e.ctrlKey||e.metaKey)&&e.shiftKey&&e.key.toLowerCase()==="z"){e.preventDefault();doRedo();return;}
   if(e.key===" "){if(handleMarkdownShortcut(e))return;}
   if(e.key==="Enter"&&!e.shiftKey){if(handleListEnter(e))return;}
   if(e.key==="Backspace"){if(handleListBackspace(e))return;}
 });
+/* Rückgängig/Wiederherstellen über die native Browser-Historie des Editors. */
+function doUndo(){$("edBody").focus();document.execCommand("undo");syncBody();recalcTables();}
+function doRedo(){$("edBody").focus();document.execCommand("redo");syncBody();recalcTables();}
+$("undoBtn").addEventListener("mousedown",e=>e.preventDefault());
+$("undoBtn").addEventListener("click",doUndo);
+$("redoBtn").addEventListener("mousedown",e=>e.preventDefault());
+$("redoBtn").addEventListener("click",doRedo);
 /* Markdown-Kurzbefehle: am Zeilenanfang ein Präfix + Leertaste wandelt die Zeile um.
    # ## ### -> Überschriften, - oder * -> Aufzählung, 1. -> nummerierte Liste,
    [] oder [ ] -> Checkliste, > -> Zitat. Gibt true zurück, wenn umgewandelt wurde. */
