@@ -148,7 +148,9 @@
   .embed .embed-head{font-size:12px;font-weight:600;color:var(--text-dim);padding:7px 12px;background:var(--line-2);display:flex;align-items:center;justify-content:space-between;gap:8px;}
   .embed .embed-edit{font-size:11.5px;color:var(--blue-600);background:none;border:1px solid var(--line);border-radius:6px;padding:3px 9px;cursor:pointer;}
   .embed .embed-edit:hover{background:var(--panel);}
-  .embed .embed-body{padding:8px 12px;}
+  .embed .embed-hint{font-size:10.5px;color:var(--text-dim);font-weight:400;text-transform:none;letter-spacing:0;margin-right:auto;opacity:.7;}
+  .embed .embed-body{padding:8px 12px;outline:none;}
+  .embed .embed-body:focus{background:var(--panel);box-shadow:inset 0 0 0 2px var(--blue-500);border-radius:0 0 8px 8px;}
   .note-card .nc-select{display:none;}
   body.select-mode .note-card{padding-left:42px;position:relative;}
   body.select-mode .note-card .nc-select{display:flex;position:absolute;left:12px;top:50%;transform:translateY(-50%);width:22px;height:22px;border:2px solid var(--line);border-radius:6px;align-items:center;justify-content:center;color:#fff;font-size:14px;}
@@ -784,7 +786,7 @@ function manualNoteHtml(){return ""+
   "<h2>Organisieren &amp; Export</h2>"+
   "<ul>"+
   "<li><b>Notizfarben:</b> Über das Notiz-Menü (Rechtsklick auf eine Notiz am Computer) oder im Werkzeug-Menü „⋯ → Notizfarbe“ lässt sich jeder Notiz eine Farbe geben – praktisch zum visuellen Sortieren.</li>"+
-  "<li><b>Markdown-Export:</b> Im Notiz-Menü „Als Markdown exportieren“ speichert die Notiz als <code>.md</code>-Datei – nützlich, um sie in anderen Programmen (z.B. Obsidian) weiterzuverwenden.</li>"+
+  "<li><b>Notiz einbetten:</b> Über „⋯ → Notiz einbetten“ lässt sich der Inhalt einer anderen Notiz lebendig einfügen. Du kannst den eingebetteten Text <b>direkt an Ort und Stelle bearbeiten</b> – die Änderung wird automatisch in der Originalnotiz gespeichert und erscheint überall, wo sie eingebettet ist. Für Bilder, Tabellen oder Checklisten in der eingebetteten Notiz „zum Original“ antippen.</li>"+
   "</ul>"+
   "<h2>Sicherheit &amp; Backup</h2>"+
   "<ul>"+
@@ -1012,19 +1014,35 @@ function renderDynamicBlocks(n){
     const tid=box.getAttribute("data-embed");
     const target=vault.notes.find(x=>x.id===tid&&!x.trashed);
     if(!target){box.innerHTML='<div class="embed-head">⚠ Eingebettete Notiz nicht gefunden</div>';return;}
-    box.innerHTML='<div class="embed-head">⧉ '+escapeHtml(target.title||"Ohne Titel")+' <button class="embed-edit" data-embed-edit="'+tid+'">bearbeiten</button></div><div class="embed-body">'+sanitizeHtml(target.html||"")+'</div>';
+    box.innerHTML='<div class="embed-head" contenteditable="false">⧉ '+escapeHtml(target.title||"Ohne Titel")+' <span class="embed-hint">direkt bearbeitbar</span><button class="embed-edit" data-embed-edit="'+tid+'">zum Original</button></div><div class="embed-body" contenteditable="true" data-embed-body="'+tid+'">'+sanitizeHtml(target.html||"")+'</div>';
   });
   bindDynamicBlockEvents();
 }
 function bindDynamicBlockEvents(){
   const eb=$("edBody");
   // Klick auf Verzeichnis-Link oder eingebetteten Notiz-Link öffnet die Zielnotiz
-  eb.querySelectorAll('.tagindex a[data-note],.embed a[data-note]').forEach(a=>{
+  eb.querySelectorAll('.tagindex a[data-note]').forEach(a=>{
     a.onclick=e=>{e.preventDefault();const id=a.getAttribute("data-note");const t=vault.notes.find(x=>x.id===id);if(t&&!t.trashed)openNote(id);};
   });
-  // "bearbeiten"-Knopf einer eingebetteten Notiz öffnet die Originalnotiz
+  // "zum Original"-Knopf einer eingebetteten Notiz öffnet die Originalnotiz
   eb.querySelectorAll('.embed-edit[data-embed-edit]').forEach(b=>{
     b.onclick=e=>{e.preventDefault();e.stopPropagation();const id=b.getAttribute("data-embed-edit");const t=vault.notes.find(x=>x.id===id);if(t&&!t.trashed)openNote(id);};
+  });
+  // Direkte Bearbeitung im eingebetteten Block: Änderungen in die ZIELnotiz zurückschreiben.
+  // Bewusst nur Text-/Textformatierung – die Spezial-Logik für Bilder/Tabellen/Checklisten hängt
+  // am Haupt-Editor, nicht am eingebetteten Block. Für solche Änderungen "zum Original" nutzen.
+  eb.querySelectorAll('.embed-body[data-embed-body]').forEach(body=>{
+    body.oninput=(e)=>{
+      e.stopPropagation();
+      const tid=body.getAttribute("data-embed-body");
+      const target=vault.notes.find(x=>x.id===tid&&!x.trashed);
+      if(!target)return;
+      target.html=sanitizeHtml(body.innerHTML);
+      target.updated=now();
+      markDirty();
+    };
+    // Verhindern, dass Klicks im Body den Block-Link-Handler auslösen
+    body.onclick=e=>e.stopPropagation();
   });
 }
 function renderReminderChip(n){
