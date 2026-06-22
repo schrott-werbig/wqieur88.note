@@ -139,6 +139,24 @@
   .mt-item .mt-ic svg{width:17px;height:17px;}
   .color-sw{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:17px;font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.2);cursor:pointer;}
   .color-sw:hover{transform:scale(1.08);}
+  .tagindex{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:10px 0;background:var(--line-2);display:flex;flex-direction:column;gap:4px;}
+  .tagindex .ti-title{font-size:12px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.03em;margin-bottom:2px;}
+  .tagindex a{color:var(--blue-600);text-decoration:none;padding:3px 0;cursor:pointer;}
+  .tagindex a:hover{text-decoration:underline;}
+  .tagindex .ti-empty{color:var(--text-dim);font-size:13px;font-style:italic;}
+  .embed{border:1px solid var(--line);border-left:3px solid var(--blue-500);border-radius:10px;margin:10px 0;background:var(--panel-2);overflow:hidden;}
+  .embed .embed-head{font-size:12px;font-weight:600;color:var(--text-dim);padding:7px 12px;background:var(--line-2);display:flex;align-items:center;justify-content:space-between;gap:8px;}
+  .embed .embed-edit{font-size:11.5px;color:var(--blue-600);background:none;border:1px solid var(--line);border-radius:6px;padding:3px 9px;cursor:pointer;}
+  .embed .embed-edit:hover{background:var(--panel);}
+  .embed .embed-body{padding:8px 12px;}
+  .note-card .nc-select{display:none;}
+  body.select-mode .note-card{padding-left:42px;position:relative;}
+  body.select-mode .note-card .nc-select{display:flex;position:absolute;left:12px;top:50%;transform:translateY(-50%);width:22px;height:22px;border:2px solid var(--line);border-radius:6px;align-items:center;justify-content:center;color:#fff;font-size:14px;}
+  body.select-mode .note-card.sel .nc-select{background:var(--blue-600);border-color:var(--blue-600);}
+  .select-bar{display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--blue-600);color:#fff;font-size:13.5px;}
+  .select-bar button{color:#fff;padding:6px 10px;border-radius:7px;font-size:13px;}
+  .select-bar button:hover{background:rgba(255,255,255,.18);}
+  .select-bar .sb-spacer{flex:1;}
   .tb-btn b{font-weight:800;} .tb-btn i{font-style:italic;} .tb-btn u{text-decoration:underline;} .tb-btn s{text-decoration:line-through;}
 
   .ed-scroll{flex:1;overflow-y:auto;min-height:0;position:relative;}
@@ -438,6 +456,7 @@
           <option value="created">Erstellt</option>
           <option value="title">Titel A–Z</option>
         </select>
+        <button class="nl-select-btn" id="selectModeBtn" title="Mehrere auswählen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></button>
       </div>
       <div id="trashActions" class="trash-actions hidden"><button class="purge" id="emptyTrashBtn">Papierkorb leeren</button></div>
       <div class="nl-scroll" id="noteListScroll"></div>
@@ -492,6 +511,8 @@
           <button class="mt-item" id="ocrBtn2"><span class="mt-ic">OCR</span>Text aus Bild erkennen</button>
           <button class="mt-item" id="reminderBtn2"><span class="mt-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 6v6l4 2"/><circle cx="12" cy="13" r="8"/></svg></span>Erinnerung setzen</button>
           <button class="mt-item" id="colorBtn2"><span class="mt-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="10.5" r="2.5"/><circle cx="8.5" cy="7.5" r="2.5"/><circle cx="6.5" cy="12.5" r="2.5"/><path d="M12 2a10 10 0 0 0 0 20 2 2 0 0 0 2-2 2 2 0 0 1 2-2h1a4 4 0 0 0 4-4 8 8 0 0 0-9-10z"/></svg></span>Notizfarbe</button>
+          <button class="mt-item" id="tagIndexBtn"><span class="mt-ic">#</span>Schlagwort-Verzeichnis</button>
+          <button class="mt-item" id="embedBtn"><span class="mt-ic">⧉</span>Notiz einbetten</button>
         </div>
         <!-- versteckte Original-Buttons, damit bestehende Handler weiter funktionieren -->
         <div style="display:none">
@@ -852,10 +873,52 @@ function renderNoteList(){
     card.querySelector(".nc-snippet").textContent=snippet;
     card.querySelector(".nc-nb").textContent=nbName(n.notebookId);
     const tagEls=card.querySelectorAll(".nc-tag");(n.tags||[]).slice(0,3).forEach((t,i)=>{if(tagEls[i])tagEls[i].textContent="#"+t;});
-    card.addEventListener("click",()=>openNote(n.id));
+    const selBox=document.createElement("div");selBox.className="nc-select";if(selectedIds.has(n.id)){card.classList.add("sel");selBox.textContent="✓";}card.appendChild(selBox);
+    card.addEventListener("click",()=>{
+      if(selectMode){toggleNoteSelection(n.id);return;}
+      openNote(n.id);
+    });
     card.addEventListener("contextmenu",e=>{if(isMobile())return;e.preventDefault();noteCardCtx(e.clientX,e.clientY,n);});
     scroll.appendChild(card);
   });
+}
+let selectMode=false;const selectedIds=new Set();
+function toggleNoteSelection(id){
+  if(selectedIds.has(id))selectedIds.delete(id);else selectedIds.add(id);
+  renderNoteList();updateSelectBar();
+}
+function enterSelectMode(firstId){
+  selectMode=true;document.body.classList.add("select-mode");
+  if(firstId)selectedIds.add(firstId);
+  renderNoteList();updateSelectBar();
+}
+function exitSelectMode(){
+  selectMode=false;selectedIds.clear();document.body.classList.remove("select-mode");
+  const bar=$("selectBar");if(bar)bar.remove();
+  renderNoteList();
+}
+function updateSelectBar(){
+  let bar=$("selectBar");
+  if(!bar){
+    bar=document.createElement("div");bar.className="select-bar";bar.id="selectBar";
+    bar.innerHTML='<span id="selCount"></span><span class="sb-spacer"></span><button id="selLinks">Links sammeln</button><button id="selCancel">Fertig</button>';
+    const host=$("noteListScroll");host.parentNode.insertBefore(bar,host);
+    $("selCancel").addEventListener("click",exitSelectMode);
+    $("selLinks").addEventListener("click",collectLinksToNewNote);
+  }
+  $("selCount").textContent=selectedIds.size+" ausgewählt";
+}
+/* Erstellt eine neue Notiz mit Verlinkungen zu allen ausgewählten Notizen. */
+function collectLinksToNewNote(){
+  if(!selectedIds.size){toast("Nichts ausgewählt");return;}
+  const ids=[...selectedIds];
+  const links=ids.map(id=>{const t=vault.notes.find(x=>x.id===id);if(!t)return"";return '<li><a data-note="'+id+'" href="#">'+escapeHtml(t.title||"Ohne Titel")+'</a></li>';}).join("");
+  const html='<h2>Verknüpfte Notizen</h2><ul>'+links+'</ul><p><br></p>';
+  exitSelectMode();
+  const n=createNewNote(false);
+  n.title="Verknüpfungen";n.html=html;markDirty();
+  currentNoteId=n.id;renderAll();renderEditor();if(isMobile())$("editor").classList.add("open");
+  toast(ids.length+" Verknüpfungen eingefügt");
 }
 function noteCardCtx(x,y,n){
   const items=[];
@@ -867,6 +930,7 @@ function noteCardCtx(x,y,n){
     items.push({label:n.pinned?"Favorit entfernen":"Als Favorit",icon:ICN.pin,act:()=>{n.pinned=!n.pinned;n.updated=now();markDirty();renderAll();}});
     items.push({label:"Duplizieren",icon:ICN.dup,act:()=>duplicateNote(n)});
     items.push({label:"Farbe…",act:()=>noteColorModal(n)});
+    items.push({label:"Mehrere auswählen…",act:()=>enterSelectMode(n.id)});
     items.push({label:"Als Markdown exportieren",act:()=>exportNoteAsMarkdown(n)});
     items.push({sep:true});
     items.push({label:"Notizbuch wechseln…",act:()=>moveNoteModal(n)});
@@ -926,8 +990,42 @@ function renderEditor(){
   $("trashBtn").style.display=n.trashed?"none":"";$("restoreBtn").style.display=n.trashed?"":"none";
   $("edBody").contentEditable=n.trashed?"false":"true";$("edTitle").disabled=!!n.trashed;
   $("dateInfo").textContent="Erstellt "+fmtDate(n.created);
-  updateCounts();hydrateImages();renderAttachments(n);bindChecklistEvents();renderReminderChip(n);buildTocs();recalcTables();renderBacklinks(n);
+  updateCounts();hydrateImages();renderAttachments(n);bindChecklistEvents();renderReminderChip(n);buildTocs();recalcTables();renderDynamicBlocks(n);renderBacklinks(n);
   edLoading=false;
+}
+/* Lebende Blöcke, die bei jedem Öffnen der Notiz frisch berechnet werden:
+   - data-tagindex="schlagwort": automatisches Verzeichnis aller Notizen mit diesem Schlagwort
+   - data-embed="notizId": eingebetteter (lebender) Inhalt einer anderen Notiz */
+function renderDynamicBlocks(n){
+  const eb=$("edBody");
+  // 1. Schlagwort-Verzeichnisse
+  eb.querySelectorAll('.tagindex[data-tagindex]').forEach(box=>{
+    const tag=box.getAttribute("data-tagindex");
+    const matches=activeNotes().filter(x=>x.id!==n.id&&(x.tags||[]).includes(tag)).sort((a,b)=>b.updated-a.updated);
+    const links=matches.length
+      ? matches.map(x=>'<a href="#" data-note="'+x.id+'">'+escapeHtml(x.title||"Ohne Titel")+'</a>').join("")
+      : '<span class="ti-empty">Noch keine Notizen mit #'+escapeHtml(tag)+'</span>';
+    box.innerHTML='<div class="ti-title">📑 Notizen mit #'+escapeHtml(tag)+' ('+matches.length+')</div>'+links;
+  });
+  // 2. Eingebettete Notizen
+  eb.querySelectorAll('.embed[data-embed]').forEach(box=>{
+    const tid=box.getAttribute("data-embed");
+    const target=vault.notes.find(x=>x.id===tid&&!x.trashed);
+    if(!target){box.innerHTML='<div class="embed-head">⚠ Eingebettete Notiz nicht gefunden</div>';return;}
+    box.innerHTML='<div class="embed-head">⧉ '+escapeHtml(target.title||"Ohne Titel")+' <button class="embed-edit" data-embed-edit="'+tid+'">bearbeiten</button></div><div class="embed-body">'+sanitizeHtml(target.html||"")+'</div>';
+  });
+  bindDynamicBlockEvents();
+}
+function bindDynamicBlockEvents(){
+  const eb=$("edBody");
+  // Klick auf Verzeichnis-Link oder eingebetteten Notiz-Link öffnet die Zielnotiz
+  eb.querySelectorAll('.tagindex a[data-note],.embed a[data-note]').forEach(a=>{
+    a.onclick=e=>{e.preventDefault();const id=a.getAttribute("data-note");const t=vault.notes.find(x=>x.id===id);if(t&&!t.trashed)openNote(id);};
+  });
+  // "bearbeiten"-Knopf einer eingebetteten Notiz öffnet die Originalnotiz
+  eb.querySelectorAll('.embed-edit[data-embed-edit]').forEach(b=>{
+    b.onclick=e=>{e.preventDefault();e.stopPropagation();const id=b.getAttribute("data-embed-edit");const t=vault.notes.find(x=>x.id===id);if(t&&!t.trashed)openNote(id);};
+  });
 }
 function renderReminderChip(n){
   const chip=$("reminderChip");
@@ -945,7 +1043,16 @@ $("edNbSelect").addEventListener("change",()=>{const n=cur();if(!n)return;n.note
 let listUpdTimer=null;function liveListUpdate(){clearTimeout(listUpdTimer);listUpdTimer=setTimeout(renderNoteList,400);}
 let tocUpdTimer=null;function liveTocUpdate(){if(!$("edBody").querySelector(".toc[data-toc]"))return;clearTimeout(tocUpdTimer);tocUpdTimer=setTimeout(()=>{buildTocs();syncBody();},600);}
 function cur(){return vault?vault.notes.find(x=>x.id===currentNoteId):null;}
-function sanitizeForStore(html){return sanitizeHtml(html);}
+function sanitizeForStore(html){return stripDynamicBlocks(sanitizeHtml(html));}
+/* Entfernt den berechneten Inhalt lebender Blöcke (Schlagwort-Verzeichnis, eingebettete Notiz),
+   sodass nur der leere Platzhalter mit data-Attribut gespeichert wird. Beim nächsten Öffnen wird
+   der Inhalt frisch berechnet. So landet nie ein veralteter Schnappschuss im Speicher. */
+function stripDynamicBlocks(html){
+  const d=document.createElement("div");d.innerHTML=html;
+  d.querySelectorAll('.tagindex[data-tagindex]').forEach(b=>{b.innerHTML="";});
+  d.querySelectorAll('.embed[data-embed]').forEach(b=>{b.innerHTML="";});
+  return d.innerHTML;
+}
 function reconcileInline(n,html){const d=document.createElement("div");d.innerHTML=html;const present=new Set();d.querySelectorAll("img[data-att]").forEach(i=>present.add(i.getAttribute("data-att")));n.attachments=(n.attachments||[]).filter(a=>!a.inline||present.has(a.id));}
 function syncBody(){const n=cur();if(!n||n.trashed)return;const html=sanitizeForStore($("edBody").innerHTML);snapshotNote(n,html,n.title);reconcileInline(n,html);n.html=html;n.updated=now();updateCounts();markDirty();}
 function saveCurrentNote(silent){const n=cur();if(!n||n.trashed)return;n.title=$("edTitle").value;const html=sanitizeForStore($("edBody").innerHTML);reconcileInline(n,html);n.html=html;if(!silent)markDirty();}
@@ -1048,6 +1155,35 @@ $("moreBtn").addEventListener("click",e=>{
 });
 $("colorBtn2").addEventListener("mousedown",e=>e.preventDefault());
 $("colorBtn2").addEventListener("click",()=>{closeMoreTools();const n=cur();if(!n){toast("Keine Notiz geöffnet");return;}noteColorModal(n);});
+/* Schlagwort-Verzeichnis einfügen: lebender Block, der alle Notizen mit einem Schlagwort auflistet */
+$("tagIndexBtn").addEventListener("mousedown",e=>e.preventDefault());
+$("tagIndexBtn").addEventListener("click",()=>{
+  closeMoreTools();const n=cur();if(!n){toast("Keine Notiz geöffnet");return;}
+  const allTags=[...new Set(activeNotes().flatMap(x=>x.tags||[]))].sort();
+  if(!allTags.length){toast("Es gibt noch keine Schlagwörter");return;}
+  const opts=allTags.map(t=>'<button class="tbl-op btn-ghost" data-tag="'+escapeHtml(t)+'" style="width:100%;text-align:left;padding:10px 12px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;background:var(--panel);">#'+escapeHtml(t)+'</button>').join("");
+  modal({title:"Schlagwort-Verzeichnis",body:'<p style="font-size:12.5px;color:var(--text-dim);">Fügt ein automatisches Verzeichnis aller Notizen mit dem gewählten Schlagwort ein. Es aktualisiert sich selbst, sobald neue Notizen mit diesem Schlagwort entstehen.</p><div style="max-height:300px;overflow:auto;">'+opts+'</div>',buttons:[{label:"Abbrechen",cls:"btn-ghost",act:closeModal}]});
+  document.querySelectorAll("[data-tag]").forEach(b=>b.addEventListener("click",()=>{
+    const tag=b.getAttribute("data-tag");closeModal();restoreSelection();
+    document.execCommand("insertHTML",false,'<div class="tagindex" contenteditable="false" data-tagindex="'+escapeHtml(tag)+'"></div><p><br></p>');
+    syncBody();renderDynamicBlocks(cur());toast("Verzeichnis eingefügt");
+  }));
+});
+/* Notiz einbetten: lebender Block, der den Inhalt einer anderen Notiz zeigt; Bearbeiten öffnet das Original */
+$("embedBtn").addEventListener("mousedown",e=>e.preventDefault());
+$("embedBtn").addEventListener("click",()=>{
+  closeMoreTools();const n=cur();if(!n){toast("Keine Notiz geöffnet");return;}
+  const others=activeNotes().filter(x=>x.id!==n.id).sort((a,b)=>b.updated-a.updated);
+  if(!others.length){toast("Keine andere Notiz vorhanden");return;}
+  const items=others.map(x=>'<button data-id="'+x.id+'"></button>').join("");
+  modal({title:"Notiz einbetten",body:'<p style="font-size:12.5px;color:var(--text-dim);">Bettet den Inhalt einer anderen Notiz ein. Er bleibt mit dem Original verbunden – Änderungen am Original erscheinen auch hier. Über „bearbeiten" springst du zum Original.</p><div class="note-pick" id="__ep">'+items+'</div>',buttons:[{label:"Abbrechen",cls:"btn-ghost",act:closeModal}]});
+  const wrap=$("__ep");others.forEach((x,i)=>{wrap.children[i].textContent=x.title||"Ohne Titel";});
+  wrap.querySelectorAll("button").forEach(btn=>btn.addEventListener("click",()=>{
+    const id=btn.dataset.id;closeModal();restoreSelection();
+    document.execCommand("insertHTML",false,'<div class="embed" contenteditable="false" data-embed="'+id+'"></div><p><br></p>');
+    syncBody();renderDynamicBlocks(cur());toast("Notiz eingebettet");
+  }));
+});
 $("codeBtn").addEventListener("mousedown",e=>e.preventDefault());
 $("codeBtn").addEventListener("click",()=>{$("edBody").focus();document.execCommand("formatBlock",false,"pre");syncBody();});
 $("hrBtn").addEventListener("mousedown",e=>e.preventDefault());
@@ -1835,7 +1971,24 @@ async function buildSimplePdfFromJpeg(jpegArrayBuffer,pxW,pxH){
 $("linkBtn").addEventListener("mousedown",e=>e.preventDefault());
 $("linkBtn").addEventListener("click",()=>{const selText=window.getSelection().toString();promptModal("Web-Link einfügen","https://…  oder  mailto:name@…","",url=>{url=(url||"").trim();if(!url)return;if(!/^(https?:|mailto:)/i.test(url))url="https://"+url;restoreSelection();if(window.getSelection().toString())document.execCommand("createLink",false,url);else document.execCommand("insertHTML",false,'<a href="'+escapeHtml(url)+'">'+escapeHtml(selText||url)+'</a> ');syncBody();});});
 $("checklistBtn").addEventListener("mousedown",e=>e.preventDefault());
-$("checklistBtn").addEventListener("click",()=>{insertChecklistItem();});
+$("checklistBtn").addEventListener("click",()=>{toggleChecklist();});
+function toggleChecklist(){
+  $("edBody").focus();
+  const li=currentLi();
+  // Wenn der Cursor schon in einer Checklisten-Zeile steht: in normalen Absatz zurückwandeln (Toggle)
+  if(li&&li.parentElement&&li.parentElement.classList.contains("checklist")){
+    const list=li.parentElement;
+    const text=(li.querySelector("span")?li.querySelector("span").textContent:li.textContent||"").replace(/\u200b/g,"");
+    const p=document.createElement("p");p.textContent=text||"";if(!text)p.innerHTML="<br>";
+    // Liste auflösen: diese Zeile als Absatz ersetzen; übrige Zeilen bleiben Liste
+    if(list.children.length===1){list.replaceWith(p);}
+    else{list.parentNode.insertBefore(p,list.nextSibling);li.remove();}
+    const r=document.createRange();r.selectNodeContents(p);r.collapse(false);
+    const sel=window.getSelection();sel.removeAllRanges();sel.addRange(r);
+    syncBody();return;
+  }
+  insertChecklistItem();
+}
 function insertChecklistItem(){
   $("edBody").focus();
   const id="cb"+uid();
@@ -2276,6 +2429,7 @@ $("emptyTrashBtn").addEventListener("click",()=>{const trashed=vault.notes.filte
 /* ---- Search / sort ---- */
 let searchTimer=null;$("searchInput").addEventListener("input",()=>{clearTimeout(searchTimer);searchTimer=setTimeout(renderNoteList,180);});
 $("sortSelect").addEventListener("change",()=>{vault.settings.sort=$("sortSelect").value;markDirty();renderNoteList();});
+$("selectModeBtn").addEventListener("click",()=>{if(selectMode)exitSelectMode();else enterSelectMode(null);});
 
 /* ---- Theme ---- */
 function applyTheme(t){document.documentElement.setAttribute("data-theme",t==="dark"?"dark":"light");}
@@ -2640,12 +2794,16 @@ function cleanAttrs(el){
     else if(name==="checked"&&tag==="INPUT") keep=true;
     else if(name==="id"&&(tag==="H1"||tag==="H2"||tag==="H3")) keep=/^h[a-z0-9]+$/i.test(val);
     else if(name==="data-toc"&&tag==="DIV") keep=true;
-    else if(name==="contenteditable"&&tag==="DIV"&&el.classList.contains("toc")) keep=(val==="false");
+    else if(name==="data-tagindex"&&tag==="DIV") keep=true;
+    else if(name==="data-embed"&&tag==="DIV") keep=true;
+    else if(name==="contenteditable"&&tag==="DIV"&&(el.classList.contains("toc")||el.classList.contains("tagindex")||el.classList.contains("embed"))) keep=(val==="false");
     else if(name==="data-formula"&&(tag==="TD"||tag==="TH")) keep=true;
     else if(name==="class"){
       if(tag==="UL"||tag==="LI") keep=true;
       else if(tag==="DIV"&&(val==="toc")) keep=true;
       else if(tag==="DIV"&&val==="toc-title") keep=true;
+      else if(tag==="DIV"&&val==="tagindex") keep=true;
+      else if(tag==="DIV"&&val==="embed") keep=true;
       else if(tag==="A"&&/^(lvl[123])$/.test(val)) keep=true;
       else if((tag==="TD"||tag==="TH")&&val==="formula") keep=true;
     }
