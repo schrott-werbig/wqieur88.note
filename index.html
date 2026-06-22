@@ -2881,71 +2881,18 @@ let syncDirHandle=null; // gemerkt für die Dauer der Sitzung, falls File System
 function fsApiAvailable(){return "showSaveFilePicker" in window && "showOpenFilePicker" in window;}
 
 $("deviceSyncBtn").addEventListener("click",openDeviceSyncModal);
-let preparedSyncFile=null;
 function openDeviceSyncModal(){
-  const canShareFiles=!!(navigator.share && navigator.canShare);
-  preparedSyncFile=null;
   modal({title:"Geräte-Sync (Syncthing & Co.)",body:
     '<p style="font-size:12.5px;color:var(--text-dim);">Schreibt eine verschlüsselte Datei mit immer demselben Namen ("'+SYNC_FILENAME+'"). Ein Sync-Programm wie Syncthing gleicht den Ordner zwischen deinen Geräten ab. Auf jedem Gerät selbst „Aktualisieren“ bzw. „Einlesen“ antippen (kein automatisches Zusammenführen).</p>'+
-    '<p style="font-size:11.5px;color:var(--text-dim);background:var(--line-2);padding:7px 9px;border-radius:7px;">Tipp: Für Syncthing genügt <b>„Datei speichern“</b> in den überwachten Ordner.</p>'+
+    '<p style="font-size:11.5px;color:var(--text-dim);background:var(--line-2);padding:7px 9px;border-radius:7px;">So geht\u2019s: <b>„Datei speichern“</b> in den von Syncthing überwachten Ordner legen. Syncthing überträgt sie automatisch auf deine anderen Geräte, wo du sie mit „Einlesen“ übernimmst.</p>'+
     '<div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;">'+
     '<button class="tbl-op btn-blue" id="dsUpdate" style="background:var(--blue-600);color:#fff;border:none;">Datei speichern / aktualisieren</button>'+
-    (canShareFiles?'<button class="tbl-op btn-ghost" id="dsPrepare">Für „An App senden“ vorbereiten …</button>'+
-    '<button class="tbl-op btn-blue" id="dsShare" style="display:none;background:var(--blue-600);color:#fff;border:none;">✓ Jetzt an App senden</button>':'')+
     '<button class="tbl-op btn-ghost" id="dsRead">Sync-Datei jetzt einlesen (Import)</button>'+
     '</div>'+
     '<p id="dsMsg" style="font-size:12px;color:var(--text-dim);margin-top:8px;min-height:14px;"></p>',
     buttons:[{label:"Schliessen",cls:"btn-ghost",act:closeModal}]});
   $("dsUpdate").addEventListener("click",deviceSyncExport);
   $("dsRead").addEventListener("click",deviceSyncImport);
-  if(canShareFiles){
-    $("dsPrepare").addEventListener("click",prepareShareFile);
-    $("dsShare").addEventListener("click",deviceSyncShare);
-  }
-}
-/* Schritt 1: Datei verschlüsseln und vorbereiten. Erst wenn sie fertig ist, wird der eigentliche
-   Teilen-Knopf sichtbar – so folgt das spätere navigator.share() unmittelbar auf eine frische
-   Antippen-Geste ohne async dazwischen, was den "Permission denied"-Fehler vermeidet. */
-async function prepareShareFile(){
-  const msg=$("dsMsg");const prep=$("dsPrepare");const share=$("dsShare");
-  prep.disabled=true;prep.textContent="Wird verschlüsselt …";msg.textContent="";
-  try{
-    const bytes=await buildPackageBytes();
-    preparedSyncFile=new File([bytes],SYNC_FILENAME,{type:"application/octet-stream"});
-    if(navigator.canShare&&!navigator.canShare({files:[preparedSyncFile]})){
-      msg.innerHTML='<span style="color:var(--danger);">Dieses Gerät unterstützt das Datei-Teilen nicht.</span> Nutze „Datei speichern“.';
-      prep.disabled=false;prep.textContent="Für „An App senden“ vorbereiten …";return;
-    }
-    // Vorbereitung erfolgreich -> Vorbereiten-Knopf ausblenden, Teilen-Knopf zeigen
-    prep.style.display="none";
-    share.style.display="";
-    msg.textContent="Datei bereit. Jetzt „An App senden“ antippen.";
-  }catch(err){
-    prep.disabled=false;prep.textContent="Für „An App senden“ vorbereiten …";
-    msg.innerHTML='<span style="color:var(--danger);">Vorbereitung fehlgeschlagen.</span>';
-  }
-}
-/* Schritt 2: Die bereits vorbereitete Datei teilen. Da die Verschlüsselung schon in Schritt 1
-   (prepareShareFile) erledigt wurde, folgt navigator.share() hier UNMITTELBAR auf die Antippen-Geste
-   ohne async dazwischen – das ist der Schlüssel gegen "Permission denied". */
-function deviceSyncShare(){
-  const msg=$("dsMsg");
-  const file=preparedSyncFile;
-  if(!file){msg.textContent="Bitte zuerst „vorbereiten“ antippen.";return;}
-  navigator.share({files:[file],title:"Notizen-Sync"}).then(()=>{
-    msg.textContent="Geteilt: "+SYNC_FILENAME+" · "+fmtDate(now());
-    toast("Sync-Datei geteilt");
-  }).catch(err=>{
-    if(err&&err.name==="AbortError"){msg.textContent="Abgebrochen.";return;}
-    // Falls das System das Teilen trotzdem blockiert: auf Speichern ausweichen.
-    shareFallback(msg,"Das direkte Teilen wird auf diesem Gerät vom System blockiert.");
-  });
-}
-/* Ausweichlösung, wenn das native Teilen scheitert: Datei speichern (Download/Datei-Picker),
-   von wo sie sich über den Dateimanager an jede Cloud-App weitergeben lässt. */
-function shareFallback(msg,reason){
-  msg.innerHTML='<span style="color:var(--danger);">'+escapeHtml(reason)+'</span><br>Die Datei wird stattdessen gespeichert – du kannst sie dann über den Dateimanager an OneDrive o.ä. weitergeben.';
-  setTimeout(()=>{deviceSyncExport();},900);
 }
 async function deviceSyncExport(){
   const msg=$("dsMsg");msg.textContent="Wird vorbereitet …";
