@@ -1055,7 +1055,18 @@ function renderTagbar(n){const bar=$("tagbar");bar.querySelectorAll(".tag-chip")
   (n.tags||[]).forEach(t=>{const chip=document.createElement("span");chip.className="tag-chip";const span=document.createElement("span");span.textContent="#"+t;const x=document.createElement("button");x.textContent="×";x.title="Entfernen";x.addEventListener("click",()=>{n.tags=n.tags.filter(y=>y!==t);n.updated=now();markDirty();renderTagbar(n);renderSidebar();renderNoteList();});chip.appendChild(span);chip.appendChild(x);bar.insertBefore(chip,input);});}
 
 $("edTitle").addEventListener("input",()=>{if(edLoading)return;const n=cur();if(!n)return;n.title=$("edTitle").value;n.updated=now();markDirty();liveListUpdate();});
-$("edBody").addEventListener("input",()=>{if(edLoading)return;syncBody();liveListUpdate();liveTocUpdate();});
+$("edBody").addEventListener("input",(e)=>{if(edLoading)return;syncBody();liveListUpdate();liveTocUpdate();liveTableUpdate(e);});
+/* Live-Neuberechnung der Formeln während des Tippens in einer Tabellenzelle.
+   recalcTables() überspringt die fokussierte Zelle, daher springt der Cursor nicht.
+   Leicht verzögert (debounced), damit das Tippen flüssig bleibt. */
+let tableUpdTimer=null;
+function liveTableUpdate(e){
+  const cell=e&&e.target&&e.target.closest?e.target.closest("td,th"):null;
+  if(!cell)return;
+  const table=cell.closest("table");if(!table)return;
+  clearTimeout(tableUpdTimer);
+  tableUpdTimer=setTimeout(()=>{recalcTables(table);},120);
+}
 $("edNbSelect").addEventListener("change",()=>{const n=cur();if(!n)return;n.notebookId=$("edNbSelect").value;n.updated=now();markDirty();renderSidebar();renderNoteList();});
 
 let listUpdTimer=null;function liveListUpdate(){clearTimeout(listUpdTimer);listUpdTimer=setTimeout(renderNoteList,400);}
@@ -1473,12 +1484,25 @@ function evalArithmetic(input){
 /* Alle Formelzellen einer Tabelle (oder aller Tabellen) neu berechnen. */
 function recalcTables(scope){
   const tables=scope&&scope.tagName==="TABLE"?[scope]:[...$("edBody").querySelectorAll("table")];
+  // Zelle ermitteln, in der der Cursor gerade steht – die wird NICHT überschrieben (Cursor-Schutz).
+  let activeCell=null;
+  const sel=window.getSelection&&window.getSelection();
+  if(sel&&sel.rangeCount){
+    let node=sel.getRangeAt(0).startContainer;
+    if(node&&node.nodeType===3)node=node.parentNode;
+    if(node&&node.closest)activeCell=node.closest("td,th");
+  }
+  const activeEl=document.activeElement;
   tables.forEach(table=>{
     // mehrere Durchläufe, damit Formeln, die auf andere Formeln verweisen, sich stabilisieren
     for(let pass=0;pass<3;pass++){
       table.querySelectorAll("td[data-formula],th[data-formula]").forEach(cell=>{
         const f=cell.getAttribute("data-formula");if(!f)return;
-        cell.textContent=evalTableFormula(table,f);
+        // Die gerade bearbeitete (fokussierte) Zelle NICHT überschreiben – sonst springt der Cursor.
+        if(cell===activeCell||cell===activeEl)return;
+        const val=evalTableFormula(table,f);
+        // Nur schreiben, wenn sich der Wert geändert hat (vermeidet unnötige DOM-Mutationen).
+        if(cell.textContent!==val)cell.textContent=val;
         cell.classList.add("formula");
       });
     }
