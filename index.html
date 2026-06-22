@@ -206,6 +206,7 @@
   .ed-body .toc a:before{content:none;}
   .ed-body td.formula{background:rgba(59,130,246,.06);}
   html[data-theme="dark"] .ed-body td.formula{background:rgba(59,130,246,.12);}
+  .ed-body td.editing,.ed-body th.editing{background:rgba(234,179,8,.14);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.92em;}
   .ed-body hr{border:none;border-top:1px solid var(--line);margin:1.2em 0;}
   .ed-body img{max-width:100%;border-radius:8px;margin:6px 0;display:block;}
   .ed-body ul.checklist{list-style:none;padding-left:2px;}
@@ -1078,17 +1079,6 @@ function renderTagbar(n){const bar=$("tagbar");bar.querySelectorAll(".tag-chip")
 
 $("edTitle").addEventListener("input",()=>{if(edLoading)return;const n=cur();if(!n)return;n.title=$("edTitle").value;n.updated=now();markDirty();liveListUpdate();});
 $("edBody").addEventListener("input",(e)=>{if(edLoading)return;syncBody();liveListUpdate();liveTocUpdate();liveTableUpdate(e);});
-/* Live-Neuberechnung der Formeln während des Tippens in einer Tabellenzelle.
-   recalcTables() überspringt die fokussierte Zelle, daher springt der Cursor nicht.
-   Leicht verzögert (debounced), damit das Tippen flüssig bleibt. */
-let tableUpdTimer=null;
-function liveTableUpdate(e){
-  const cell=e&&e.target&&e.target.closest?e.target.closest("td,th"):null;
-  if(!cell)return;
-  const table=cell.closest("table");if(!table)return;
-  clearTimeout(tableUpdTimer);
-  tableUpdTimer=setTimeout(()=>{recalcTables(table);},120);
-}
 $("edNbSelect").addEventListener("change",()=>{const n=cur();if(!n)return;n.notebookId=$("edNbSelect").value;n.updated=now();markDirty();renderSidebar();renderNoteList();});
 
 let listUpdTimer=null;function liveListUpdate(){clearTimeout(listUpdTimer);listUpdTimer=setTimeout(renderNoteList,400);}
@@ -1106,6 +1096,8 @@ function stripDynamicBlocks(html){
   d.querySelectorAll(".fold-toggle").forEach(t=>t.remove());
   d.querySelectorAll(".section-hidden").forEach(e=>e.classList.remove("section-hidden"));
   d.querySelectorAll("h1,h2,h3").forEach(h=>{h.classList.remove("folded","foldable");});
+  // editing-Markierung von Tabellenzellen entfernen (reiner Bearbeitungszustand)
+  d.querySelectorAll("td.editing,th.editing").forEach(c=>c.classList.remove("editing"));
   // Leere class-Attribute entfernen (z.B. nach Entfernen von section-hidden/folded)
   d.querySelectorAll('[class=""]').forEach(e=>e.removeAttribute("class"));
   return d.innerHTML;
@@ -1611,28 +1603,20 @@ function evalArithmetic(input){
   return result;
 }
 /* Alle Formelzellen einer Tabelle (oder aller Tabellen) neu berechnen. */
+/* Berechnet alle Formelzellen neu und zeigt das Ergebnis an – AUSSER bei Zellen, die gerade
+   bearbeitet werden (Klasse "editing"): dort bleibt die Rohformel stehen, damit der Cursor nicht springt. */
 function recalcTables(scope){
   const tables=scope&&scope.tagName==="TABLE"?[scope]:[...$("edBody").querySelectorAll("table")];
-  // Zelle ermitteln, in der der Cursor gerade steht – die wird NICHT überschrieben (Cursor-Schutz).
-  let activeCell=null;
-  const sel=window.getSelection&&window.getSelection();
-  if(sel&&sel.rangeCount){
-    let node=sel.getRangeAt(0).startContainer;
-    if(node&&node.nodeType===3)node=node.parentNode;
-    if(node&&node.closest)activeCell=node.closest("td,th");
-  }
-  const activeEl=document.activeElement;
   tables.forEach(table=>{
     // mehrere Durchläufe, damit Formeln, die auf andere Formeln verweisen, sich stabilisieren
-    for(let pass=0;pass<3;pass++){
+    for(let pass=0;pass<4;pass++){
       table.querySelectorAll("td[data-formula],th[data-formula]").forEach(cell=>{
         const f=cell.getAttribute("data-formula");if(!f)return;
-        // Die gerade bearbeitete (fokussierte) Zelle NICHT überschreiben – sonst springt der Cursor.
-        if(cell===activeCell||cell===activeEl)return;
-        const val=evalTableFormula(table,f);
-        // Nur schreiben, wenn sich der Wert geändert hat (vermeidet unnötige DOM-Mutationen).
-        if(cell.textContent!==val)cell.textContent=val;
         cell.classList.add("formula");
+        // Zelle, die gerade bearbeitet wird, zeigt die Rohformel – nicht überschreiben.
+        if(cell.classList.contains("editing"))return;
+        const val=evalTableFormula(table,f);
+        if(cell.textContent!==val)cell.textContent=val;
       });
     }
   });
@@ -1642,28 +1626,52 @@ function commitCellFormula(cell){
   const txt=(cell.textContent||"").replace(/[\u200b\u200c\u200d\ufeff]/g,"").replace(/[\u00a0\u2007\u202f]/g," ").trim();
   if(txt.startsWith("=")){
     cell.setAttribute("data-formula",txt);
-    const table=cell.closest("table");if(table)recalcTables(table);
+    cell.classList.add("formula");
   }else{
-    // kein "=" mehr -> Formel entfernen
     if(cell.hasAttribute("data-formula")){cell.removeAttribute("data-formula");cell.classList.remove("formula");}
   }
 }
-/* Beim Fokussieren einer Formelzelle die Formel zum Bearbeiten anzeigen, beim Verlassen Ergebnis berechnen. */
+/* ---- Tabellen-Interaktion (sauberer Zustandsfluss) ----
+   Beim Betreten einer Formelzelle: Rohformel anzeigen + als "editing" markieren.
+   Beim Tippen: alle ANDEREN Formelzellen live neu berechnen (die bearbeitete bleibt Rohformel).
+   Beim Verlassen: Formel festschreiben, "editing" entfernen, alles neu berechnen. */
 $("edBody").addEventListener("focusin",e=>{
-  const cell=e.target&&e.target.closest?e.target.closest("td[data-formula],th[data-formula]"):null;
-  if(cell){cell.textContent=cell.getAttribute("data-formula");}
+  const cell=e.target&&e.target.closest?e.target.closest("td,th"):null;
+  if(!cell)return;
+  if(cell.hasAttribute("data-formula")){
+    // Rohformel zum Bearbeiten anzeigen
+    cell.textContent=cell.getAttribute("data-formula");
+    cell.classList.add("editing");
+    // Cursor ans Ende der Formel setzen
+    requestAnimationFrame(()=>{
+      const r=document.createRange();r.selectNodeContents(cell);r.collapse(false);
+      const s=window.getSelection();s.removeAllRanges();s.addRange(r);
+    });
+  }
 });
 $("edBody").addEventListener("focusout",e=>{
   const cell=e.target&&e.target.closest?e.target.closest("td,th"):null;
   if(!cell)return;
-  // Erst die verlassene Zelle als Formel festschreiben (falls sie mit = beginnt)
   commitCellFormula(cell);
+  cell.classList.remove("editing");
   const table=cell.closest("table");
-  // Nach dem Fokuswechsel die GANZE Tabelle neu berechnen – inkl. der gerade verlassenen Zelle.
-  // Der Timeout stellt sicher, dass der Fokus bereits auf der neuen Stelle liegt, damit die
-  // verlassene Zelle nicht mehr als "aktiv" gilt und korrekt aktualisiert wird.
-  setTimeout(()=>{if(table)recalcTables(table);syncBody();},0);
+  if(table)recalcTables(table);
+  syncBody();
 });
+/* Live-Neuberechnung beim Tippen in einer Tabellenzelle – sofort, ohne spürbare Verzögerung.
+   Die gerade bearbeitete Zelle (editing) wird von recalcTables ausgelassen, daher kein Cursor-Sprung. */
+function liveTableUpdate(e){
+  const cell=e&&e.target&&e.target.closest?e.target.closest("td,th"):null;
+  if(!cell)return;
+  const table=cell.closest("table");if(!table)return;
+  // Wird gerade eine Formelzelle bearbeitet, ihre Rohformel live in data-formula mitführen,
+  // damit der Stand auch bei einem Notizwechsel ohne focusout konsistent bleibt.
+  if(cell.classList.contains("editing")){
+    const txt=(cell.textContent||"").replace(/[\u200b\u200c\u200d\ufeff]/g,"").replace(/[\u00a0\u2007\u202f]/g," ").trim();
+    if(txt.startsWith("="))cell.setAttribute("data-formula",txt);
+  }
+  recalcTables(table);
+}
 
 /* ---- Erinnerungen ---- */
 $("reminderBtn").addEventListener("mousedown",e=>e.preventDefault());
