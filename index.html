@@ -152,6 +152,15 @@
   .tagindex a{color:var(--blue-600);text-decoration:none;padding:3px 0;cursor:pointer;}
   .tagindex a:hover{text-decoration:underline;}
   .tagindex .ti-empty{color:var(--text-dim);font-size:13px;font-style:italic;}
+  .fieldindex{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:10px 0;background:var(--line-2);}
+  .fieldindex .ti-title{font-size:12px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px;display:flex;align-items:center;gap:8px;}
+  .fieldindex .fi-table{width:100%;border-collapse:collapse;font-size:13.5px;}
+  .fieldindex .fi-table td{padding:4px 8px;border-bottom:1px solid var(--line);vertical-align:top;}
+  .fieldindex .fi-table tr:last-child td{border-bottom:none;}
+  .fieldindex .fi-val{font-weight:600;white-space:nowrap;color:var(--text);}
+  .fieldindex a{color:var(--blue-600);text-decoration:none;cursor:pointer;}
+  .fieldindex a:hover{text-decoration:underline;}
+  .fieldindex .ti-empty{color:var(--text-dim);font-size:13px;font-style:italic;}
   .embed{border:1px solid var(--line);border-left:3px solid var(--blue-500);border-radius:10px;margin:10px 0;background:var(--panel-2);overflow:hidden;}
   .embed .embed-head{font-size:12px;font-weight:600;color:var(--text-dim);padding:7px 12px;background:var(--line-2);display:flex;align-items:center;justify-content:space-between;gap:8px;}
   .embed .embed-edit{font-size:11.5px;color:var(--blue-600);background:none;border:1px solid var(--line);border-radius:6px;padding:3px 9px;cursor:pointer;}
@@ -525,6 +534,7 @@
           <button class="mt-item" id="reminderBtn2"><span class="mt-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 6v6l4 2"/><circle cx="12" cy="13" r="8"/></svg></span>Erinnerung setzen</button>
           <button class="mt-item" id="colorBtn2"><span class="mt-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="10.5" r="2.5"/><circle cx="8.5" cy="7.5" r="2.5"/><circle cx="6.5" cy="12.5" r="2.5"/><path d="M12 2a10 10 0 0 0 0 20 2 2 0 0 0 2-2 2 2 0 0 1 2-2h1a4 4 0 0 0 4-4 8 8 0 0 0-9-10z"/></svg></span>Notizfarbe</button>
           <button class="mt-item" id="tagIndexBtn"><span class="mt-ic">#</span>Schlagwort-Verzeichnis</button>
+          <button class="mt-item" id="fieldIndexBtn"><span class="mt-ic">🗂</span>Feld-Verzeichnis (Feld::)</button>
           <button class="mt-item" id="embedBtn"><span class="mt-ic">⧉</span>Notiz einbetten</button>
         </div>
         <!-- versteckte Original-Buttons, damit bestehende Handler weiter funktionieren -->
@@ -798,6 +808,7 @@ function manualNoteHtml(){return ""+
   "<ul>"+
   "<li><b>Notizfarben:</b> Über das Notiz-Menü (Rechtsklick auf eine Notiz am Computer) oder im Werkzeug-Menü „⋯ → Notizfarbe“ lässt sich jeder Notiz eine Farbe geben – praktisch zum visuellen Sortieren.</li>"+
   "<li><b>Notiz einbetten:</b> Über „⋯ → Notiz einbetten“ lässt sich der Inhalt einer anderen Notiz lebendig einfügen. Du kannst den eingebetteten Text <b>direkt an Ort und Stelle bearbeiten</b> – die Änderung wird automatisch in der Originalnotiz gespeichert und erscheint überall, wo sie eingebettet ist. Für Bilder, Tabellen oder Checklisten in der eingebetteten Notiz „zum Original“ antippen. Mit dem ✕ rechts im Block-Kopf lässt sich eine Einbettung oder ein Schlagwort-Verzeichnis wieder entfernen (die Originalnotiz bleibt dabei erhalten).</li>"+
+  "<li><b>Feld-Verzeichnis (Feld::):</b> Schreibe in eine Notiz ein Feld der Form <code>Baubeginn:: 1. März 2026</code> (Feldname, zwei Doppelpunkte, Wert). Über „⋯ → Feld-Verzeichnis“ fügst du ein lebendes Verzeichnis ein, das alle Notizen mit diesem Feld samt Wert auflistet – ideal z.B. für Termine über mehrere Projekte hinweg. Es aktualisiert sich automatisch, sobald eine neue Notiz mit diesem Feld entsteht.</li>"+
   "<li><b>Rückgängig/Wiederherstellen:</b> Oben in der Notiz-Leiste stehen die Pfeil-Knöpfe zum Rückgängigmachen und Wiederherstellen (auch per Strg+Z bzw. Strg+Y).</li>"+
   "</ul>"+
   "<h2>Sicherheit &amp; Backup</h2>"+
@@ -1021,6 +1032,23 @@ function renderDynamicBlocks(n){
       : '<span class="ti-empty">Noch keine Notizen mit #'+escapeHtml(tag)+'</span>';
     box.innerHTML='<div class="ti-title">📑 Notizen mit #'+escapeHtml(tag)+' ('+matches.length+')<button class="block-del" data-block-del title="Block entfernen">✕</button></div>'+links;
   });
+  // 1b. Feld-Verzeichnisse (Feld:: Wert) – sammelt alle Notizen mit einem bestimmten Feld + zeigt den Wert
+  eb.querySelectorAll('.fieldindex[data-fieldindex]').forEach(box=>{
+    const field=box.getAttribute("data-fieldindex");
+    const fieldLow=field.toLowerCase();
+    const rows=[];
+    activeNotes().forEach(x=>{
+      if(x.id===n.id)return;
+      extractFields(x.html||"").forEach(f=>{
+        if(f.field.toLowerCase()===fieldLow)rows.push({id:x.id,title:x.title||"Ohne Titel",value:f.value});
+      });
+    });
+    rows.sort((a,b)=>a.value.localeCompare(b.value,"de",{numeric:true}));
+    const body=rows.length
+      ? '<table class="fi-table"><tbody>'+rows.map(r=>'<tr><td class="fi-val">'+escapeHtml(r.value)+'</td><td><a href="#" data-note="'+r.id+'">'+escapeHtml(r.title)+'</a></td></tr>').join("")+'</tbody></table>'
+      : '<span class="ti-empty">Noch keine Notizen mit dem Feld „'+escapeHtml(field)+'::"</span>';
+    box.innerHTML='<div class="ti-title">🗂 '+escapeHtml(field)+' ('+rows.length+')<button class="block-del" data-block-del title="Block entfernen">✕</button></div>'+body;
+  });
   // 2. Eingebettete Notizen
   eb.querySelectorAll('.embed[data-embed]').forEach(box=>{
     const tid=box.getAttribute("data-embed");
@@ -1091,6 +1119,7 @@ function sanitizeForStore(html){return stripDynamicBlocks(sanitizeHtml(html));}
 function stripDynamicBlocks(html){
   const d=document.createElement("div");d.innerHTML=html;
   d.querySelectorAll('.tagindex[data-tagindex]').forEach(b=>{b.innerHTML="";});
+  d.querySelectorAll('.fieldindex[data-fieldindex]').forEach(b=>{b.innerHTML="";});
   d.querySelectorAll('.embed[data-embed]').forEach(b=>{b.innerHTML="";});
   // Falt-Pfeile entfernen und Falt-/Versteckt-Zustand zurücksetzen (reine Ansichtssache, nicht speichern)
   d.querySelectorAll(".fold-toggle").forEach(t=>t.remove());
@@ -1217,6 +1246,27 @@ $("tagIndexBtn").addEventListener("click",()=>{
     document.execCommand("insertHTML",false,'<div class="tagindex" contenteditable="false" data-tagindex="'+escapeHtml(tag)+'"></div><p><br></p>');
     syncBody();renderDynamicBlocks(cur());toast("Verzeichnis eingefügt");
   }));
+});
+/* Feld-Verzeichnis einfügen: sammelt alle Notizen mit einem bestimmten "Feld::"-Eintrag und zeigt deren Werte. */
+$("fieldIndexBtn").addEventListener("mousedown",e=>e.preventDefault());
+$("fieldIndexBtn").addEventListener("click",()=>{
+  closeMoreTools();const n=cur();if(!n){toast("Keine Notiz geöffnet");return;}
+  const fields=allFieldNames();
+  const existing=fields.length?fields.map(f=>'<button class="tbl-op btn-ghost" data-field="'+escapeHtml(f)+'" style="width:100%;text-align:left;padding:10px 12px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;background:var(--panel);">🗂 '+escapeHtml(f)+'</button>').join(""):'<p style="font-size:12px;color:var(--text-dim);">Noch keine Felder gefunden. Schreibe in einer Notiz z.B. „Baubeginn:: 1. März 2026" und wähle das Feld dann hier.</p>';
+  modal({title:"Feld-Verzeichnis",body:'<p style="font-size:12.5px;color:var(--text-dim);">Sammelt automatisch alle Notizen mit einem Feld der Form <b>Feldname:: Wert</b> und listet sie mit ihren Werten auf. Aktualisiert sich selbst.</p>'+
+    '<label style="font-size:12.5px;display:block;margin:6px 0 4px;">Neues Feld eingeben:</label>'+
+    '<div style="display:flex;gap:6px;margin-bottom:10px;"><input type="text" id="__fi" placeholder="z.B. Baubeginn" style="flex:1;"><button class="tbl-op btn-blue" id="__fiAdd" style="background:var(--blue-600);color:#fff;border:none;white-space:nowrap;">Einfügen</button></div>'+
+    (fields.length?'<p style="font-size:12px;color:var(--text-dim);margin:4px 0;">Oder vorhandenes Feld wählen:</p>':'')+
+    '<div style="max-height:240px;overflow:auto;">'+existing+'</div>',buttons:[{label:"Abbrechen",cls:"btn-ghost",act:closeModal}]});
+  function insertField(field){
+    field=(field||"").trim();if(!field){toast("Bitte einen Feldnamen eingeben");return;}
+    closeModal();restoreSelection();
+    document.execCommand("insertHTML",false,'<div class="fieldindex" contenteditable="false" data-fieldindex="'+escapeHtml(field)+'"></div><p><br></p>');
+    syncBody();renderDynamicBlocks(cur());toast("Feld-Verzeichnis eingefügt");
+  }
+  $("__fiAdd").addEventListener("click",()=>insertField($("__fi").value));
+  $("__fi").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();insertField($("__fi").value);}});
+  document.querySelectorAll("[data-field]").forEach(b=>b.addEventListener("click",()=>insertField(b.getAttribute("data-field"))));
 });
 /* Notiz einbetten: lebender Block, der den Inhalt einer anderen Notiz zeigt; Bearbeiten öffnet das Original */
 $("embedBtn").addEventListener("mousedown",e=>e.preventDefault());
@@ -2938,6 +2988,44 @@ function closeSidebar(){$("sidebar").classList.remove("open");}
 /* ---- Helpers ---- */
 function escapeHtml(s){return (s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 function htmlToText(html){const doc=new DOMParser().parseFromString(String(html||""),"text/html");return (doc.body.textContent||"").replace(/\u00a0/g," ");}
+/* Findet Inline-Felder der Form "Feldname:: Wert" im Klartext einer Notiz.
+   Liefert ein Array von {field, value}. Der Feldname darf Buchstaben, Zahlen, Leerzeichen,
+   Umlaute, Bindestrich und Unterstrich enthalten; der Wert ist der Rest der Zeile. */
+function extractFields(html){
+  // Block-Elemente als Zeilengrenzen behandeln, damit "Feld:: Wert" pro Absatz korrekt getrennt wird.
+  let text="";
+  const walk=(node)=>{
+    node.childNodes.forEach(c=>{
+      if(c.nodeType===3){text+=c.textContent;}
+      else if(c.nodeType===1){
+        const tag=c.tagName.toLowerCase();
+        const block=/^(p|div|br|li|h1|h2|h3|tr|blockquote|pre)$/.test(tag);
+        if(block)text+="\n";
+        walk(c);
+        if(block)text+="\n";
+      }
+    });
+  };
+  const src=new DOMParser().parseFromString(String(html||""),"text/html");
+  walk(src.body);
+  text=text.replace(/\u00a0/g," ").replace(/\u200b/g,"");
+  const out=[];
+  text.split(/\n+/).forEach(line=>{
+    const re=/([\wäöüÄÖÜß .\-]+?)::[ \t]*([^\n]*?)(?=(?:[\wäöüÄÖÜß .\-]+?::)|$)/g;
+    let m;
+    while((m=re.exec(line))!==null){
+      const field=m[1].trim();const value=m[2].trim();
+      if(field&&value)out.push({field,value});
+    }
+  });
+  return out;
+}
+/* Liefert alle eindeutigen Feldnamen über alle Notizen (für die Auswahl beim Einfügen). */
+function allFieldNames(){
+  const set=new Set();
+  activeNotes().forEach(n=>extractFields(n.html||"").forEach(f=>set.add(f.field)));
+  return [...set].sort((a,b)=>a.localeCompare(b,"de"));
+}
 /* Wandelt das Notiz-HTML in Markdown um (für Export, z.B. nach Obsidian). Deckt die in der App
    erzeugten Strukturen ab: Überschriften, fett/kursiv, Listen, Checklisten, Zitate, Code, Tabellen,
    Links, Trennlinien. Bilder/Anhänge werden als Platzhalter notiert (Binärdaten liegen separat). */
@@ -3020,15 +3108,17 @@ function cleanAttrs(el){
     else if(name==="id"&&(tag==="H1"||tag==="H2"||tag==="H3")) keep=/^h[a-z0-9]+$/i.test(val);
     else if(name==="data-toc"&&tag==="DIV") keep=true;
     else if(name==="data-tagindex"&&tag==="DIV") keep=true;
+    else if(name==="data-fieldindex"&&tag==="DIV") keep=true;
     else if(name==="data-embed"&&tag==="DIV") keep=true;
     else if(name==="data-embed-section"&&tag==="DIV") keep=true;
-    else if(name==="contenteditable"&&tag==="DIV"&&(el.classList.contains("toc")||el.classList.contains("tagindex")||el.classList.contains("embed"))) keep=(val==="false");
+    else if(name==="contenteditable"&&tag==="DIV"&&(el.classList.contains("toc")||el.classList.contains("tagindex")||el.classList.contains("fieldindex")||el.classList.contains("embed"))) keep=(val==="false");
     else if(name==="data-formula"&&(tag==="TD"||tag==="TH")) keep=true;
     else if(name==="class"){
       if(tag==="UL"||tag==="LI") keep=true;
       else if(tag==="DIV"&&(val==="toc")) keep=true;
       else if(tag==="DIV"&&val==="toc-title") keep=true;
       else if(tag==="DIV"&&val==="tagindex") keep=true;
+      else if(tag==="DIV"&&val==="fieldindex") keep=true;
       else if(tag==="DIV"&&val==="embed") keep=true;
       else if(tag==="A"&&/^(lvl[123])$/.test(val)) keep=true;
       else if((tag==="TD"||tag==="TH")&&val==="formula") keep=true;
