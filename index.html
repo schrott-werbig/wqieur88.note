@@ -143,6 +143,12 @@
   .tagindex .ti-title{font-size:12px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.03em;margin-bottom:2px;display:flex;align-items:center;gap:8px;}
   .block-del{margin-left:auto;background:none;border:none;color:var(--text-dim);font-size:13px;cursor:pointer;padding:2px 6px;border-radius:5px;line-height:1;flex:0 0 auto;}
   .block-del:hover{background:var(--danger);color:#fff;}
+  .section-hidden{display:none !important;}
+  h1.foldable,h2.foldable,h3.foldable{position:relative;}
+  .fold-toggle{background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:.7em;padding:0 6px 0 0;line-height:1;vertical-align:middle;opacity:.5;}
+  .fold-toggle:hover{opacity:1;}
+  h1.folded,h2.folded,h3.folded{opacity:.75;}
+  .embed-readonly{opacity:.95;}
   .tagindex a{color:var(--blue-600);text-decoration:none;padding:3px 0;cursor:pointer;}
   .tagindex a:hover{text-decoration:underline;}
   .tagindex .ti-empty{color:var(--text-dim);font-size:13px;font-style:italic;}
@@ -997,7 +1003,7 @@ function renderEditor(){
   $("trashBtn").style.display=n.trashed?"none":"";$("restoreBtn").style.display=n.trashed?"":"none";
   $("edBody").contentEditable=n.trashed?"false":"true";$("edTitle").disabled=!!n.trashed;
   $("dateInfo").textContent="Erstellt "+fmtDate(n.created);
-  updateCounts();hydrateImages();renderAttachments(n);bindChecklistEvents();renderReminderChip(n);buildTocs();recalcTables();renderDynamicBlocks(n);renderBacklinks(n);
+  updateCounts();hydrateImages();renderAttachments(n);bindChecklistEvents();renderReminderChip(n);buildTocs();recalcTables();renderDynamicBlocks(n);applyHeadingFolding();renderBacklinks(n);
   edLoading=false;
 }
 /* Lebende Blöcke, die bei jedem Öffnen der Notiz frisch berechnet werden:
@@ -1017,9 +1023,18 @@ function renderDynamicBlocks(n){
   // 2. Eingebettete Notizen
   eb.querySelectorAll('.embed[data-embed]').forEach(box=>{
     const tid=box.getAttribute("data-embed");
+    const section=box.getAttribute("data-embed-section");
     const target=vault.notes.find(x=>x.id===tid&&!x.trashed);
     if(!target){box.innerHTML='<div class="embed-head" contenteditable="false">⚠ Eingebettete Notiz nicht gefunden<button class="block-del" data-block-del title="Block entfernen">✕</button></div>';bindDynamicBlockEvents();return;}
-    box.innerHTML='<div class="embed-head" contenteditable="false">⧉ '+escapeHtml(target.title||"Ohne Titel")+' <span class="embed-hint">direkt bearbeitbar</span><button class="embed-edit" data-embed-edit="'+tid+'">zum Original</button><button class="block-del" data-block-del title="Einbettung entfernen">✕</button></div><div class="embed-body" contenteditable="true" data-embed-body="'+tid+'">'+sanitizeHtml(target.html||"")+'</div>';
+    if(section){
+      // Nur ein Abschnitt: lesend anzeigen (Bearbeitung über "zum Original")
+      const headings=collectHeadings(target.html||"");
+      const head=headings.find(h=>h.id===section);
+      const secHtml=head?extractSection(target.html||"",head.text):'<p class="ti-empty">Abschnitt nicht gefunden</p>';
+      box.innerHTML='<div class="embed-head" contenteditable="false">⧉ '+escapeHtml(target.title||"Ohne Titel")+' › '+escapeHtml(head?head.text:"Abschnitt")+'<button class="embed-edit" data-embed-edit="'+tid+'">zum Original</button><button class="block-del" data-block-del title="Einbettung entfernen">✕</button></div><div class="embed-body embed-readonly" contenteditable="false">'+sanitizeHtml(secHtml)+'</div>';
+    }else{
+      box.innerHTML='<div class="embed-head" contenteditable="false">⧉ '+escapeHtml(target.title||"Ohne Titel")+' <span class="embed-hint">direkt bearbeitbar</span><button class="embed-edit" data-embed-edit="'+tid+'">zum Original</button><button class="block-del" data-block-del title="Einbettung entfernen">✕</button></div><div class="embed-body" contenteditable="true" data-embed-body="'+tid+'">'+sanitizeHtml(target.html||"")+'</div>';
+    }
   });
   bindDynamicBlockEvents();
 }
@@ -1087,6 +1102,12 @@ function stripDynamicBlocks(html){
   const d=document.createElement("div");d.innerHTML=html;
   d.querySelectorAll('.tagindex[data-tagindex]').forEach(b=>{b.innerHTML="";});
   d.querySelectorAll('.embed[data-embed]').forEach(b=>{b.innerHTML="";});
+  // Falt-Pfeile entfernen und Falt-/Versteckt-Zustand zurücksetzen (reine Ansichtssache, nicht speichern)
+  d.querySelectorAll(".fold-toggle").forEach(t=>t.remove());
+  d.querySelectorAll(".section-hidden").forEach(e=>e.classList.remove("section-hidden"));
+  d.querySelectorAll("h1,h2,h3").forEach(h=>{h.classList.remove("folded","foldable");});
+  // Leere class-Attribute entfernen (z.B. nach Entfernen von section-hidden/folded)
+  d.querySelectorAll('[class=""]').forEach(e=>e.removeAttribute("class"));
   return d.innerHTML;
 }
 function reconcileInline(n,html){const d=document.createElement("div");d.innerHTML=html;const present=new Set();d.querySelectorAll("img[data-att]").forEach(i=>present.add(i.getAttribute("data-att")));n.attachments=(n.attachments||[]).filter(a=>!a.inline||present.has(a.id));}
@@ -1212,14 +1233,58 @@ $("embedBtn").addEventListener("click",()=>{
   const others=activeNotes().filter(x=>x.id!==n.id).sort((a,b)=>b.updated-a.updated);
   if(!others.length){toast("Keine andere Notiz vorhanden");return;}
   const items=others.map(x=>'<button data-id="'+x.id+'"></button>').join("");
-  modal({title:"Notiz einbetten",body:'<p style="font-size:12.5px;color:var(--text-dim);">Bettet den Inhalt einer anderen Notiz ein. Er bleibt mit dem Original verbunden – Änderungen am Original erscheinen auch hier. Über „bearbeiten" springst du zum Original.</p><div class="note-pick" id="__ep">'+items+'</div>',buttons:[{label:"Abbrechen",cls:"btn-ghost",act:closeModal}]});
+  modal({title:"Notiz einbetten",body:'<p style="font-size:12.5px;color:var(--text-dim);">Bettet den Inhalt einer anderen Notiz ein. Er bleibt mit dem Original verbunden – Änderungen am Original erscheinen auch hier.</p><div class="note-pick" id="__ep">'+items+'</div>',buttons:[{label:"Abbrechen",cls:"btn-ghost",act:closeModal}]});
   const wrap=$("__ep");others.forEach((x,i)=>{wrap.children[i].textContent=x.title||"Ohne Titel";});
   wrap.querySelectorAll("button").forEach(btn=>btn.addEventListener("click",()=>{
-    const id=btn.dataset.id;closeModal();restoreSelection();
-    document.execCommand("insertHTML",false,'<div class="embed" contenteditable="false" data-embed="'+id+'"></div><p><br></p>');
-    syncBody();renderDynamicBlocks(cur());toast("Notiz eingebettet");
+    const id=btn.dataset.id;const target=vault.notes.find(x=>x.id===id);
+    embedSectionStep(id,target);
   }));
 });
+/* Zweiter Schritt der Einbettung: Abschnitt wählen (ganze Notiz oder ein Abschnitt unter einer Überschrift). */
+function embedSectionStep(id,target){
+  const headings=collectHeadings(target&&target.html||"");
+  let opts='<button class="tbl-op btn-blue" data-sec="" style="background:var(--blue-600);color:#fff;border:none;width:100%;margin-bottom:8px;">Ganze Notiz</button>';
+  if(headings.length){
+    opts+='<p style="font-size:12px;color:var(--text-dim);margin:8px 0 4px;">Oder nur ein Abschnitt:</p>';
+    opts+=headings.map(h=>'<button class="tbl-op btn-ghost" data-sec="'+escapeHtml(h.id)+'" style="width:100%;text-align:left;padding:9px 12px;border:1px solid var(--line);border-radius:8px;margin-bottom:5px;background:var(--panel);padding-left:'+(8+(h.level-1)*14)+'px;">'+escapeHtml(h.text)+'</button>').join("");
+  }
+  modal({title:"Was einbetten?",body:'<div style="max-height:340px;overflow:auto;">'+opts+'</div>',buttons:[{label:"Abbrechen",cls:"btn-ghost",act:closeModal}]});
+  document.querySelectorAll("[data-sec]").forEach(b=>b.addEventListener("click",()=>{
+    const sec=b.getAttribute("data-sec");closeModal();restoreSelection();
+    const secAttr=sec?(' data-embed-section="'+escapeHtml(sec)+'"'):"";
+    document.execCommand("insertHTML",false,'<div class="embed" contenteditable="false" data-embed="'+id+'"'+secAttr+'></div><p><br></p>');
+    syncBody();renderDynamicBlocks(cur());toast("Notiz eingebettet");
+  }));
+}
+/* Sammelt die Überschriften einer Notiz (für Abschnittsauswahl beim Einbetten). */
+function collectHeadings(html){
+  const d=document.createElement("div");d.innerHTML=html;
+  const out=[];let i=0;
+  d.querySelectorAll("h1,h2,h3").forEach(h=>{
+    const clone=h.cloneNode(true);clone.querySelectorAll(".fold-toggle").forEach(x=>x.remove());
+    const text=(clone.textContent||"").replace(/\u200b/g,"").trim();
+    if(text){out.push({id:"h-"+(i++),text,level:HLEVEL[h.tagName]||1,raw:text});}
+  });
+  return out;
+}
+/* Extrahiert aus einem Notiz-HTML nur den Abschnitt unter der Überschrift mit dem gegebenen Text. */
+function extractSection(html,headingText){
+  const d=document.createElement("div");d.innerHTML=html;
+  const all=[...d.childNodes];
+  let collecting=false,startLevel=0;const result=[];
+  for(const node of all){
+    if(node.nodeType===1&&/^H[123]$/.test(node.tagName)){
+      const clone=node.cloneNode(true);clone.querySelectorAll(".fold-toggle").forEach(x=>x.remove());
+      const text=(clone.textContent||"").replace(/\u200b/g,"").trim();
+      const lvl=HLEVEL[node.tagName];
+      if(!collecting&&text===headingText){collecting=true;startLevel=lvl;result.push(clone);continue;}
+      else if(collecting&&lvl<=startLevel){break;} // nächste gleich-/höherrangige Überschrift -> Ende
+    }
+    if(collecting){const c=node.cloneNode(true);if(c.querySelectorAll)c.querySelectorAll&&c.querySelectorAll(".fold-toggle").forEach(x=>x.remove());result.push(c);}
+  }
+  const wrap=document.createElement("div");result.forEach(r=>wrap.appendChild(r));
+  return wrap.innerHTML;
+}
 $("codeBtn").addEventListener("mousedown",e=>e.preventDefault());
 $("codeBtn").addEventListener("click",()=>{$("edBody").focus();document.execCommand("formatBlock",false,"pre");syncBody();});
 $("hrBtn").addEventListener("mousedown",e=>e.preventDefault());
@@ -1324,8 +1389,11 @@ function tableDelete(table){
   if(next){const r=document.createRange();r.selectNodeContents(next);r.collapse(true);const sel=window.getSelection();sel.removeAllRanges();sel.addRange(r);}
 }
 function tableMenu(cell){
+  const hasFormula=cell.hasAttribute("data-formula");
   modal({title:"Tabelle bearbeiten",body:'<p style="font-size:12.5px;color:var(--text-dim);margin-top:0;">Bezogen auf die angetippte Zelle.</p>'+
     '<div class="tbl-menu" style="display:flex;flex-direction:column;gap:7px;">'+
+    (hasFormula?'<button class="tbl-op btn-blue" data-op="fillDown" style="background:var(--blue-600);color:#fff;border:none;">Formel nach unten ausfüllen</button>'+
+    '<button class="tbl-op btn-blue" data-op="fillRight" style="background:var(--blue-600);color:#fff;border:none;">Formel nach rechts ausfüllen</button>':'')+
     '<button class="tbl-op btn-ghost" data-op="rowAfter">Zeile darunter einfügen</button>'+
     '<button class="tbl-op btn-ghost" data-op="rowBefore">Zeile darüber einfügen</button>'+
     '<button class="tbl-op btn-ghost" data-op="colAfter">Spalte rechts einfügen</button>'+
@@ -1337,7 +1405,9 @@ function tableMenu(cell){
     buttons:[{label:"Schliessen",cls:"btn-ghost",act:closeModal}]});
   document.querySelectorAll(".tbl-op").forEach(b=>b.addEventListener("click",()=>{
     const op=b.dataset.op;
-    if(op==="rowAfter")tableInsertRow(cell,true);
+    if(op==="fillDown"){tableFillFormula(cell,"down");closeModal();return;}
+    else if(op==="fillRight"){tableFillFormula(cell,"right");closeModal();return;}
+    else if(op==="rowAfter")tableInsertRow(cell,true);
     else if(op==="rowBefore")tableInsertRow(cell,false);
     else if(op==="colAfter")tableInsertCol(cell,true);
     else if(op==="colBefore")tableInsertCol(cell,false);
@@ -1346,6 +1416,29 @@ function tableMenu(cell){
     else if(op==="delTable")tableDelete(cell.closest("table"));
     closeModal();toast("Tabelle aktualisiert");
   }));
+}
+/* Füllt die Formel der angetippten Zelle nach unten bzw. rechts aus – mit relativ verschobenen
+   Zellbezügen, wie man es von Excel kennt. Bestehende Werte in den Zielzellen werden überschrieben. */
+function tableFillFormula(cell,dir){
+  const table=cell.closest("table");if(!table)return;
+  const f=cell.getAttribute("data-formula");if(!f){toast("Diese Zelle enthält keine Formel");return;}
+  const tr=cell.parentElement;const rowIdx=[...table.rows].indexOf(tr);const colIdx=[...tr.cells].indexOf(cell);
+  let count=0;
+  if(dir==="down"){
+    for(let r=rowIdx+1;r<table.rows.length;r++){
+      const tgt=table.rows[r].cells[colIdx];if(!tgt)break;
+      const nf=shiftFormula(f,r-rowIdx,0);
+      tgt.setAttribute("data-formula",nf);tgt.classList.add("formula");count++;
+    }
+  }else{
+    for(let c=colIdx+1;c<tr.cells.length;c++){
+      const tgt=tr.cells[c];if(!tgt)break;
+      const nf=shiftFormula(f,0,c-colIdx);
+      tgt.setAttribute("data-formula",nf);tgt.classList.add("formula");count++;
+    }
+  }
+  recalcTables(table);syncBody();
+  toast(count?("Formel ausgefüllt ("+count+" Zellen)"):"Keine Zielzellen vorhanden");
 }
 
 /* ===== Rechnen in Tabellen =====
@@ -1402,6 +1495,35 @@ function expandRowRange(table,r1,r2){
   return refs;
 }
 function colIndexToLetters(idx){let s="";idx=idx+1;while(idx>0){const m=(idx-1)%26;s=String.fromCharCode(65+m)+s;idx=Math.floor((idx-1)/26);}return s;}
+/* Verschiebt alle Zellbezüge in einer Formel um dRow Zeilen und dCol Spalten (relativ, wie Excel-Autofill).
+   Beispiel: "=SUMME(B2:B4)" um 1 Spalte verschoben -> "=SUMME(C2:C4)". Erkennt Einzelbezüge (B2),
+   Bereiche (B2:B4), ganze Spalten (B:B) und ganze Zeilen (2:2). */
+function shiftFormula(formula,dRow,dCol){
+  if(!formula)return formula;
+  return replaceRefs(formula,dRow,dCol);
+}
+function replaceRefs(formula,dRow,dCol){
+  // 1. Einzel-/Bereichsbezüge mit Buchstaben UND Zahl: z.B. B2, AA10
+  let out=formula.replace(/\b([A-Za-z]{1,3})(\d+)\b/g,(m,col,row)=>{
+    const ci=colLettersToIndex(col)+dCol;
+    const ri=parseInt(row,10)+dRow;
+    if(ci<0||ri<1)return m; // ausserhalb -> unverändert lassen
+    return colIndexToLetters(ci)+ri;
+  });
+  // 2. Ganze-Spalten-Bezüge wie B:B (nur Buchstaben, durch Doppelpunkt) -> nur dCol anwenden
+  out=out.replace(/\b([A-Za-z]{1,3}):([A-Za-z]{1,3})\b/g,(m,c1,c2)=>{
+    const i1=colLettersToIndex(c1)+dCol, i2=colLettersToIndex(c2)+dCol;
+    if(i1<0||i2<0)return m;
+    return colIndexToLetters(i1)+":"+colIndexToLetters(i2);
+  });
+  // 3. Ganze-Zeilen-Bezüge wie 2:2 (nur Zahlen) -> nur dRow anwenden
+  out=out.replace(/\b(\d+):(\d+)\b/g,(m,r1,r2)=>{
+    const i1=parseInt(r1,10)+dRow, i2=parseInt(r2,10)+dRow;
+    if(i1<1||i2<1)return m;
+    return i1+":"+i2;
+  });
+  return out;
+}
 function evalTableFormula(table,formula){
   let expr=String(formula||"")
     .replace(/[\u200b\u200c\u200d\ufeff]/g,"")   // Zero-Width-Zeichen entfernen
@@ -1533,7 +1655,14 @@ $("edBody").addEventListener("focusin",e=>{
 });
 $("edBody").addEventListener("focusout",e=>{
   const cell=e.target&&e.target.closest?e.target.closest("td,th"):null;
-  if(cell){commitCellFormula(cell);syncBody();}
+  if(!cell)return;
+  // Erst die verlassene Zelle als Formel festschreiben (falls sie mit = beginnt)
+  commitCellFormula(cell);
+  const table=cell.closest("table");
+  // Nach dem Fokuswechsel die GANZE Tabelle neu berechnen – inkl. der gerade verlassenen Zelle.
+  // Der Timeout stellt sicher, dass der Fokus bereits auf der neuen Stelle liegt, damit die
+  // verlassene Zelle nicht mehr als "aktiv" gilt und korrekt aktualisiert wird.
+  setTimeout(()=>{if(table)recalcTables(table);syncBody();},0);
 });
 
 /* ---- Erinnerungen ---- */
@@ -2055,6 +2184,36 @@ function placeCursorInLi(cb){
   const sel=window.getSelection();sel.removeAllRanges();sel.addRange(r);
 }
 function bindChecklistEvents(){$("edBody").querySelectorAll('ul.checklist li').forEach(li=>{const cb=li.querySelector('input[type=checkbox]');if(!cb)return;if(!li.querySelector("span")&&cb.nextSibling==null){const sp=document.createElement("span");sp.textContent="\u200b";li.appendChild(sp);}cb.onchange=()=>{li.classList.toggle("done",cb.checked);if(cb.checked)cb.setAttribute("checked","checked");else cb.removeAttribute("checked");syncBody();};li.classList.toggle("done",cb.checked);});}
+/* Überschriften ein-/ausklappen: An jede H1/H2/H3 wird ein kleiner Falt-Pfeil gesetzt. Ein Klick blendet
+   alle folgenden Elemente bis zur nächsten gleich- oder höherrangigen Überschrift aus. Das Falten ist eine
+   reine Ansichtssache (CSS-Klasse) und verändert den gespeicherten Inhalt nicht. */
+const HLEVEL={H1:1,H2:2,H3:3};
+function applyHeadingFolding(){
+  const eb=$("edBody");
+  eb.querySelectorAll("h1,h2,h3").forEach(h=>{
+    h.classList.add("foldable");
+    // Falt-Pfeil nur einmal anlegen
+    if(!h.querySelector(".fold-toggle")){
+      const t=document.createElement("button");t.className="fold-toggle";t.setAttribute("contenteditable","false");t.title="Abschnitt ein-/ausklappen";t.textContent="▾";
+      t.addEventListener("mousedown",e=>e.preventDefault());
+      t.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();toggleHeadingFold(h);});
+      h.insertBefore(t,h.firstChild);
+    }
+  });
+}
+function toggleHeadingFold(h){
+  const lvl=HLEVEL[h.tagName];if(!lvl)return;
+  const folded=h.classList.toggle("folded");
+  const toggle=h.querySelector(".fold-toggle");if(toggle)toggle.textContent=folded?"▸":"▾";
+  // Folgende Geschwister-Elemente bis zur nächsten gleich-/höherrangigen Überschrift aus-/einblenden
+  let el=h.nextElementSibling;
+  while(el){
+    const elLvl=HLEVEL[el.tagName];
+    if(elLvl&&elLvl<=lvl)break; // nächste Überschrift gleicher/höherer Ebene -> Ende des Abschnitts
+    el.classList.toggle("section-hidden",folded);
+    el=el.nextElementSibling;
+  }
+}
 
 /* ---- Internal note link ---- */
 $("noteLinkBtn").addEventListener("mousedown",e=>e.preventDefault());
@@ -2854,6 +3013,7 @@ function cleanAttrs(el){
     else if(name==="data-toc"&&tag==="DIV") keep=true;
     else if(name==="data-tagindex"&&tag==="DIV") keep=true;
     else if(name==="data-embed"&&tag==="DIV") keep=true;
+    else if(name==="data-embed-section"&&tag==="DIV") keep=true;
     else if(name==="contenteditable"&&tag==="DIV"&&(el.classList.contains("toc")||el.classList.contains("tagindex")||el.classList.contains("embed"))) keep=(val==="false");
     else if(name==="data-formula"&&(tag==="TD"||tag==="TH")) keep=true;
     else if(name==="class"){
