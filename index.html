@@ -457,6 +457,10 @@
         <div class="nav-section-title">Schlagwörter</div>
         <div id="tagList"></div>
       </div>
+      <div class="nav-section">
+        <div class="nav-section-title">Felder</div>
+        <div id="fieldList"></div>
+      </div>
       <div class="nav-section" style="margin-top:auto;">
         <button class="nav-item" data-view="trash"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6"/></svg> Papierkorb <span class="count" id="cTrash">0</span></button>
         <button class="nav-item" id="syncBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 18a4 4 0 0 1 0-8 5 5 0 0 1 9.6-1.3A3.6 3.6 0 0 1 18 18z"/></svg> <span id="syncLabel">Cloud-Sync</span></button>
@@ -863,6 +867,24 @@ function renderSidebar(){
   if(!tags.length)tagList.innerHTML='<div class="nav-empty">Noch keine Schlagwörter</div>';
   tags.forEach(t=>{const b=document.createElement("button");b.className="nav-item"+(currentView.type==="tag"&&currentView.id===t?" active":"");b.innerHTML='<span class="tag-dot"></span><span class="tag-name"></span><span class="count">'+tagMap[t]+'</span>';b.querySelector(".tag-name").textContent="#"+t;b.addEventListener("click",()=>{currentView={type:"tag",id:t};currentNoteId=null;closeSidebar();renderAll();});b.addEventListener("contextmenu",e=>{e.preventDefault();tagMenu(t);});b.addEventListener("dblclick",()=>tagMenu(t));tagList.appendChild(b);});
   document.querySelectorAll('.nav-item[data-view]').forEach(el=>{el.classList.toggle("active",currentView.type===el.dataset.view);el.onclick=()=>{currentView={type:el.dataset.view};currentNoteId=null;closeSidebar();renderAll();};});
+  // Felder-Rubrik (Feld:: Wert) – Klick filtert die Notizliste auf Notizen mit diesem Feld
+  const fieldList=$("fieldList");
+  if(fieldList){
+    fieldList.innerHTML="";
+    const fieldNames=allFieldNames();
+    // Anzahl Notizen je Feld
+    const fieldCount={};
+    fieldNames.forEach(f=>{const fl=f.toLowerCase();fieldCount[f]=activeNotes().filter(n=>extractFields(n.html||"").some(x=>x.field.toLowerCase()===fl)).length;});
+    if(!fieldNames.length)fieldList.innerHTML='<div class="nav-empty">Noch keine Felder</div>';
+    fieldNames.forEach(f=>{
+      const b=document.createElement("button");
+      b.className="nav-item"+(currentView.type==="field"&&currentView.id===f?" active":"");
+      b.innerHTML='<span class="tag-dot" style="background:var(--blue-400);"></span><span class="tag-name"></span><span class="count">'+fieldCount[f]+'</span>';
+      b.querySelector(".tag-name").textContent=f;
+      b.addEventListener("click",()=>{currentView={type:"field",id:f};currentNoteId=null;closeSidebar();renderAll();});
+      fieldList.appendChild(b);
+    });
+  }
 }
 
 function getViewNotes(){
@@ -871,7 +893,8 @@ function getViewNotes(){
   else{list=activeNotes();
     if(currentView.type==="pinned")list=list.filter(n=>n.pinned);
     else if(currentView.type==="notebook")list=list.filter(n=>n.notebookId===currentView.id);
-    else if(currentView.type==="tag")list=list.filter(n=>(n.tags||[]).includes(currentView.id));}
+    else if(currentView.type==="tag")list=list.filter(n=>(n.tags||[]).includes(currentView.id));
+    else if(currentView.type==="field"){const fl=currentView.id.toLowerCase();list=list.filter(n=>extractFields(n.html||"").some(x=>x.field.toLowerCase()===fl));}}
   if(q)list=list.filter(n=>(n.title||"").toLowerCase().includes(q)||htmlToText(n.html).toLowerCase().includes(q)||(n.tags||[]).some(t=>t.toLowerCase().includes(q))||(n.attachments||[]).some(a=>(a.name||"").toLowerCase().includes(q)||(a.text||"").toLowerCase().includes(q)));
   const sort=$("sortSelect").value;
   list.sort((a,b)=>{if(currentView.type!=="trash"&&a.pinned!==b.pinned)return a.pinned?-1:1;if(sort==="title")return (a.title||"").localeCompare(b.title||"","de");if(sort==="created")return b.created-a.created;return b.updated-a.updated;});
@@ -1080,7 +1103,7 @@ function bindDynamicBlockEvents(){
   // Lösch-Knopf entfernt den ganzen lebenden Block (Verzeichnis oder Einbettung) aus der Notiz.
   // Entfernt nur den Block hier – die eingebettete Originalnotiz bleibt selbstverständlich bestehen.
   eb.querySelectorAll('.block-del[data-block-del]').forEach(b=>{
-    b.onclick=e=>{e.preventDefault();e.stopPropagation();const block=b.closest(".tagindex,.embed");if(block){block.remove();syncBody();toast("Block entfernt");}};
+    b.onclick=e=>{e.preventDefault();e.stopPropagation();const block=b.closest(".tagindex,.fieldindex,.embed");if(block){block.remove();syncBody();toast("Block entfernt");}};
   });
   // Direkte Bearbeitung im eingebetteten Block: Änderungen in die ZIELnotiz zurückschreiben.
   eb.querySelectorAll('.embed-body[data-embed-body]').forEach(body=>{
