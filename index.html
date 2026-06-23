@@ -396,6 +396,9 @@
   .scan-handle{position:absolute;width:24px;height:24px;border-radius:50%;background:var(--blue-500);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5);transform:translate(-50%,-50%);touch-action:none;z-index:15;}
   .scan-handle::before{content:"";position:absolute;left:50%;top:50%;width:64px;height:64px;transform:translate(-50%,-50%);border-radius:50%;}
   .scan-handle.active{background:#fff;border-color:var(--blue-500);width:30px;height:30px;}
+  .scan-edge-handle{position:absolute;width:20px;height:20px;border-radius:5px;background:#fff;border:3px solid var(--blue-500);box-shadow:0 2px 8px rgba(0,0,0,.5);transform:translate(-50%,-50%) rotate(45deg);touch-action:none;z-index:14;}
+  .scan-edge-handle::before{content:"";position:absolute;left:50%;top:50%;width:54px;height:54px;transform:translate(-50%,-50%);border-radius:50%;}
+  .scan-edge-handle.active{background:var(--blue-500);width:26px;height:26px;}
   .scan-loupe{position:absolute;width:148px;height:148px;border-radius:50%;border:3px solid #fff;box-shadow:0 4px 16px rgba(0,0,0,.6);overflow:hidden;pointer-events:none;z-index:20;display:none;background:#000;}
   .scan-loupe canvas{position:absolute;left:0;top:0;}
   .scan-loupe .lp-cross{position:absolute;left:50%;top:50%;width:18px;height:18px;transform:translate(-50%,-50%);}
@@ -1805,7 +1808,7 @@ async function openScanner(file,reuseHistory){
   const img=await loadImageBitmapish(file);
   if(!img){toast("Bild konnte nicht geladen werden");return;}
   const root=document.createElement("div");root.className="scan-bg";
-  root.innerHTML='<div class="scan-bar"><button id="scClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button><span class="sb-title">Ecken anpassen</span><button id="scSnap" title="An Kanten einrasten"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 9V5h4M15 5h4v4M19 15v4h-4M9 19H5v-4"/><circle cx="12" cy="12" r="2.5"/></svg></button><button id="scAuto" title="Automatisch erkennen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg></button></div><div class="scan-stage" id="scStage"><canvas id="scCanvas"></canvas></div><div class="scan-foot"><button class="sf-retake" id="scRetake">Neu aufnehmen</button><button class="sf-confirm" id="scConfirm">Zuschneiden &amp; weiter</button></div>';
+  root.innerHTML='<div class="scan-bar"><button id="scClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button><span class="sb-title">Ecken &amp; Kanten anpassen</span><button id="scSnap" title="An Kanten einrasten"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 9V5h4M15 5h4v4M19 15v4h-4M9 19H5v-4"/><circle cx="12" cy="12" r="2.5"/></svg></button><button id="scAuto" title="Automatisch erkennen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg></button></div><div class="scan-stage" id="scStage"><canvas id="scCanvas"></canvas></div><div class="scan-foot"><button class="sf-retake" id="scRetake">Neu aufnehmen</button><button class="sf-confirm" id="scConfirm">Zuschneiden &amp; weiter</button></div>';
   document.body.appendChild(root);
   if(!reuseHistory){try{history.pushState({s:1,viewer:1},"");}catch(e){}}
   let closed=false;function close(){if(closed)return;closed=true;root.remove();const ix=viewerCloseFns.indexOf(close);if(ix>=0)viewerCloseFns.splice(ix,1);}
@@ -1834,6 +1837,9 @@ async function openScanner(file,reuseHistory){
 
   let corners=detectCorners(fullCanvas) || defaultCorners(fullCanvas.width,fullCanvas.height);
   const handles=[0,1,2,3].map(i=>{const h=document.createElement("div");h.className="scan-handle";stage.appendChild(h);return h;});
+  // Kanten-Handles (Mitte jeder Kante): 0=oben(0-1) 1=rechts(1-2) 2=unten(2-3) 3=links(3-0)
+  const edgeHandles=[0,1,2,3].map(i=>{const h=document.createElement("div");h.className="scan-edge-handle";stage.appendChild(h);return h;});
+  const EDGE_PAIRS=[[0,1],[1,2],[2,3],[3,0]];
   // Lupe
   const loupe=document.createElement("div");loupe.className="scan-loupe";
   const loupeCanvas=document.createElement("canvas");loupeCanvas.width=148;loupeCanvas.height=148;
@@ -1870,6 +1876,12 @@ async function openScanner(file,reuseHistory){
   function layoutHandles(){
     const rect=canvas.getBoundingClientRect(),stageRect=stage.getBoundingClientRect();
     corners.forEach((c,i)=>{handles[i].style.left=(rect.left-stageRect.left+c.x*dispScale)+"px";handles[i].style.top=(rect.top-stageRect.top+c.y*dispScale)+"px";});
+    EDGE_PAIRS.forEach((pair,i)=>{
+      const a=corners[pair[0]],b=corners[pair[1]];
+      const mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
+      edgeHandles[i].style.left=(rect.left-stageRect.left+mx*dispScale)+"px";
+      edgeHandles[i].style.top=(rect.top-stageRect.top+my*dispScale)+"px";
+    });
   }
   drawOverlay();layoutHandles();
 
@@ -1904,7 +1916,66 @@ async function openScanner(file,reuseHistory){
     h.addEventListener("pointercancel",end);
   });
 
-  root.querySelector("#scAuto").addEventListener("click",()=>{const c=detectCorners(fullCanvas);if(c){corners=c;drawOverlay();layoutHandles();toast("Kanten erkannt");}else toast("Keine klaren Kanten gefunden");});
+  // Kanten-Handles: verschieben die ganze Kante parallel (beide Eckpunkte gleiten mit).
+  edgeHandles.forEach((h,i)=>{
+    const [iA,iB]=EDGE_PAIRS[i];
+    let dragging=false, startA=null, startB=null, startMx=0, startMy=0, grabDX=0, grabDY=0;
+    function edgeNormal(){
+      // Normale (senkrecht zur Kante), normiert
+      const a=corners[iA],b=corners[iB];
+      let dx=b.x-a.x, dy=b.y-a.y;const len=Math.hypot(dx,dy)||1;
+      return {nx:-dy/len, ny:dx/len};
+    }
+    function onMove(clientX,clientY){
+      const rect=canvas.getBoundingClientRect();
+      const px=(clientX-rect.left)/dispScale + grabDX, py=(clientY-rect.top)/dispScale + grabDY;
+      // Verschiebung der Kantenmitte
+      const dmx=px-startMx, dmy=py-startMy;
+      // Nur die Komponente entlang der Normalen anwenden -> Kante bleibt parallel
+      const {nx,ny}=edgeNormal();
+      const dist=dmx*nx+dmy*ny;
+      const ox=nx*dist, oy=ny*dist;
+      corners[iA]={x:clamp(startA.x+ox,fullCanvas.width),y:clamp(startA.y+oy,fullCanvas.height)};
+      corners[iB]={x:clamp(startB.x+ox,fullCanvas.width),y:clamp(startB.y+oy,fullCanvas.height)};
+      drawOverlay();layoutHandles();
+      showLoupe((corners[iA].x+corners[iB].x)/2,(corners[iA].y+corners[iB].y)/2);
+    }
+    h.addEventListener("pointerdown",e=>{
+      dragging=true;h.setPointerCapture(e.pointerId);e.preventDefault();
+      const rect=canvas.getBoundingClientRect();
+      startA={...corners[iA]};startB={...corners[iB]};
+      startMx=(startA.x+startB.x)/2;startMy=(startA.y+startB.y)/2;
+      grabDX=startMx-(e.clientX-rect.left)/dispScale;
+      grabDY=startMy-(e.clientY-rect.top)/dispScale;
+      h.classList.add("active");
+      showLoupe(startMx,startMy);
+    });
+    h.addEventListener("pointermove",e=>{if(dragging)onMove(e.clientX,e.clientY);});
+    const end=()=>{
+      if(dragging&&snapEnabled){
+        // Beide Eckpunkte der Kante einrasten lassen
+        const sa=snapCorner(gradMap,corners[iA].x,corners[iA].y,fullCanvas.width,fullCanvas.height);
+        if(sa)corners[iA]=sa;
+        const sb=snapCorner(gradMap,corners[iB].x,corners[iB].y,fullCanvas.width,fullCanvas.height);
+        if(sb)corners[iB]=sb;
+        drawOverlay();layoutHandles();
+      }
+      dragging=false;h.classList.remove("active");hideLoupe();
+    };
+    h.addEventListener("pointerup",end);
+    h.addEventListener("pointercancel",end);
+  });
+  function clamp(v,max){return Math.max(0,Math.min(max,v));}
+  root.querySelector("#scAuto").addEventListener("click",()=>{
+    const c=detectCorners(fullCanvas);
+    if(c){
+      // Erkannte Ecken zusätzlich an die stärksten Bildkanten einrasten (feinere Justierung)
+      if(snapEnabled){
+        for(let i=0;i<4;i++){const s=snapCorner(gradMap,c[i].x,c[i].y,fullCanvas.width,fullCanvas.height);if(s)c[i]=s;}
+      }
+      corners=c;drawOverlay();layoutHandles();toast("Kanten erkannt");
+    }else toast("Keine klaren Kanten gefunden");
+  });
   const snapBtn=root.querySelector("#scSnap");
   function updateSnapBtn(){snapBtn.style.opacity=snapEnabled?"1":"0.4";}
   updateSnapBtn();
