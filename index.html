@@ -1896,7 +1896,13 @@ async function openScanner(file,reuseHistory){
       // statt zur Fingermitte zu springen. Das macht feines Justieren möglich.
       let x=(clientX-rect.left)/dispScale + grabDX, y=(clientY-rect.top)/dispScale + grabDY;
       x=Math.max(0,Math.min(fullCanvas.width,x));y=Math.max(0,Math.min(fullCanvas.height,y));
-      corners[i]={x,y};drawOverlay();layoutHandles();showLoupe(x,y);
+      // Live-Snap: kommt der Punkt einer starken Kante nahe, rastet er schon beim Ziehen ein.
+      let sx=x,sy=y;
+      if(snapEnabled){
+        const s=snapCorner(gradMap,x,y,fullCanvas.width,fullCanvas.height,0.045,2.2);
+        if(s){sx=s.x;sy=s.y;}
+      }
+      corners[i]={x:sx,y:sy};drawOverlay();layoutHandles();showLoupe(sx,sy);
     }
     h.addEventListener("pointerdown",e=>{
       dragging=true;h.setPointerCapture(e.pointerId);e.preventDefault();
@@ -1923,25 +1929,25 @@ async function openScanner(file,reuseHistory){
   edgeHandles.forEach((h,i)=>{
     const [iA,iB]=EDGE_PAIRS[i];
     let dragging=false, startA=null, startB=null, startMx=0, startMy=0, grabDX=0, grabDY=0;
-    function edgeNormal(){
-      // Normale (senkrecht zur Kante), normiert
-      const a=corners[iA],b=corners[iB];
-      let dx=b.x-a.x, dy=b.y-a.y;const len=Math.hypot(dx,dy)||1;
-      return {nx:-dy/len, ny:dx/len};
-    }
     function onMove(clientX,clientY){
       const rect=canvas.getBoundingClientRect();
       const px=(clientX-rect.left)/dispScale + grabDX, py=(clientY-rect.top)/dispScale + grabDY;
-      // Verschiebung der Kantenmitte
+      // Freie Verschiebung der Kantenmitte (auch seitlich) – so kann die Kante dem perspektivischen
+      // Verzug folgen und muss nicht parallel bleiben.
       const dmx=px-startMx, dmy=py-startMy;
-      // Nur die Komponente entlang der Normalen anwenden -> Kante bleibt parallel
-      const {nx,ny}=edgeNormal();
-      const dist=dmx*nx+dmy*ny;
-      const ox=nx*dist, oy=ny*dist;
-      corners[iA]={x:clamp(startA.x+ox,fullCanvas.width),y:clamp(startA.y+oy,fullCanvas.height)};
-      corners[iB]={x:clamp(startB.x+ox,fullCanvas.width),y:clamp(startB.y+oy,fullCanvas.height)};
+      let ax=clamp(startA.x+dmx,fullCanvas.width), ay=clamp(startA.y+dmy,fullCanvas.height);
+      let bx=clamp(startB.x+dmx,fullCanvas.width), by=clamp(startB.y+dmy,fullCanvas.height);
+      // Live-Snap: während des Ziehens die Eckpunkte einzeln an nahe Bildkanten ziehen,
+      // sobald man in die Nähe kommt (kleiner Fang-Radius, nicht erst beim Loslassen).
+      if(snapEnabled){
+        const sa=snapCorner(gradMap,ax,ay,fullCanvas.width,fullCanvas.height,0.045,2.2);
+        if(sa){ax=sa.x;ay=sa.y;}
+        const sb=snapCorner(gradMap,bx,by,fullCanvas.width,fullCanvas.height,0.045,2.2);
+        if(sb){bx=sb.x;by=sb.y;}
+      }
+      corners[iA]={x:ax,y:ay};corners[iB]={x:bx,y:by};
       drawOverlay();layoutHandles();
-      showLoupe((corners[iA].x+corners[iB].x)/2,(corners[iA].y+corners[iB].y)/2);
+      showLoupe((ax+bx)/2,(ay+by)/2);
     }
     h.addEventListener("pointerdown",e=>{
       dragging=true;h.setPointerCapture(e.pointerId);e.preventDefault();
@@ -1956,10 +1962,10 @@ async function openScanner(file,reuseHistory){
     h.addEventListener("pointermove",e=>{if(dragging)onMove(e.clientX,e.clientY);});
     const end=()=>{
       if(dragging&&snapEnabled){
-        // Beide Eckpunkte der Kante einrasten lassen
-        const sa=snapCorner(gradMap,corners[iA].x,corners[iA].y,fullCanvas.width,fullCanvas.height);
+        // Beim Loslassen final einrasten (etwas grösserer Radius für saubere Ausrichtung)
+        const sa=snapCorner(gradMap,corners[iA].x,corners[iA].y,fullCanvas.width,fullCanvas.height,0.06);
         if(sa)corners[iA]=sa;
-        const sb=snapCorner(gradMap,corners[iB].x,corners[iB].y,fullCanvas.width,fullCanvas.height);
+        const sb=snapCorner(gradMap,corners[iB].x,corners[iB].y,fullCanvas.width,fullCanvas.height,0.06);
         if(sb)corners[iB]=sb;
         drawOverlay();layoutHandles();
       }
@@ -1970,14 +1976,15 @@ async function openScanner(file,reuseHistory){
   });
   function clamp(v,max){return Math.max(0,Math.min(max,v));}
   root.querySelector("#scAuto").addEventListener("click",()=>{
+    // Bevorzugt: die aktuell platzierten Ecken lokal verfeinern (Nutzer legt Ecken grob ums Blatt).
+    const refined=refineCorners(gradMap,corners,fullCanvas.width,fullCanvas.height);
+    // Prüfen, ob sich überhaupt etwas bewegt hat (also Kanten gefunden wurden)
+    let moved=false;for(let i=0;i<4;i++){if(Math.abs(refined[i].x-corners[i].x)>2||Math.abs(refined[i].y-corners[i].y)>2)moved=true;}
+    if(moved){corners=refined;drawOverlay();layoutHandles();toast("Ecken an Kanten ausgerichtet");return;}
+    // Rückfall: globale Erkennung des ganzen Blatts
     const c=detectCorners(fullCanvas);
-    if(c){
-      // Erkannte Ecken zusätzlich an die stärksten Bildkanten einrasten (feinere Justierung)
-      if(snapEnabled){
-        for(let i=0;i<4;i++){const s=snapCorner(gradMap,c[i].x,c[i].y,fullCanvas.width,fullCanvas.height);if(s)c[i]=s;}
-      }
-      corners=c;drawOverlay();layoutHandles();toast("Kanten erkannt");
-    }else toast("Keine klaren Kanten gefunden");
+    if(c){corners=c;drawOverlay();layoutHandles();toast("Blatt erkannt");}
+    else toast("Keine klaren Kanten gefunden – Ecken grob ums Blatt legen und erneut „Auto“ tippen");
   });
   const snapBtn=root.querySelector("#scSnap");
   function updateSnapBtn(){snapBtn.style.opacity=snapEnabled?"1":"0.4";}
@@ -2009,6 +2016,18 @@ function loadImageBitmapish(file){
 function defaultCorners(w,h){const mx=w*0.06,my=h*0.06;return [{x:mx,y:my},{x:w-mx,y:my},{x:w-mx,y:h-my},{x:mx,y:h-my}];}
 
 /* Heuristische Dokument-Kantenerkennung: Graustufen -> Sobel-Gradient -> Schwelle -> grösstes Konturviereck via Randabtastung */
+/* Verfeinert die aktuell platzierten Ecken: sucht für jede Ecke in ihrer Umgebung die nächstgelegene
+   starke Kante/Ecke und zieht sie dorthin. Viel zuverlässiger als globale Erkennung, weil der Nutzer
+   die Ecken grob ums Blatt legt und die Funktion nur lokal nachjustiert. */
+function refineCorners(gradMap,corners,fullW,fullH){
+  if(!gradMap)return corners;
+  const out=corners.map(c=>({x:c.x,y:c.y}));
+  for(let i=0;i<4;i++){
+    const s=snapCorner(gradMap,out[i].x,out[i].y,fullW,fullH,0.10); // grösserer Radius zum Einfangen
+    if(s)out[i]=s;
+  }
+  return out;
+}
 function detectCorners(srcCanvas){
   try{
     const w=srcCanvas.width,h=srcCanvas.height;
@@ -2079,11 +2098,11 @@ function buildGradientMap(srcCanvas){
 /* Sucht in einem Umkreis um (fx,fy) (Vollbild-Koordinaten) den Punkt mit der stärksten Kante und gibt
    dessen Vollbild-Koordinaten zurück. Findet sich keine ausreichend starke Kante, wird null zurückgegeben
    (dann bleibt die Ecke, wo der Nutzer sie hingezogen hat). */
-function snapCorner(gradMap,fx,fy,fullW,fullH){
+function snapCorner(gradMap,fx,fy,fullW,fullH,radiusFrac,threshMul){
   if(!gradMap)return null;
   const {data,gw,gh,scale}=gradMap;
   const cx=Math.round(fx*scale), cy=Math.round(fy*scale);
-  const radius=Math.max(6,Math.round(Math.min(gw,gh)*0.05)); // Suchradius ~5% der Bildgrösse
+  const radius=Math.max(6,Math.round(Math.min(gw,gh)*(radiusFrac||0.05))); // Suchradius (Standard ~5%)
   let best=-1,bx=cx,by=cy;
   for(let y=Math.max(1,cy-radius);y<=Math.min(gh-2,cy+radius);y++){
     for(let x=Math.max(1,cx-radius);x<=Math.min(gw-2,cx+radius);x++){
@@ -2097,7 +2116,7 @@ function snapCorner(gradMap,fx,fy,fullW,fullH){
   }
   // Schwelle: nur einrasten, wenn die gefundene Kante deutlich genug ist
   let avg=0,cnt=0;for(let i=0;i<data.length;i+=7){avg+=data[i];cnt++;}avg/=Math.max(1,cnt);
-  if(best < avg*3)return null; // keine markante Kante in der Nähe -> nicht einrasten
+  if(best < avg*(threshMul||3))return null; // keine markante Kante in der Nähe -> nicht einrasten
   const nx=Math.max(0,Math.min(fullW,bx/scale)), ny=Math.max(0,Math.min(fullH,by/scale));
   return {x:nx,y:ny};
 }
