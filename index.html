@@ -157,7 +157,7 @@
   .fieldindex .fi-table{width:100%;border-collapse:collapse;font-size:13.5px;}
   .fieldindex .fi-table td{padding:4px 8px;border-bottom:1px solid var(--line);vertical-align:top;}
   .fieldindex .fi-table tr:last-child td{border-bottom:none;}
-  .fieldindex .fi-val{font-weight:600;white-space:nowrap;color:var(--text);}
+  .fieldindex .fi-val{font-weight:600;color:var(--text);}
   .fieldindex a{color:var(--blue-600);text-decoration:none;cursor:pointer;}
   .fieldindex a:hover{text-decoration:underline;}
   .fieldindex .ti-empty{color:var(--text-dim);font-size:13px;font-style:italic;}
@@ -879,7 +879,7 @@ function renderSidebar(){
     fieldNames.forEach(f=>{
       const b=document.createElement("button");
       b.className="nav-item"+(currentView.type==="field"&&currentView.id===f?" active":"");
-      b.innerHTML='<span class="tag-dot" style="background:var(--blue-400);"></span><span class="tag-name"></span><span class="count">'+fieldCount[f]+'</span>';
+      b.innerHTML='<span class="tag-dot" style="background:var(--blue-500);"></span><span class="tag-name"></span><span class="count">'+fieldCount[f]+'</span>';
       b.querySelector(".tag-name").textContent=f;
       b.addEventListener("click",()=>{currentView={type:"field",id:f};currentNoteId=null;closeSidebar();renderAll();});
       fieldList.appendChild(b);
@@ -1068,7 +1068,7 @@ function renderDynamicBlocks(n){
     });
     rows.sort((a,b)=>a.value.localeCompare(b.value,"de",{numeric:true}));
     const body=rows.length
-      ? '<table class="fi-table"><tbody>'+rows.map(r=>'<tr><td class="fi-val">'+escapeHtml(r.value)+'</td><td><a href="#" data-note="'+r.id+'">'+escapeHtml(r.title)+'</a></td></tr>').join("")+'</tbody></table>'
+      ? '<table class="fi-table"><tbody>'+rows.map(r=>'<tr><td class="fi-val">'+escapeHtml(r.value).replace(/\n/g,"<br>")+'</td><td><a href="#" data-note="'+r.id+'">'+escapeHtml(r.title)+'</a></td></tr>').join("")+'</tbody></table>'
       : '<span class="ti-empty">Noch keine Notizen mit dem Feld „'+escapeHtml(field)+'::“</span>';
     box.innerHTML='<div class="ti-title">🗂 '+escapeHtml(field)+' ('+rows.length+')<button class="block-del" data-block-del title="Block entfernen">✕</button></div>'+body;
   });
@@ -2988,8 +2988,8 @@ function extractFields(html){
       if(c.nodeType===3){text+=c.textContent;}
       else if(c.nodeType===1){
         const tag=c.tagName.toLowerCase();
-        const block=/^(p|div|br|li|h1|h2|h3|tr|blockquote|pre)$/.test(tag);
-        if(block)text+="\n";
+        if(tag==="br"){text+="\n";return;}
+        const block=/^(p|div|li|h1|h2|h3|tr|blockquote|pre)$/.test(tag);
         walk(c);
         if(block)text+="\n";
       }
@@ -2999,14 +2999,28 @@ function extractFields(html){
   walk(src.body);
   text=text.replace(/\u00a0/g," ").replace(/\u200b/g,"");
   const out=[];
-  text.split(/\n+/).forEach(line=>{
-    const re=/([\wäöüÄÖÜß .\-]+?)::[ \t]*([^\n]*?)(?=(?:[\wäöüÄÖÜß .\-]+?::)|$)/g;
-    let m;
-    while((m=re.exec(line))!==null){
-      const field=m[1].trim();const value=m[2].trim();
-      if(field&&value)out.push({field,value});
+  const lines=text.split(/\n/);
+  const fieldStart=/^([\wäöüÄÖÜß .\-]+?)::[ \t]*(.*)$/;
+  let current=null; // aktuell offenes Feld für mehrzeilige Werte
+  const flush=()=>{if(current&&current.field&&current.value.trim()){out.push({field:current.field,value:current.value.trim()});}current=null;};
+  lines.forEach(rawLine=>{
+    const line=rawLine.replace(/\s+$/,"");
+    const m=line.match(fieldStart);
+    if(m){
+      // Neues Feld beginnt -> vorheriges abschliessen
+      flush();
+      current={field:m[1].trim(),value:m[2]};
+    }else if(current!==null){
+      if(line.trim()===""){
+        // Leerzeile beendet den mehrzeiligen Wert
+        flush();
+      }else{
+        // Folgezeile gehört zum mehrzeiligen Wert
+        current.value+="\n"+line;
+      }
     }
   });
+  flush();
   return out;
 }
 /* Liefert alle eindeutigen Feldnamen über alle Notizen (für die Auswahl beim Einfügen). */
