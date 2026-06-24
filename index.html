@@ -2904,6 +2904,7 @@ function openAnonTool(){
     '<div class="anon-pane" data-pane="anon">'+
       '<p style="font-size:12px;color:var(--text-dim);margin:6px 0;">Text eingeben → wird durch Platzhalter ersetzt. Den anonymisierten Text kopierst du in die KI. Erkannte Begriffe kannst du danach dauerhaft speichern.</p>'+
       '<textarea id="anonIn" placeholder="Originaltext hier einfügen…" style="width:100%;min-height:120px;font-size:13px;"></textarea>'+
+      '<div id="anonSelBar" style="display:none;align-items:center;gap:8px;margin:6px 0;padding:6px 9px;background:var(--line-2);border-radius:8px;font-size:12.5px;"><span id="anonSelText" style="flex:1;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span><select id="anonSelType" style="flex:0 0 auto;"><option value="NAME">Name</option><option value="ORT">Ort</option><option value="FIRMA">Firma</option><option value="BEGRIFF">Sonstiges</option></select><button class="btn-blue" id="anonSelAdd" style="background:var(--blue-600);color:#fff;border:none;white-space:nowrap;">+ Begriff</button></div>'+
       '<div style="display:flex;gap:8px;margin:8px 0;"><button class="btn-blue" id="anonGo" style="background:var(--blue-600);color:#fff;border:none;flex:1;">Anonymisieren ↓</button></div>'+
       '<textarea id="anonOut" placeholder="Anonymisierter Text erscheint hier…" readonly style="width:100%;min-height:120px;font-size:13px;background:var(--line-2);"></textarea>'+
       '<div style="display:flex;gap:8px;margin-top:8px;"><button class="btn-ghost" id="anonCopy">Anonymisierten Text kopieren</button><button class="btn-ghost" id="anonSaveTerms">Erkannte Begriffe merken</button></div>'+
@@ -2940,6 +2941,37 @@ function openAnonTool(){
     anonCurrentMap=res.map;
     $("anonOut").value=res.text;
     renderMapView(res.map,"anonMapView");
+  });
+  // Textauswahl im Originalfeld -> Leiste zum Hinzufügen als Begriff anzeigen
+  function updateSelBar(){
+    const ta=$("anonIn");if(!ta)return;
+    const sel=ta.value.substring(ta.selectionStart,ta.selectionEnd).trim();
+    const bar=$("anonSelBar");
+    if(sel&&sel.length>=2&&sel.length<=60){
+      $("anonSelText").textContent="„"+sel+"“";
+      bar.style.display="flex";
+      bar.dataset.sel=sel;
+    }else{
+      bar.style.display="none";bar.dataset.sel="";
+    }
+  }
+  $("anonIn").addEventListener("select",updateSelBar);
+  $("anonIn").addEventListener("mouseup",updateSelBar);
+  $("anonIn").addEventListener("keyup",updateSelBar);
+  $("anonIn").addEventListener("touchend",()=>setTimeout(updateSelBar,10));
+  $("anonSelAdd").addEventListener("click",()=>{
+    const v=($("anonSelBar").dataset.sel||"").trim();if(!v)return;
+    vault.settings=vault.settings||{};vault.settings.anonTerms=vault.settings.anonTerms||[];
+    if(!vault.settings.anonTerms.some(t=>t.value===v)){
+      vault.settings.anonTerms.push({value:v,type:$("anonSelType").value});
+      markDirty();
+      // Reiter-Zähler aktualisieren
+      const tb=document.querySelector('.anon-tab[data-tab="terms"]');if(tb)tb.textContent="Begriffe ("+vault.settings.anonTerms.length+")";
+      toast("„"+v+"“ als Begriff gemerkt");
+    }else toast("Begriff existiert bereits");
+    $("anonSelBar").style.display="none";
+    // direkt neu anonymisieren, damit der Effekt sofort sichtbar ist
+    if($("anonIn").value.trim())$("anonGo").click();
   });
   $("anonCopy").addEventListener("click",()=>{copyText($("anonOut").value);toast("Kopiert");});
   $("anonSaveTerms").addEventListener("click",saveDetectedTerms);
