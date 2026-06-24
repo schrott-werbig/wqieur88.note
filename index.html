@@ -560,6 +560,7 @@
           <button class="mt-item" id="tagIndexBtn"><span class="mt-ic">#</span>Schlagwort-Verzeichnis</button>
           <button class="mt-item" id="fieldIndexBtn"><span class="mt-ic">🗂</span>Feld-Verzeichnis (Feld::)</button>
           <button class="mt-item" id="embedBtn"><span class="mt-ic">⧉</span>Notiz einbetten</button>
+          <button class="mt-item" id="decryptKiBtn" style="display:none"><span class="mt-ic">🔓</span>KI-Antwort entschlüsseln</button>
         </div>
         <!-- versteckte Original-Buttons, damit bestehende Handler weiter funktionieren -->
         <div style="display:none">
@@ -1059,6 +1060,8 @@ function renderEditor(){
   $("edBody").contentEditable=n.trashed?"false":"true";$("edTitle").disabled=!!n.trashed;
   $("dateInfo").textContent="Erstellt "+fmtDate(n.created);
   updateCounts();hydrateImages();renderAttachments(n);bindChecklistEvents();renderReminderChip(n);buildTocs();recalcTables();renderDynamicBlocks(n);applyHeadingFolding();renderBacklinks(n);
+  // "KI-Antwort entschlüsseln" nur bei Anonymisierungs-Notizen (die eine gespeicherte Zuordnung haben)
+  const dkBtn=$("decryptKiBtn");if(dkBtn)dkBtn.style.display=(n.html&&n.html.indexOf("data-anonmap")>=0)?"":"none";
   edLoading=false;
 }
 /* Lebende Blöcke, die bei jedem Öffnen der Notiz frisch berechnet werden:
@@ -1325,6 +1328,8 @@ $("embedBtn").addEventListener("click",()=>{
     embedSectionStep(id,target);
   }));
 });
+$("decryptKiBtn").addEventListener("mousedown",e=>e.preventDefault());
+$("decryptKiBtn").addEventListener("click",()=>{closeMoreTools();const n=cur();if(!n){toast("Keine Notiz geöffnet");return;}decryptKiAnswerInNote(n);});
 /* Zweiter Schritt der Einbettung: Abschnitt wählen (ganze Notiz oder ein Abschnitt unter einer Überschrift). */
 function embedSectionStep(id,target){
   const headings=collectHeadings(target&&target.html||"");
@@ -2895,6 +2900,71 @@ function deanonymizeText(input, map){
 
 /* Aktuelle Zuordnungstabelle der laufenden Sitzung (Platzhalter <-> Original). */
 let anonCurrentMap=[];
+/* Die vier festen Überschriften einer Anonymisierungs-Notiz. */
+const ANON_HEADINGS={orig:"Originaltext",anon:"Anonymisiert (für KI)",kiRaw:"KI-Antwort (anonymisiert)",kiClean:"KI-Antwort (entschlüsselt)"};
+/* Erstellt eine neue Notiz mit den vier Überschriften, füllt Original + Anonymisiert und speichert
+   die Zuordnung versteckt in der Notiz (data-anonmap), damit später entschlüsselt werden kann. */
+function transferAnonToNote(orig,anon,map){
+  const esc=s=>escapeHtml(s).replace(/\n/g,"<br>");
+  const mapJson=escapeHtml(JSON.stringify(map));
+  const html=
+    '<div class="anonmap" contenteditable="false" data-anonmap="'+mapJson+'" style="display:none"></div>'+
+    '<h2>'+ANON_HEADINGS.orig+'</h2><p>'+esc(orig)+'</p>'+
+    '<h2>'+ANON_HEADINGS.anon+'</h2><p>'+esc(anon)+'</p>'+
+    '<h2>'+ANON_HEADINGS.kiRaw+'</h2><p><br></p>'+
+    '<h2>'+ANON_HEADINGS.kiClean+'</h2><p><br></p>';
+  const n=createNewNote(false);
+  n.title="Anonymisierung "+fmtDate(now());
+  n.html=html;markDirty();
+  currentNoteId=n.id;renderAll();renderEditor();
+  if(isMobile())$("editor").classList.add("open");
+  toast("In Notiz übertragen");
+}
+/* Liest die in einer Notiz gespeicherte Zuordnung (data-anonmap) aus. */
+function readNoteAnonMap(n){
+  try{
+    const d=document.createElement("div");d.innerHTML=n.html||"";
+    const box=d.querySelector(".anonmap[data-anonmap]");
+    if(!box)return null;
+    return JSON.parse(box.getAttribute("data-anonmap"));
+  }catch(e){return null;}
+}
+/* Holt den Text unter einer bestimmten Überschrift aus einer Notiz (bis zur nächsten Überschrift). */
+function getSectionText(html,headingText){
+  const sec=extractSection(html,headingText);
+  if(!sec)return "";
+  const d=document.createElement("div");d.innerHTML=sec;
+  // Überschrift selbst entfernen
+  const h=d.querySelector("h1,h2,h3");if(h)h.remove();
+  // <br> zu \n, Blöcke zu \n
+  d.querySelectorAll("br").forEach(b=>b.replaceWith("\n"));
+  d.querySelectorAll("p,div").forEach(p=>{p.append("\n");});
+  return (d.textContent||"").replace(/\n{2,}/g,"\n").trim();
+}
+/* Entschlüsselt die KI-Antwort einer Anonymisierungs-Notiz: nimmt den Text unter "KI-Antwort (anonymisiert)",
+   übersetzt ihn mit der gespeicherten Zuordnung (plus zentraler Begriffsliste als Ergänzung) zurück und
+   schreibt das Ergebnis unter "KI-Antwort (entschlüsselt)". */
+function decryptKiAnswerInNote(n){
+  const map=readNoteAnonMap(n);
+  if(!map){toast("Keine Zuordnung in dieser Notiz gefunden");return;}
+  const kiRaw=getSectionText(n.html||"",ANON_HEADINGS.kiRaw);
+  if(!kiRaw){toast("Bitte zuerst die KI-Antwort unter „"+ANON_HEADINGS.kiRaw+"“ einfügen");return;}
+  const restored=deanonymizeText(kiRaw,map);
+  // Abschnitt "KI-Antwort (entschlüsselt)" im HTML ersetzen
+  const esc=s=>escapeHtml(s).replace(/\n/g,"<br>");
+  const d=document.createElement("div");d.innerHTML=n.html||"";
+  const heads=[...d.querySelectorAll("h1,h2,h3")];
+  const target=heads.find(h=>(h.textContent||"").trim()===ANON_HEADINGS.kiClean);
+  if(!target){toast("Überschrift „"+ANON_HEADINGS.kiClean+"“ nicht gefunden");return;}
+  // alles zwischen target und nächster Überschrift entfernen
+  let el=target.nextElementSibling;
+  while(el&&!/^H[123]$/.test(el.tagName)){const nx=el.nextElementSibling;el.remove();el=nx;}
+  const p=document.createElement("p");p.innerHTML=esc(restored);
+  target.parentNode.insertBefore(p,target.nextSibling);
+  n.html=sanitizeForStore(d.innerHTML);n.updated=now();markDirty();
+  if(currentNoteId===n.id)renderEditor();
+  toast("KI-Antwort entschlüsselt");
+}
 $("anonBtn").addEventListener("click",openAnonTool);
 function openAnonTool(){
   const terms=(vault&&vault.settings&&vault.settings.anonTerms)||[];
@@ -2907,7 +2977,7 @@ function openAnonTool(){
       '<div id="anonSelBar" style="display:none;align-items:center;gap:8px;margin:6px 0;padding:6px 9px;background:var(--line-2);border-radius:8px;font-size:12.5px;"><span id="anonSelText" style="flex:1;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span><select id="anonSelType" style="flex:0 0 auto;"><option value="NAME">Name</option><option value="ORT">Ort</option><option value="FIRMA">Firma</option><option value="BEGRIFF">Sonstiges</option></select><button class="btn-blue" id="anonSelAdd" style="background:var(--blue-600);color:#fff;border:none;white-space:nowrap;">+ Begriff</button></div>'+
       '<div style="display:flex;gap:8px;margin:8px 0;"><button class="btn-blue" id="anonGo" style="background:var(--blue-600);color:#fff;border:none;flex:1;">Anonymisieren ↓</button></div>'+
       '<textarea id="anonOut" placeholder="Anonymisierter Text erscheint hier…" readonly style="width:100%;min-height:120px;font-size:13px;background:var(--line-2);"></textarea>'+
-      '<div style="display:flex;gap:8px;margin-top:8px;"><button class="btn-ghost" id="anonCopy">Anonymisierten Text kopieren</button><button class="btn-ghost" id="anonSaveTerms">Erkannte Begriffe merken</button></div>'+
+      '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;"><button class="btn-ghost" id="anonCopy">Anonymisierten Text kopieren</button><button class="btn-ghost" id="anonSaveTerms">Erkannte Begriffe merken</button><button class="btn-blue" id="anonToNote" style="background:var(--blue-600);color:#fff;border:none;">In Notiz übertragen</button></div>'+
       '<div id="anonMapView" style="margin-top:8px;"></div>'+
     '</div>'+
     // Tab 2: Zurückübersetzen
@@ -2975,6 +3045,13 @@ function openAnonTool(){
   });
   $("anonCopy").addEventListener("click",()=>{copyText($("anonOut").value);toast("Kopiert");});
   $("anonSaveTerms").addEventListener("click",saveDetectedTerms);
+  $("anonToNote").addEventListener("click",()=>{
+    const orig=$("anonIn").value.trim();
+    if(!orig){toast("Kein Text vorhanden");return;}
+    if(!anonCurrentMap.length||!$("anonOut").value.trim()){toast("Bitte zuerst anonymisieren");return;}
+    transferAnonToNote(orig,$("anonOut").value,anonCurrentMap);
+    closeModal();
+  });
 
   // Zurückübersetzen
   $("deanonGo").addEventListener("click",()=>{
@@ -3420,7 +3497,9 @@ function cleanAttrs(el){
     else if(name==="data-fieldindex"&&tag==="DIV") keep=true;
     else if(name==="data-embed"&&tag==="DIV") keep=true;
     else if(name==="data-embed-section"&&tag==="DIV") keep=true;
-    else if(name==="contenteditable"&&tag==="DIV"&&(el.classList.contains("toc")||el.classList.contains("tagindex")||el.classList.contains("fieldindex")||el.classList.contains("embed"))) keep=(val==="false");
+    else if(name==="data-anonmap"&&tag==="DIV") keep=true;
+    else if(name==="contenteditable"&&tag==="DIV"&&(el.classList.contains("toc")||el.classList.contains("tagindex")||el.classList.contains("fieldindex")||el.classList.contains("embed")||el.classList.contains("anonmap"))) keep=(val==="false");
+    else if(name==="style"&&tag==="DIV"&&el.classList.contains("anonmap")) keep=(val==="display:none");
     else if(name==="data-formula"&&(tag==="TD"||tag==="TH")) keep=true;
     else if(name==="class"){
       if(tag==="UL"||tag==="LI") keep=true;
@@ -3428,6 +3507,7 @@ function cleanAttrs(el){
       else if(tag==="DIV"&&val==="toc-title") keep=true;
       else if(tag==="DIV"&&val==="tagindex") keep=true;
       else if(tag==="DIV"&&val==="fieldindex") keep=true;
+      else if(tag==="DIV"&&val==="anonmap") keep=true;
       else if(tag==="DIV"&&val==="embed") keep=true;
       else if(tag==="A"&&/^(lvl[123])$/.test(val)) keep=true;
       else if((tag==="TD"||tag==="TH")&&val==="formula") keep=true;
