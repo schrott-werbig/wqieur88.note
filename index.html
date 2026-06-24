@@ -259,6 +259,19 @@
 
   .modal-bg{position:fixed;inset:0;background:rgba(15,23,42,.5);display:flex;align-items:center;justify-content:center;z-index:900;padding:20px;}
   .modal{background:var(--panel);border-radius:14px;width:100%;max-width:440px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.3);max-height:80vh;overflow:auto;}
+  .modal.modal-wide{max-width:600px;}
+  .anon-tabs{display:flex;gap:4px;margin-bottom:12px;border-bottom:1px solid var(--line);}
+  .anon-tab{padding:8px 12px;font-size:13px;color:var(--text-dim);border-bottom:2px solid transparent;margin-bottom:-1px;}
+  .anon-tab.active{color:var(--blue-600);border-bottom-color:var(--blue-600);font-weight:600;}
+  .anon-pane textarea{border:1px solid var(--line);border-radius:8px;padding:8px;font-family:ui-monospace,monospace;resize:vertical;box-sizing:border-box;}
+  .anon-map{max-height:160px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--line-2);}
+  .am-row{font-size:12px;padding:2px 0;}
+  .am-row code{background:var(--panel);padding:1px 5px;border-radius:4px;color:var(--blue-600);}
+  .term-row{display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid var(--line);}
+  .term-type{font-size:10.5px;font-weight:600;color:var(--blue-600);background:var(--line-2);padding:2px 7px;border-radius:5px;flex:0 0 auto;min-width:54px;text-align:center;}
+  .term-val{flex:1;font-size:13.5px;}
+  .term-del{color:var(--text-dim);padding:3px 7px;border-radius:5px;flex:0 0 auto;}
+  .term-del:hover{background:var(--danger);color:#fff;}
   .modal h3{margin:0 0 6px;font-size:16px;}
   .modal p{margin:0 0 16px;color:var(--text-dim);font-size:13px;}
   .modal input{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:14px;background:var(--panel-2);color:var(--text);margin-bottom:14px;}
@@ -442,6 +455,7 @@
     <div class="brand"><svg viewBox="0 0 24 24" fill="none"><rect x="4" y="3" width="16" height="18" rx="2.5" fill="#3b82f6"/><path d="M8 8h8M8 12h8M8 16h5" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/></svg><span>Notizen</span></div>
     <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input type="text" id="searchInput" placeholder="Notizen durchsuchen …"></div>
     <div class="top-actions">
+      <button class="icon-btn" id="anonBtn" title="Text anonymisieren"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-6 10-6 10 6 10 6"/><circle cx="8.5" cy="12" r="2.5"/><circle cx="15.5" cy="12" r="2.5"/><path d="M11 12h2"/></svg></button>
       <button class="icon-btn" id="settingsBtn" title="Einstellungen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.3 1a7 7 0 0 0-1.7-1l-.3-2.5H9.4l-.3 2.5a7 7 0 0 0-1.7 1l-2.3-1-2 3.4L5 11a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 1.7 1l.3 2.5h4.2l.3-2.5a7 7 0 0 0 1.7-1l2.3 1 2-3.4-2-1.5a7 7 0 0 0 .1-1z"/></svg></button>
       <button class="icon-btn" id="themeBtn" title="Design wechseln"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg></button>
       <button class="icon-btn" id="lockBtn" title="Sperren"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></button>
@@ -2827,6 +2841,173 @@ function applyTheme(t){document.documentElement.setAttribute("data-theme",t==="d
 $("themeBtn").addEventListener("click",()=>{const t=vault.settings.theme==="dark"?"light":"dark";vault.settings.theme=t;applyTheme(t);markDirty();});
 
 /* ---- Settings ---- */
+/* ===== Anonymisierung (komplett ohne KI, rein Muster + persönliche Begriffsliste) =====
+   Ersetzt sensible Stellen durch Platzhalter wie [NAME_1], [EMAIL_1] und merkt sich die Zuordnung.
+   Die persönliche Begriffsliste (vault.settings.anonTerms) wächst mit jeder manuellen Ergänzung. */
+const ANON_PATTERNS=[
+  // Reihenfolge wichtig: spezifische Muster zuerst, damit z.B. E-Mail nicht von "Wort" zerlegt wird.
+  {type:"EMAIL",re:/\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b/g},
+  {type:"IBAN",re:/\b[A-Z]{2}\d{2}(?:[ ]?[A-Za-z0-9]){10,30}\b/g},
+  {type:"URL",re:/\bhttps?:\/\/[^\s]+?(?=[.,;:!?]?(?:\s|$))/g},
+  {type:"AHV",re:/\b756\.?\d{4}\.?\d{4}\.?\d{2}\b/g}, // Schweizer AHV-Nummer
+  {type:"TELEFON",re:/(?:\+41|0041|0)[\s\d]{8,15}\d/g},
+  {type:"BETRAG",re:/\b(?:CHF|EUR|USD|Fr\.?)\s?\d[\d'.,]*\b/gi},
+  {type:"DATUM",re:/\b\d{1,2}\.\s?(?:\d{1,2}|Jan(?:uar)?|Feb(?:ruar)?|März|Apr(?:il)?|Mai|Jun(?:i)?|Jul(?:i)?|Aug(?:ust)?|Sep(?:tember)?|Okt(?:ober)?|Nov(?:ember)?|Dez(?:ember)?)\.?\s?\d{2,4}\b/g},
+  {type:"PLZORT",re:/\b\d{4}\s[A-ZÄÖÜ][a-zäöüß]+\b/g}, // Schweizer PLZ + Ort
+];
+/* Anonymisiert einen Text. Liefert {text, map} – map ist Array von {token, original, type}. */
+function anonymizeText(input, terms){
+  let text=String(input||"");
+  const map=[];
+  const counters={};
+  const tokenFor=(type,original)=>{
+    // gleiche Originalwerte bekommen denselben Platzhalter (Konsistenz)
+    const existing=map.find(m=>m.original===original);
+    if(existing)return existing.token;
+    counters[type]=(counters[type]||0)+1;
+    const token="["+type+"_"+counters[type]+"]";
+    map.push({token,original,type});
+    return token;
+  };
+  // 1. Persönliche Begriffe zuerst (längste zuerst, damit "Mike Manser" vor "Mike" greift)
+  const sortedTerms=(terms||[]).slice().filter(t=>t&&t.value).sort((a,b)=>b.value.length-a.value.length);
+  sortedTerms.forEach(t=>{
+    const safe=t.value.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+    const re=new RegExp("(?<![\\wäöüÄÖÜß])"+safe+"(?![\\wäöüÄÖÜß])","g");
+    text=text.replace(re,()=>tokenFor(t.type||"BEGRIFF",t.value));
+  });
+  // 2. Automatische Muster
+  ANON_PATTERNS.forEach(p=>{
+    text=text.replace(p.re,(match)=>tokenFor(p.type,match));
+  });
+  return {text,map};
+}
+/* Macht die Anonymisierung rückgängig: ersetzt Platzhalter wieder durch die Originalwerte. */
+function deanonymizeText(input, map){
+  let text=String(input||"");
+  // längere Tokens zuerst ersetzen, um Teilkollisionen zu vermeiden
+  (map||[]).slice().sort((a,b)=>b.token.length-a.token.length).forEach(m=>{
+    const safe=m.token.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+    text=text.replace(new RegExp(safe,"g"),m.original);
+  });
+  return text;
+}
+
+/* Aktuelle Zuordnungstabelle der laufenden Sitzung (Platzhalter <-> Original). */
+let anonCurrentMap=[];
+$("anonBtn").addEventListener("click",openAnonTool);
+function openAnonTool(){
+  const terms=(vault&&vault.settings&&vault.settings.anonTerms)||[];
+  modal({title:"Text anonymisieren",wide:true,body:
+    '<div class="anon-tabs"><button class="anon-tab active" data-tab="anon">Anonymisieren</button><button class="anon-tab" data-tab="deanon">Zurückübersetzen</button><button class="anon-tab" data-tab="terms">Begriffe ('+terms.length+')</button></div>'+
+    // Tab 1: Anonymisieren
+    '<div class="anon-pane" data-pane="anon">'+
+      '<p style="font-size:12px;color:var(--text-dim);margin:6px 0;">Text eingeben → wird durch Platzhalter ersetzt. Den anonymisierten Text kopierst du in die KI. Erkannte Begriffe kannst du danach dauerhaft speichern.</p>'+
+      '<textarea id="anonIn" placeholder="Originaltext hier einfügen…" style="width:100%;min-height:120px;font-size:13px;"></textarea>'+
+      '<div style="display:flex;gap:8px;margin:8px 0;"><button class="btn-blue" id="anonGo" style="background:var(--blue-600);color:#fff;border:none;flex:1;">Anonymisieren ↓</button></div>'+
+      '<textarea id="anonOut" placeholder="Anonymisierter Text erscheint hier…" readonly style="width:100%;min-height:120px;font-size:13px;background:var(--line-2);"></textarea>'+
+      '<div style="display:flex;gap:8px;margin-top:8px;"><button class="btn-ghost" id="anonCopy">Anonymisierten Text kopieren</button><button class="btn-ghost" id="anonSaveTerms">Erkannte Begriffe merken</button></div>'+
+      '<div id="anonMapView" style="margin-top:8px;"></div>'+
+    '</div>'+
+    // Tab 2: Zurückübersetzen
+    '<div class="anon-pane hidden" data-pane="deanon">'+
+      '<p style="font-size:12px;color:var(--text-dim);margin:6px 0;">Antwort der KI hier einfügen → die Platzhalter werden wieder durch deine Originaldaten ersetzt. Nutzt die Zuordnung der letzten Anonymisierung (oder eine geladene).</p>'+
+      '<textarea id="deanonIn" placeholder="KI-Antwort mit Platzhaltern hier einfügen…" style="width:100%;min-height:140px;font-size:13px;"></textarea>'+
+      '<div style="display:flex;gap:8px;margin:8px 0;"><button class="btn-blue" id="deanonGo" style="background:var(--blue-600);color:#fff;border:none;flex:1;">Zurückübersetzen ↓</button></div>'+
+      '<textarea id="deanonOut" placeholder="Wiederhergestellter Text…" readonly style="width:100%;min-height:140px;font-size:13px;background:var(--line-2);"></textarea>'+
+      '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;"><button class="btn-ghost" id="deanonCopy">Kopieren</button><button class="btn-ghost" id="anonMapSave">Zuordnung speichern</button><button class="btn-ghost" id="anonMapLoad">Zuordnung laden</button></div>'+
+      '<p id="anonMapStatus" style="font-size:11.5px;color:var(--text-dim);margin-top:6px;"></p>'+
+    '</div>'+
+    // Tab 3: Begriffe
+    '<div class="anon-pane hidden" data-pane="terms">'+
+      '<p style="font-size:12px;color:var(--text-dim);margin:6px 0;">Deine persönliche Begriffsliste. Diese Begriffe werden künftig automatisch erkannt. Sie wächst mit jedem Mal – so wird die Anonymisierung immer zuverlässiger.</p>'+
+      '<div style="display:flex;gap:6px;margin-bottom:8px;"><input type="text" id="termVal" placeholder="Begriff (z.B. Name, Firma, Ort)" style="flex:1;"><select id="termType" style="flex:0 0 auto;"><option value="NAME">Name</option><option value="ORT">Ort</option><option value="FIRMA">Firma</option><option value="BEGRIFF">Sonstiges</option></select><button class="btn-blue" id="termAdd" style="background:var(--blue-600);color:#fff;border:none;">+</button></div>'+
+      '<div id="termList" style="max-height:260px;overflow:auto;"></div>'+
+    '</div>',
+    buttons:[{label:"Schliessen",cls:"btn-ghost",act:closeModal}]});
+
+  // Tab-Umschaltung
+  document.querySelectorAll(".anon-tab").forEach(t=>t.addEventListener("click",()=>{
+    document.querySelectorAll(".anon-tab").forEach(x=>x.classList.remove("active"));t.classList.add("active");
+    document.querySelectorAll(".anon-pane").forEach(p=>p.classList.toggle("hidden",p.dataset.pane!==t.dataset.tab));
+    if(t.dataset.tab==="terms")renderTermList();
+  }));
+
+  // Anonymisieren
+  $("anonGo").addEventListener("click",()=>{
+    const terms=(vault.settings&&vault.settings.anonTerms)||[];
+    const res=anonymizeText($("anonIn").value,terms);
+    anonCurrentMap=res.map;
+    $("anonOut").value=res.text;
+    renderMapView(res.map,"anonMapView");
+  });
+  $("anonCopy").addEventListener("click",()=>{copyText($("anonOut").value);toast("Kopiert");});
+  $("anonSaveTerms").addEventListener("click",saveDetectedTerms);
+
+  // Zurückübersetzen
+  $("deanonGo").addEventListener("click",()=>{
+    if(!anonCurrentMap.length){toast("Keine Zuordnung vorhanden – zuerst anonymisieren oder Zuordnung laden");return;}
+    $("deanonOut").value=deanonymizeText($("deanonIn").value,anonCurrentMap);
+  });
+  $("deanonCopy").addEventListener("click",()=>{copyText($("deanonOut").value);toast("Kopiert");});
+  $("anonMapSave").addEventListener("click",saveAnonMap);
+  $("anonMapLoad").addEventListener("click",loadAnonMap);
+
+  // Begriffe
+  $("termAdd").addEventListener("click",()=>{
+    const v=$("termVal").value.trim();if(!v)return;
+    vault.settings=vault.settings||{};vault.settings.anonTerms=vault.settings.anonTerms||[];
+    if(vault.settings.anonTerms.some(t=>t.value===v)){toast("Begriff existiert bereits");return;}
+    vault.settings.anonTerms.push({value:v,type:$("termType").value});
+    markDirty();$("termVal").value="";renderTermList();
+  });
+  $("termVal").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();$("termAdd").click();}});
+
+  function renderTermList(){
+    const list=$("termList");const terms=(vault.settings&&vault.settings.anonTerms)||[];
+    if(!terms.length){list.innerHTML='<p style="font-size:12.5px;color:var(--text-dim);">Noch keine Begriffe. Füge oben welche hinzu oder nutze „Erkannte Begriffe merken“ nach dem Anonymisieren.</p>';return;}
+    list.innerHTML="";
+    terms.slice().sort((a,b)=>a.value.localeCompare(b.value,"de")).forEach(t=>{
+      const row=document.createElement("div");row.className="term-row";
+      row.innerHTML='<span class="term-type">'+escapeHtml(t.type||"BEGRIFF")+'</span><span class="term-val"></span><button class="term-del" title="Entfernen">✕</button>';
+      row.querySelector(".term-val").textContent=t.value;
+      row.querySelector(".term-del").addEventListener("click",()=>{
+        vault.settings.anonTerms=vault.settings.anonTerms.filter(x=>x.value!==t.value);markDirty();renderTermList();
+      });
+      list.appendChild(row);
+    });
+  }
+  function saveDetectedTerms(){
+    if(!anonCurrentMap.length){toast("Erst anonymisieren");return;}
+    vault.settings=vault.settings||{};vault.settings.anonTerms=vault.settings.anonTerms||[];
+    let added=0;
+    // Nur die "begriffsartigen" Treffer merken (Name/Ort/Firma/Begriff), nicht E-Mail/IBAN etc.
+    anonCurrentMap.forEach(m=>{
+      if(["NAME","ORT","FIRMA","BEGRIFF"].includes(m.type)&&!vault.settings.anonTerms.some(t=>t.value===m.original)){
+        vault.settings.anonTerms.push({value:m.original,type:m.type});added++;
+      }
+    });
+    if(added){markDirty();toast(added+" Begriff(e) gemerkt");}else toast("Nichts Neues zum Merken");
+  }
+  function renderMapView(map,elId){
+    const el=$(elId);if(!map.length){el.innerHTML="";return;}
+    el.innerHTML='<p style="font-size:11.5px;color:var(--text-dim);margin:4px 0;">Zuordnung ('+map.length+'):</p><div class="anon-map">'+
+      map.map(m=>'<div class="am-row"><code>'+escapeHtml(m.token)+'</code> = '+escapeHtml(m.original)+'</div>').join("")+'</div>';
+  }
+  function saveAnonMap(){
+    if(!anonCurrentMap.length){toast("Keine Zuordnung vorhanden");return;}
+    const blob=new Blob([JSON.stringify(anonCurrentMap,null,2)],{type:"application/json"});
+    const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="anon-zuordnung.json";a.click();URL.revokeObjectURL(url);
+    $("anonMapStatus").textContent="Zuordnung als Datei gespeichert.";
+  }
+  function loadAnonMap(){
+    const inp=document.createElement("input");inp.type="file";inp.accept="application/json,.json";
+    inp.onchange=()=>{const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{anonCurrentMap=JSON.parse(r.result);$("anonMapStatus").textContent="Zuordnung geladen ("+anonCurrentMap.length+" Einträge).";toast("Zuordnung geladen");}catch(e){toast("Datei ungültig");}};r.readAsText(f);};
+    inp.click();
+  }
+}
+function copyText(t){if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).catch(()=>{});else{const ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand("copy");}catch(e){}ta.remove();}}
+
 $("settingsBtn").addEventListener("click",async()=>{
   const blobs=await idbGetAll("blobs");let bytes=0;blobs.forEach(b=>{bytes+=(b.ct&&b.ct.byteLength)||0;});
   const curLock=(vault.settings&&vault.settings.autolockMin)||15;
@@ -3239,7 +3420,7 @@ function fmtSize(b){if(b<1024)return b+" B";if(b<1048576)return (b/1024).toFixed
 function fmtDate(ts){const d=new Date(ts),today=new Date();if(d.toDateString()===today.toDateString())return d.toLocaleTimeString("de-CH",{hour:"2-digit",minute:"2-digit"});const y=new Date(today);y.setDate(y.getDate()-1);if(d.toDateString()===y.toDateString())return "Gestern";return d.toLocaleDateString("de-CH",{day:"2-digit",month:"short",year:d.getFullYear()!==today.getFullYear()?"numeric":undefined});}
 
 /* ---- Modals ---- */
-function modal(o){const root=$("modalRoot");root.innerHTML='<div class="modal-bg"><div class="modal"><h3></h3><div class="mb"></div><div class="modal-btns"></div></div></div>';root.querySelector("h3").textContent=o.title;root.querySelector(".mb").innerHTML=o.body||"";const bc=root.querySelector(".modal-btns");(o.buttons||[]).forEach(b=>{const el=document.createElement("button");el.className=b.cls||"btn-ghost";el.textContent=b.label;el.onclick=b.act;bc.appendChild(el);});root.querySelector(".modal-bg").addEventListener("click",e=>{if(e.target.classList.contains("modal-bg"))closeModal();});}
+function modal(o){const root=$("modalRoot");root.innerHTML='<div class="modal-bg"><div class="modal'+(o.wide?" modal-wide":"")+'"><h3></h3><div class="mb"></div><div class="modal-btns"></div></div></div>';root.querySelector("h3").textContent=o.title;root.querySelector(".mb").innerHTML=o.body||"";const bc=root.querySelector(".modal-btns");(o.buttons||[]).forEach(b=>{const el=document.createElement("button");el.className=b.cls||"btn-ghost";el.textContent=b.label;el.onclick=b.act;bc.appendChild(el);});root.querySelector(".modal-bg").addEventListener("click",e=>{if(e.target.classList.contains("modal-bg"))closeModal();});}
 function closeModal(){$("modalRoot").innerHTML="";}
 function promptModal(title,placeholder,initial,cb){modal({title,body:'<input type="text" id="__mp" placeholder="'+escapeHtml(placeholder)+'">',buttons:[{label:"Abbrechen",cls:"btn-ghost",act:closeModal},{label:"OK",cls:"btn-blue",act:()=>{const v=$("__mp").value;closeModal();cb(v);}}]});const inp=$("__mp");inp.value=initial||"";inp.focus();inp.select();inp.addEventListener("keydown",e=>{if(e.key==="Enter"){const v=inp.value;closeModal();cb(v);}});}
 function promptModalPw(title,placeholder,cb){modal({title,body:'<input type="password" id="__mpw" placeholder="'+escapeHtml(placeholder)+'">',buttons:[{label:"Abbrechen",cls:"btn-ghost",act:closeModal},{label:"OK",cls:"btn-blue",act:()=>{const v=$("__mpw").value;closeModal();cb(v);}}]});const inp=$("__mpw");inp.focus();inp.addEventListener("keydown",e=>{if(e.key==="Enter"){const v=inp.value;closeModal();cb(v);}});}
