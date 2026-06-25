@@ -272,6 +272,16 @@
   .term-val{flex:1;font-size:13.5px;}
   .term-del{color:var(--text-dim);padding:3px 7px;border-radius:5px;flex:0 0 auto;}
   .term-del:hover{background:var(--danger);color:#fff;}
+  .term-row .term-on{flex:0 0 auto;}
+  .term-val-wrap{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;}
+  .term-aliases{display:flex;flex-wrap:wrap;gap:4px;}
+  .alias-chip,.cat-chip{display:inline-flex;align-items:center;gap:3px;font-size:11px;background:var(--line-2);border:1px solid var(--line);border-radius:5px;padding:1px 4px 1px 7px;color:var(--text-dim);}
+  .alias-chip button,.cat-chip button{color:var(--text-dim);font-size:11px;padding:0 2px;line-height:1;}
+  .alias-chip button:hover,.cat-chip button:hover{color:var(--danger);}
+  .cat-chip{font-size:12.5px;margin:0 5px 5px 0;}
+  .term-alias-add{flex:0 0 auto;font-size:11px;color:var(--blue-600);padding:3px 6px;border-radius:5px;white-space:nowrap;}
+  .term-alias-add:hover{background:var(--line-2);}
+  .term-row.term-off{opacity:.45;}
   .modal h3{margin:0 0 6px;font-size:16px;}
   .modal p{margin:0 0 16px;color:var(--text-dim);font-size:13px;}
   .modal input{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:14px;background:var(--panel-2);color:var(--text);margin-bottom:14px;}
@@ -2849,6 +2859,12 @@ $("themeBtn").addEventListener("click",()=>{const t=vault.settings.theme==="dark
 /* ===== Anonymisierung (komplett ohne KI, rein Muster + persönliche Begriffsliste) =====
    Ersetzt sensible Stellen durch Platzhalter wie [NAME_1], [EMAIL_1] und merkt sich die Zuordnung.
    Die persönliche Begriffsliste (vault.settings.anonTerms) wächst mit jeder manuellen Ergänzung. */
+const ANON_DEFAULT_CATEGORIES=["NAME","ORT","FIRMA","BEGRIFF"];
+function anonCategories(){
+  const custom=(vault&&vault.settings&&vault.settings.anonCategories)||[];
+  // Standard + eigene, ohne Duplikate
+  return [...new Set([...ANON_DEFAULT_CATEGORIES,...custom])];
+}
 const ANON_PATTERNS=[
   // Reihenfolge wichtig: spezifische Muster zuerst, damit z.B. E-Mail nicht von "Wort" zerlegt wird.
   {type:"EMAIL",re:/\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b/g},
@@ -2858,34 +2874,92 @@ const ANON_PATTERNS=[
   {type:"TELEFON",re:/(?:\+41|0041|0)[\s\d]{8,15}\d/g},
   {type:"BETRAG",re:/\b(?:CHF|EUR|USD|Fr\.?)\s?\d[\d'.,]*\b/gi},
   {type:"DATUM",re:/\b\d{1,2}\.\s?(?:\d{1,2}|Jan(?:uar)?|Feb(?:ruar)?|März|Apr(?:il)?|Mai|Jun(?:i)?|Jul(?:i)?|Aug(?:ust)?|Sep(?:tember)?|Okt(?:ober)?|Nov(?:ember)?|Dez(?:ember)?)\.?\s?\d{2,4}\b/g},
-  {type:"PLZORT",re:/\b\d{4}\s[A-ZÄÖÜ][a-zäöüß]+\b/g}, // Schweizer PLZ + Ort
+  {type:"PLZORT",re:/\b[1-9]\d{3}\s[A-ZÄÖÜ][a-zäöüß]{2,}\b/g}, // Schweizer PLZ (1000-9999) + grossgeschriebener Ort
 ];
-/* Anonymisiert einen Text. Liefert {text, map} – map ist Array von {token, original, type}. */
-function anonymizeText(input, terms){
+/* Anonymisiert einen Text. Liefert {text, map}. cfg steuert: disabled[] (Kategorien aus),
+   disabledTerms[] (einzelne Begriffe aus), randomizeNumbers, shiftDates/shiftMonths/shiftYears. */
+function anonymizeText(input, terms, cfg){
+  cfg=cfg||{};
+  const disabled=cfg.disabled||[];
+  const disabledTerms=cfg.disabledTerms||[];
   let text=String(input||"");
   const map=[];
   const counters={};
-  const tokenFor=(type,original)=>{
-    // gleiche Originalwerte bekommen denselben Platzhalter (Konsistenz)
-    const existing=map.find(m=>m.original===original);
+  const tokenFor=(type,original,replacement)=>{
+    const existing=map.find(m=>m.original===original&&m.type===type);
     if(existing)return existing.token;
     counters[type]=(counters[type]||0)+1;
-    const token="["+type+"_"+counters[type]+"]";
+    const token=replacement!=null?replacement:("["+type+"_"+counters[type]+"]");
     map.push({token,original,type});
     return token;
   };
-  // 1. Persönliche Begriffe zuerst (längste zuerst, damit "Mike Manser" vor "Mike" greift)
-  const sortedTerms=(terms||[]).slice().filter(t=>t&&t.value).sort((a,b)=>b.value.length-a.value.length);
+  // 1. Persönliche Begriffe (längste zuerst). Synonyme (t.aliases) werden mit erfasst und auf
+  //    denselben Hauptbegriff abgebildet.
+  const sortedTerms=(terms||[]).slice().filter(t=>t&&t.value&&!disabledTerms.includes(t.value)&&!disabled.includes(t.type||"BEGRIFF"))
+    .sort((a,b)=>b.value.length-a.value.length);
   sortedTerms.forEach(t=>{
-    const safe=t.value.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
-    const re=new RegExp("(?<![\\wäöüÄÖÜß])"+safe+"(?![\\wäöüÄÖÜß])","g");
-    text=text.replace(re,()=>tokenFor(t.type||"BEGRIFF",t.value));
+    const variants=[t.value,...(t.aliases||[])].filter(Boolean).sort((a,b)=>b.length-a.length);
+    variants.forEach(variant=>{
+      const safe=variant.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+      const re=new RegExp("(?<![\\wäöüÄÖÜß])"+safe+"(?![\\wäöüÄÖÜß])","g");
+      // Alle Varianten desselben Begriffs teilen sich den Platzhalter des Hauptwerts.
+      text=text.replace(re,()=>{
+        const tok=tokenFor(t.type||"BEGRIFF",t.value);
+        return tok;
+      });
+    });
   });
-  // 2. Automatische Muster
+  // 2. Automatische Muster (nur aktivierte Kategorien)
   ANON_PATTERNS.forEach(p=>{
+    if(disabled.includes(p.type))return;
+    if(p.type==="DATUM"&&cfg.shiftDates){
+      text=text.replace(p.re,(match)=>{const shifted=shiftDateString(match,cfg.shiftMonths||0,cfg.shiftYears||0);return shifted||tokenFor(p.type,match);});
+      return;
+    }
     text=text.replace(p.re,(match)=>tokenFor(p.type,match));
   });
+  // 3. Zahlen durch Zufallszahlen ersetzen (optional, nach den Mustern, damit IBAN/Tel etc. schon weg sind)
+  if(cfg.randomizeNumbers&&!disabled.includes("ZAHL")){
+    text=text.replace(/(?<![\w\[])\d+(?:[.,]\d+)?(?![\w\]])/g,(match)=>{
+      // gleiche Zahl -> gleiche Zufallszahl (Konsistenz)
+      const existing=map.find(m=>m.original===match&&m.type==="ZAHL");
+      if(existing)return existing.token;
+      const rand=randomLikeNumber(match);
+      map.push({token:rand,original:match,type:"ZAHL"});
+      return rand;
+    });
+  }
   return {text,map};
+}
+/* Erzeugt eine Zufallszahl mit gleicher Stellenzahl/Format wie das Original. */
+function randomLikeNumber(s){
+  return s.replace(/\d/g,()=>String(Math.floor(Math.random()*10)));
+}
+/* Verschiebt ein erkanntes Datum um Monate/Jahre. Versteht "15. März 2026" und "15.03.2026".
+   Gibt den verschobenen Datumsstring zurück oder null, wenn es nicht geparst werden konnte. */
+function shiftDateString(str,dM,dY){
+  const months=["januar","februar","märz","april","mai","juni","juli","august","september","oktober","november","dezember"];
+  const mAbbr={jan:0,feb:1,"mär":2,apr:3,mai:4,jun:5,jul:6,aug:7,sep:8,okt:9,nov:10,dez:11};
+  let day,mon,year;
+  let m=str.match(/(\d{1,2})\.\s*(\d{1,2})\.\s*(\d{2,4})/); // 15.03.2026
+  if(m){day=+m[1];mon=+m[2]-1;year=+m[3];}
+  else{
+    m=str.match(/(\d{1,2})\.?\s*([A-Za-zäöü]+)\.?\s*(\d{2,4})/); // 15. März 2026
+    if(!m)return null;
+    day=+m[1];const mn=m[2].toLowerCase();
+    mon=months.indexOf(mn);
+    if(mon<0){const key=mn.slice(0,3);mon=(key in mAbbr)?mAbbr[key]:-1;}
+    if(mon<0)return null;
+    year=+m[3];
+  }
+  if(year<100)year+=2000;
+  const d=new Date(year,mon+dM,day);
+  d.setFullYear(d.getFullYear()+dY);
+  // Im selben Stil zurückgeben wie erkannt (mit Monatsname, wenn Original einen hatte)
+  if(/[A-Za-zäöü]/.test(str)){
+    return d.getDate()+". "+months[d.getMonth()].charAt(0).toUpperCase()+months[d.getMonth()].slice(1)+" "+d.getFullYear();
+  }
+  return String(d.getDate()).padStart(2,"0")+"."+String(d.getMonth()+1).padStart(2,"0")+"."+d.getFullYear();
 }
 /* Macht die Anonymisierung rückgängig: ersetzt Platzhalter wieder durch die Originalwerte. */
 function deanonymizeText(input, map){
@@ -2969,15 +3043,16 @@ $("anonBtn").addEventListener("click",openAnonTool);
 function openAnonTool(){
   const terms=(vault&&vault.settings&&vault.settings.anonTerms)||[];
   modal({title:"Text anonymisieren",wide:true,body:
-    '<div class="anon-tabs"><button class="anon-tab active" data-tab="anon">Anonymisieren</button><button class="anon-tab" data-tab="deanon">Zurückübersetzen</button><button class="anon-tab" data-tab="terms">Begriffe ('+terms.length+')</button></div>'+
+    '<div class="anon-tabs"><button class="anon-tab active" data-tab="anon">Anonymisieren</button><button class="anon-tab" data-tab="deanon">Zurückübersetzen</button><button class="anon-tab" data-tab="terms">Begriffe ('+terms.length+')</button><button class="anon-tab" data-tab="settings">⚙</button></div>'+
     // Tab 1: Anonymisieren
     '<div class="anon-pane" data-pane="anon">'+
       '<p style="font-size:12px;color:var(--text-dim);margin:6px 0;">Text eingeben → wird durch Platzhalter ersetzt. Den anonymisierten Text kopierst du in die KI. Erkannte Begriffe kannst du danach dauerhaft speichern.</p>'+
-      '<textarea id="anonIn" placeholder="Originaltext hier einfügen…" style="width:100%;min-height:120px;font-size:13px;"></textarea>'+
-      '<div id="anonSelBar" style="display:none;align-items:center;gap:8px;margin:6px 0;padding:6px 9px;background:var(--line-2);border-radius:8px;font-size:12.5px;"><span id="anonSelText" style="flex:1;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span><select id="anonSelType" style="flex:0 0 auto;"><option value="NAME">Name</option><option value="ORT">Ort</option><option value="FIRMA">Firma</option><option value="BEGRIFF">Sonstiges</option></select><button class="btn-blue" id="anonSelAdd" style="background:var(--blue-600);color:#fff;border:none;white-space:nowrap;">+ Begriff</button></div>'+
+      '<textarea id="anonIn" placeholder="Originaltext hier einfügen…" style="width:100%;min-height:90px;font-size:13px;"></textarea>'+
+      '<div id="anonSelBar" style="display:none;align-items:center;gap:8px;margin:6px 0;padding:6px 9px;background:var(--line-2);border-radius:8px;font-size:12.5px;"><span id="anonSelText" style="flex:1;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span><select id="anonSelType" style="flex:0 0 auto;"></select><button class="btn-blue" id="anonSelAdd" style="background:var(--blue-600);color:#fff;border:none;white-space:nowrap;">+ Begriff</button></div>'+
       '<div style="display:flex;gap:8px;margin:8px 0;"><button class="btn-blue" id="anonGo" style="background:var(--blue-600);color:#fff;border:none;flex:1;">Anonymisieren ↓</button></div>'+
-      '<textarea id="anonOut" placeholder="Anonymisierter Text erscheint hier…" readonly style="width:100%;min-height:120px;font-size:13px;background:var(--line-2);"></textarea>'+
-      '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;"><button class="btn-ghost" id="anonCopy">Anonymisierten Text kopieren</button><button class="btn-ghost" id="anonSaveTerms">Erkannte Begriffe merken</button><button class="btn-blue" id="anonToNote" style="background:var(--blue-600);color:#fff;border:none;">In Notiz übertragen</button></div>'+
+      '<textarea id="anonOut" placeholder="Anonymisierter Text erscheint hier…" readonly style="width:100%;min-height:90px;font-size:13px;background:var(--line-2);"></textarea>'+
+      '<div style="display:flex;gap:8px;margin-top:8px;"><button class="btn-ghost" id="anonCopy" style="flex:1;">Kopieren</button><button class="btn-ghost" id="anonSaveTerms" style="flex:1;">Begriffe merken</button></div>'+
+      '<button class="btn-blue" id="anonToNote" style="background:var(--blue-600);color:#fff;border:none;width:100%;margin-top:8px;padding:11px;font-weight:600;">📄 In Notiz übertragen</button>'+
       '<div id="anonMapView" style="margin-top:8px;"></div>'+
     '</div>'+
     // Tab 2: Zurückübersetzen
@@ -2991,23 +3066,86 @@ function openAnonTool(){
     '</div>'+
     // Tab 3: Begriffe
     '<div class="anon-pane hidden" data-pane="terms">'+
-      '<p style="font-size:12px;color:var(--text-dim);margin:6px 0;">Deine persönliche Begriffsliste. Diese Begriffe werden künftig automatisch erkannt. Sie wächst mit jedem Mal – so wird die Anonymisierung immer zuverlässiger.</p>'+
-      '<div style="display:flex;gap:6px;margin-bottom:8px;"><input type="text" id="termVal" placeholder="Begriff (z.B. Name, Firma, Ort)" style="flex:1;"><select id="termType" style="flex:0 0 auto;"><option value="NAME">Name</option><option value="ORT">Ort</option><option value="FIRMA">Firma</option><option value="BEGRIFF">Sonstiges</option></select><button class="btn-blue" id="termAdd" style="background:var(--blue-600);color:#fff;border:none;">+</button></div>'+
-      '<div id="termList" style="max-height:260px;overflow:auto;"></div>'+
+      '<p style="font-size:12px;color:var(--text-dim);margin:6px 0;">Deine persönliche Begriffsliste. Diese Begriffe werden künftig automatisch erkannt. Sie wächst mit jedem Mal.</p>'+
+      '<div style="display:flex;gap:6px;margin-bottom:8px;"><input type="text" id="termVal" placeholder="Begriff (Name, Firma, Ort…)" style="flex:1;"><select id="termType" style="flex:0 0 auto;"></select><button class="btn-blue" id="termAdd" style="background:var(--blue-600);color:#fff;border:none;">+</button></div>'+
+      '<div id="termList" style="max-height:230px;overflow:auto;"></div>'+
+    '</div>'+
+    // Tab 4: Einstellungen
+    '<div class="anon-pane hidden" data-pane="settings">'+
+      '<p style="font-size:12.5px;font-weight:600;margin:6px 0 4px;">Welche Kategorien anonymisieren?</p>'+
+      '<p style="font-size:11.5px;color:var(--text-dim);margin:0 0 6px;">Abgewählte Kategorien werden nicht ersetzt.</p>'+
+      '<div id="anonCatToggles"></div>'+
+      '<hr style="border:none;border-top:1px solid var(--line);margin:12px 0;">'+
+      '<p style="font-size:12.5px;font-weight:600;margin:6px 0 4px;">Eigene Oberbegriffe</p>'+
+      '<div style="display:flex;gap:6px;margin-bottom:6px;"><input type="text" id="newCatVal" placeholder="z.B. PROJEKT, KENNZEICHEN" style="flex:1;"><button class="btn-blue" id="newCatAdd" style="background:var(--blue-600);color:#fff;border:none;">+</button></div>'+
+      '<div id="customCatList" style="margin-bottom:8px;"></div>'+
+      '<hr style="border:none;border-top:1px solid var(--line);margin:12px 0;">'+
+      '<p style="font-size:12.5px;font-weight:600;margin:6px 0 4px;">Zahlen &amp; Daten</p>'+
+      '<label style="display:flex;align-items:center;gap:8px;font-size:13px;margin:6px 0;"><input type="checkbox" id="anonRandNum"> Alle Zahlen durch Zufallszahlen ersetzen</label>'+
+      '<label style="display:flex;align-items:center;gap:8px;font-size:13px;margin:6px 0;"><input type="checkbox" id="anonShiftDate"> Datumsangaben verschieben um:</label>'+
+      '<div style="display:flex;gap:8px;align-items:center;margin-left:26px;font-size:13px;"><input type="number" id="anonShiftM" value="0" style="width:60px;"> Monate <input type="number" id="anonShiftY" value="0" style="width:60px;"> Jahre</div>'+
     '</div>',
     buttons:[{label:"Schliessen",cls:"btn-ghost",act:closeModal}]});
+
+  // Typ-Dropdowns dynamisch mit allen Kategorien befüllen
+  function fillCatSelect(sel){if(!sel)return;sel.innerHTML=anonCategories().map(c=>'<option value="'+c+'">'+catLabel(c)+'</option>').join("");}
+  function catLabel(c){const labels={NAME:"Name",ORT:"Ort",FIRMA:"Firma",BEGRIFF:"Sonstiges"};return labels[c]||c;}
+  fillCatSelect($("termType"));fillCatSelect($("anonSelType"));
 
   // Tab-Umschaltung
   document.querySelectorAll(".anon-tab").forEach(t=>t.addEventListener("click",()=>{
     document.querySelectorAll(".anon-tab").forEach(x=>x.classList.remove("active"));t.classList.add("active");
     document.querySelectorAll(".anon-pane").forEach(p=>p.classList.toggle("hidden",p.dataset.pane!==t.dataset.tab));
     if(t.dataset.tab==="terms")renderTermList();
+    if(t.dataset.tab==="settings")renderAnonSettings();
   }));
+
+  // === Einstellungen-Tab ===
+  function anonCfg(){vault.settings=vault.settings||{};vault.settings.anonCfg=vault.settings.anonCfg||{disabled:[],randomizeNumbers:false,shiftDates:false,shiftMonths:0,shiftYears:0};return vault.settings.anonCfg;}
+  function renderAnonSettings(){
+    const cfg=anonCfg();
+    // Kategorie-Toggles: alle Muster-Typen + eigene Kategorien
+    const allCats=[...new Set([...anonCategories(),...ANON_PATTERNS.map(p=>p.type)])];
+    $("anonCatToggles").innerHTML=allCats.map(c=>
+      '<label style="display:flex;align-items:center;gap:8px;font-size:13px;margin:5px 0;"><input type="checkbox" data-cat="'+c+'" '+(cfg.disabled.includes(c)?"":"checked")+'> '+catLabel(c)+'</label>'
+    ).join("");
+    $("anonCatToggles").querySelectorAll("input[data-cat]").forEach(cb=>cb.addEventListener("change",()=>{
+      const c=cb.getAttribute("data-cat");
+      if(cb.checked)cfg.disabled=cfg.disabled.filter(x=>x!==c);else if(!cfg.disabled.includes(c))cfg.disabled.push(c);
+      markDirty();
+    }));
+    renderCustomCats();
+    $("anonRandNum").checked=!!cfg.randomizeNumbers;
+    $("anonShiftDate").checked=!!cfg.shiftDates;
+    $("anonShiftM").value=cfg.shiftMonths||0;
+    $("anonShiftY").value=cfg.shiftYears||0;
+  }
+  function renderCustomCats(){
+    const custom=(vault.settings&&vault.settings.anonCategories)||[];
+    $("customCatList").innerHTML=custom.length?custom.map(c=>'<span class="cat-chip">'+escapeHtml(c)+'<button data-delcat="'+escapeHtml(c)+'">✕</button></span>').join(""):'<span style="font-size:12px;color:var(--text-dim);">Noch keine eigenen Oberbegriffe.</span>';
+    $("customCatList").querySelectorAll("[data-delcat]").forEach(b=>b.addEventListener("click",()=>{
+      const c=b.getAttribute("data-delcat");
+      vault.settings.anonCategories=(vault.settings.anonCategories||[]).filter(x=>x!==c);markDirty();
+      renderCustomCats();fillCatSelect($("termType"));fillCatSelect($("anonSelType"));renderAnonSettings();
+    }));
+  }
+  $("newCatAdd").addEventListener("click",()=>{
+    const v=$("newCatVal").value.trim().toUpperCase().replace(/[^A-ZÄÖÜ0-9_]/g,"_");
+    if(!v)return;
+    vault.settings=vault.settings||{};vault.settings.anonCategories=vault.settings.anonCategories||[];
+    if(anonCategories().includes(v)){toast("Kategorie existiert bereits");return;}
+    vault.settings.anonCategories.push(v);markDirty();$("newCatVal").value="";
+    renderCustomCats();fillCatSelect($("termType"));fillCatSelect($("anonSelType"));renderAnonSettings();
+  });
+  $("anonRandNum").addEventListener("change",()=>{anonCfg().randomizeNumbers=$("anonRandNum").checked;markDirty();});
+  $("anonShiftDate").addEventListener("change",()=>{anonCfg().shiftDates=$("anonShiftDate").checked;markDirty();});
+  $("anonShiftM").addEventListener("change",()=>{anonCfg().shiftMonths=parseInt($("anonShiftM").value,10)||0;markDirty();});
+  $("anonShiftY").addEventListener("change",()=>{anonCfg().shiftYears=parseInt($("anonShiftY").value,10)||0;markDirty();});
 
   // Anonymisieren
   $("anonGo").addEventListener("click",()=>{
     const terms=(vault.settings&&vault.settings.anonTerms)||[];
-    const res=anonymizeText($("anonIn").value,terms);
+    const res=anonymizeText($("anonIn").value,terms,anonCfg());
     anonCurrentMap=res.map;
     $("anonOut").value=res.text;
     renderMapView(res.map,"anonMapView");
@@ -3074,15 +3212,34 @@ function openAnonTool(){
 
   function renderTermList(){
     const list=$("termList");const terms=(vault.settings&&vault.settings.anonTerms)||[];
+    const cfg=anonCfg();cfg.disabledTerms=cfg.disabledTerms||[];
     if(!terms.length){list.innerHTML='<p style="font-size:12.5px;color:var(--text-dim);">Noch keine Begriffe. Füge oben welche hinzu oder nutze „Erkannte Begriffe merken“ nach dem Anonymisieren.</p>';return;}
     list.innerHTML="";
     terms.slice().sort((a,b)=>a.value.localeCompare(b.value,"de")).forEach(t=>{
-      const row=document.createElement("div");row.className="term-row";
-      row.innerHTML='<span class="term-type">'+escapeHtml(t.type||"BEGRIFF")+'</span><span class="term-val"></span><button class="term-del" title="Entfernen">✕</button>';
+      const off=cfg.disabledTerms.includes(t.value);
+      const row=document.createElement("div");row.className="term-row"+(off?" term-off":"");
+      const aliases=(t.aliases||[]).map(a=>'<span class="alias-chip">'+escapeHtml(a)+'<button data-delalias="'+escapeHtml(a)+'">✕</button></span>').join("");
+      row.innerHTML='<input type="checkbox" class="term-on" '+(off?"":"checked")+' title="Ein/Aus">'+
+        '<span class="term-type">'+escapeHtml(t.type||"BEGRIFF")+'</span>'+
+        '<span class="term-val-wrap"><span class="term-val"></span><span class="term-aliases">'+aliases+'</span></span>'+
+        '<button class="term-alias-add" title="Synonym hinzufügen">+ Syn.</button>'+
+        '<button class="term-del" title="Entfernen">✕</button>';
       row.querySelector(".term-val").textContent=t.value;
+      row.querySelector(".term-on").addEventListener("change",e=>{
+        if(e.target.checked)cfg.disabledTerms=cfg.disabledTerms.filter(x=>x!==t.value);
+        else if(!cfg.disabledTerms.includes(t.value))cfg.disabledTerms.push(t.value);
+        markDirty();renderTermList();
+      });
       row.querySelector(".term-del").addEventListener("click",()=>{
         vault.settings.anonTerms=vault.settings.anonTerms.filter(x=>x.value!==t.value);markDirty();renderTermList();
       });
+      row.querySelector(".term-alias-add").addEventListener("click",()=>{
+        const syn=prompt("Synonym für „"+t.value+"“ (gleiche Bedeutung, andere Schreibweise):");
+        if(syn&&syn.trim()){t.aliases=t.aliases||[];if(!t.aliases.includes(syn.trim())){t.aliases.push(syn.trim());markDirty();renderTermList();}}
+      });
+      row.querySelectorAll("[data-delalias]").forEach(b=>b.addEventListener("click",()=>{
+        const a=b.getAttribute("data-delalias");t.aliases=(t.aliases||[]).filter(x=>x!==a);markDirty();renderTermList();
+      }));
       list.appendChild(row);
     });
   }
