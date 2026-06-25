@@ -2910,18 +2910,34 @@ function anonymizeText(input, terms, cfg){
     });
   });
   // 2. Automatische Muster (nur aktivierte Kategorien)
+  // Bereits durch Muster ersetzte Stellen merken, damit die Zahlen-Randomisierung sie nicht zerstört.
+  const protectedRanges=[];
   ANON_PATTERNS.forEach(p=>{
     if(disabled.includes(p.type))return;
     if(p.type==="DATUM"&&cfg.shiftDates){
-      text=text.replace(p.re,(match)=>{const shifted=shiftDateString(match,cfg.shiftMonths||0,cfg.shiftYears||0);return shifted||tokenFor(p.type,match);});
+      // Datum verschieben UND als Zuordnung speichern, damit es zurückübersetzt werden kann.
+      text=text.replace(p.re,(match)=>{
+        const shifted=shiftDateString(match,cfg.shiftMonths||0,cfg.shiftYears||0);
+        if(!shifted)return tokenFor(p.type,match);
+        // gleiche Originaldaten -> gleicher verschobener Wert (Konsistenz)
+        const existing=map.find(m=>m.original===match&&m.type==="DATUM");
+        if(existing)return existing.token;
+        map.push({token:shifted,original:match,type:"DATUM"});
+        return shifted;
+      });
       return;
     }
     text=text.replace(p.re,(match)=>tokenFor(p.type,match));
   });
-  // 3. Zahlen durch Zufallszahlen ersetzen (optional, nach den Mustern, damit IBAN/Tel etc. schon weg sind)
+  // 3. Zahlen durch Zufallszahlen ersetzen (optional). Läuft NACH den Mustern, und überspringt:
+  //    - Platzhalter wie [NAME_1] (durch Lookbehind/-ahead auf [ und ])
+  //    - bereits gesetzte verschobene Daten (deren Ziffern stehen in map als DATUM-Token)
   if(cfg.randomizeNumbers&&!disabled.includes("ZAHL")){
-    text=text.replace(/(?<![\w\[])\d+(?:[.,]\d+)?(?![\w\]])/g,(match)=>{
-      // gleiche Zahl -> gleiche Zufallszahl (Konsistenz)
+    // Tokens und verschobene Daten zum Schutz sammeln (diese Zahlen NICHT randomisieren)
+    const protectedStrings=map.filter(m=>m.type==="DATUM").map(m=>m.token);
+    text=text.replace(/(?<![\w\[.])\d+(?:[.,]\d+)?(?![\w\]])/g,(match,offset,full)=>{
+      // Liegt die Zahl innerhalb eines geschützten (verschobenen) Datums? Dann nicht anfassen.
+      for(const ps of protectedStrings){let idx=full.indexOf(ps);while(idx>=0){if(offset>=idx&&offset<idx+ps.length)return match;idx=full.indexOf(ps,idx+1);}}
       const existing=map.find(m=>m.original===match&&m.type==="ZAHL");
       if(existing)return existing.token;
       const rand=randomLikeNumber(match);
