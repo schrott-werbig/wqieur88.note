@@ -267,20 +267,23 @@
   .anon-map{max-height:160px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--line-2);}
   .am-row{font-size:12px;padding:2px 0;}
   .am-row code{background:var(--panel);padding:1px 5px;border-radius:4px;color:var(--blue-600);}
-  .term-row{display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid var(--line);}
-  .term-type{font-size:10.5px;font-weight:600;color:var(--blue-600);background:var(--line-2);padding:2px 7px;border-radius:5px;flex:0 0 auto;min-width:54px;text-align:center;}
-  .term-val{flex:1;font-size:13.5px;}
-  .term-del{color:var(--text-dim);padding:3px 7px;border-radius:5px;flex:0 0 auto;}
+  .anon-chk{display:flex;align-items:center;gap:9px;font-size:13px;margin:7px 0;cursor:pointer;}
+  .anon-chk input[type=checkbox]{flex:0 0 auto;width:16px;height:16px;margin:0;}
+  .anon-chk span{flex:1;}
+  .term-row{padding:7px 4px;border-bottom:1px solid var(--line);}
+  .term-main{display:flex;align-items:center;gap:8px;}
+  .term-main .term-on{flex:0 0 auto;width:16px;height:16px;margin:0;}
+  .term-type{font-size:10px;font-weight:700;color:var(--blue-600);background:var(--line-2);padding:2px 6px;border-radius:5px;flex:0 0 auto;min-width:46px;text-align:center;letter-spacing:.3px;}
+  .term-val{flex:1;min-width:0;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .term-alias-add{flex:0 0 auto;font-size:11px;color:var(--blue-600);padding:3px 7px;border-radius:5px;white-space:nowrap;border:1px solid var(--line);}
+  .term-alias-add:hover{background:var(--line-2);}
+  .term-del{color:var(--text-dim);padding:3px 8px;border-radius:5px;flex:0 0 auto;font-size:13px;}
   .term-del:hover{background:var(--danger);color:#fff;}
-  .term-row .term-on{flex:0 0 auto;}
-  .term-val-wrap{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;}
-  .term-aliases{display:flex;flex-wrap:wrap;gap:4px;}
-  .alias-chip,.cat-chip{display:inline-flex;align-items:center;gap:3px;font-size:11px;background:var(--line-2);border:1px solid var(--line);border-radius:5px;padding:1px 4px 1px 7px;color:var(--text-dim);}
+  .term-aliases{display:flex;flex-wrap:wrap;gap:4px;margin:5px 0 0 24px;}
+  .alias-chip,.cat-chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;background:var(--line-2);border:1px solid var(--line);border-radius:5px;padding:2px 4px 2px 8px;color:var(--text-dim);}
   .alias-chip button,.cat-chip button{color:var(--text-dim);font-size:11px;padding:0 2px;line-height:1;}
   .alias-chip button:hover,.cat-chip button:hover{color:var(--danger);}
   .cat-chip{font-size:12.5px;margin:0 5px 5px 0;}
-  .term-alias-add{flex:0 0 auto;font-size:11px;color:var(--blue-600);padding:3px 6px;border-radius:5px;white-space:nowrap;}
-  .term-alias-add:hover{background:var(--line-2);}
   .term-row.term-off{opacity:.45;}
   .modal h3{margin:0 0 6px;font-size:16px;}
   .modal p{margin:0 0 16px;color:var(--text-dim);font-size:13px;}
@@ -2877,14 +2880,24 @@ const ANON_PATTERNS=[
   {type:"PLZORT",re:/\b[1-9]\d{3}\s[A-ZÄÖÜ][a-zäöüß]{2,}\b/g}, // Schweizer PLZ (1000-9999) + grossgeschriebener Ort
 ];
 /* Anonymisiert einen Text. Liefert {text, map}. cfg steuert: disabled[] (Kategorien aus),
-   disabledTerms[] (einzelne Begriffe aus), randomizeNumbers, shiftDates/shiftMonths/shiftYears. */
+   disabledTerms[] (einzelne Begriffe aus), excludeTerms[] (Stellen, die NIE anonymisiert werden),
+   randomizeNumbers, shiftDates/shiftMonths/shiftYears. */
 function anonymizeText(input, terms, cfg){
   cfg=cfg||{};
   const disabled=cfg.disabled||[];
   const disabledTerms=cfg.disabledTerms||[];
+  const excludeTerms=(cfg.excludeTerms||[]).filter(Boolean).slice().sort((a,b)=>b.length-a.length);
   let text=String(input||"");
   const map=[];
   const counters={};
+  // Ausschlussliste: geschützte Stellen vorab durch unsichtbare Marker ersetzen, damit weder
+  // Muster noch Begriffe sie anfassen. Am Ende werden die Originalwerte wiederhergestellt.
+  const guards=[];
+  excludeTerms.forEach(ex=>{
+    const safe=ex.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+    const re=new RegExp("(?<![\\wäöüÄÖÜß])"+safe+"(?![\\wäöüÄÖÜß])","g");
+    text=text.replace(re,()=>{const marker="\u0001G"+guards.length+"\u0001";guards.push(ex);return marker;});
+  });
   const tokenFor=(type,original,replacement)=>{
     const existing=map.find(m=>m.original===original&&m.type===type);
     if(existing)return existing.token;
@@ -2945,6 +2958,8 @@ function anonymizeText(input, terms, cfg){
       return rand;
     });
   }
+  // Geschützte (ausgeschlossene) Stellen wiederherstellen
+  guards.forEach((orig,i)=>{text=text.split("\u0001G"+i+"\u0001").join(orig);});
   return {text,map};
 }
 /* Erzeugt eine Zufallszahl mit gleicher Stellenzahl/Format wie das Original. */
@@ -3064,7 +3079,7 @@ function openAnonTool(){
     '<div class="anon-pane" data-pane="anon">'+
       '<p style="font-size:12px;color:var(--text-dim);margin:6px 0;">Text eingeben → wird durch Platzhalter ersetzt. Den anonymisierten Text kopierst du in die KI. Erkannte Begriffe kannst du danach dauerhaft speichern.</p>'+
       '<textarea id="anonIn" placeholder="Originaltext hier einfügen…" style="width:100%;min-height:90px;font-size:13px;"></textarea>'+
-      '<div id="anonSelBar" style="display:none;align-items:center;gap:8px;margin:6px 0;padding:6px 9px;background:var(--line-2);border-radius:8px;font-size:12.5px;"><span id="anonSelText" style="flex:1;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span><select id="anonSelType" style="flex:0 0 auto;"></select><button class="btn-blue" id="anonSelAdd" style="background:var(--blue-600);color:#fff;border:none;white-space:nowrap;">+ Begriff</button></div>'+
+      '<div id="anonSelBar" style="display:none;flex-direction:column;gap:6px;margin:6px 0;padding:8px 9px;background:var(--line-2);border-radius:8px;font-size:12.5px;"><span id="anonSelText" style="color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;"><select id="anonSelType" style="flex:0 0 auto;"></select><button class="btn-blue" id="anonSelAdd" style="background:var(--blue-600);color:#fff;border:none;white-space:nowrap;">+ Begriff</button><button class="btn-ghost" id="anonSelExclude" style="white-space:nowrap;" title="Diese Stelle nie anonymisieren">⊘ Ausnahme</button></div></div>'+
       '<div style="display:flex;gap:8px;margin:8px 0;"><button class="btn-blue" id="anonGo" style="background:var(--blue-600);color:#fff;border:none;flex:1;">Anonymisieren ↓</button></div>'+
       '<textarea id="anonOut" placeholder="Anonymisierter Text erscheint hier…" readonly style="width:100%;min-height:90px;font-size:13px;background:var(--line-2);"></textarea>'+
       '<div style="display:flex;gap:8px;margin-top:8px;"><button class="btn-ghost" id="anonCopy" style="flex:1;">Kopieren</button><button class="btn-ghost" id="anonSaveTerms" style="flex:1;">Begriffe merken</button></div>'+
@@ -3084,7 +3099,7 @@ function openAnonTool(){
     '<div class="anon-pane hidden" data-pane="terms">'+
       '<p style="font-size:12px;color:var(--text-dim);margin:6px 0;">Deine persönliche Begriffsliste. Diese Begriffe werden künftig automatisch erkannt. Sie wächst mit jedem Mal.</p>'+
       '<div style="display:flex;gap:6px;margin-bottom:8px;"><input type="text" id="termVal" placeholder="Begriff (Name, Firma, Ort…)" style="flex:1;"><select id="termType" style="flex:0 0 auto;"></select><button class="btn-blue" id="termAdd" style="background:var(--blue-600);color:#fff;border:none;">+</button></div>'+
-      '<div id="termList" style="max-height:230px;overflow:auto;"></div>'+
+      '<div id="termList" style="max-height:300px;overflow-y:auto;overflow-x:hidden;"></div>'+
     '</div>'+
     // Tab 4: Einstellungen
     '<div class="anon-pane hidden" data-pane="settings">'+
@@ -3097,9 +3112,14 @@ function openAnonTool(){
       '<div id="customCatList" style="margin-bottom:8px;"></div>'+
       '<hr style="border:none;border-top:1px solid var(--line);margin:12px 0;">'+
       '<p style="font-size:12.5px;font-weight:600;margin:6px 0 4px;">Zahlen &amp; Daten</p>'+
-      '<label style="display:flex;align-items:center;gap:8px;font-size:13px;margin:6px 0;"><input type="checkbox" id="anonRandNum"> Alle Zahlen durch Zufallszahlen ersetzen</label>'+
-      '<label style="display:flex;align-items:center;gap:8px;font-size:13px;margin:6px 0;"><input type="checkbox" id="anonShiftDate"> Datumsangaben verschieben um:</label>'+
-      '<div style="display:flex;gap:8px;align-items:center;margin-left:26px;font-size:13px;"><input type="number" id="anonShiftM" value="0" style="width:60px;"> Monate <input type="number" id="anonShiftY" value="0" style="width:60px;"> Jahre</div>'+
+      '<label class="anon-chk"><input type="checkbox" id="anonRandNum"><span>Alle Zahlen durch Zufallszahlen ersetzen</span></label>'+
+      '<label class="anon-chk"><input type="checkbox" id="anonShiftDate"><span>Datumsangaben verschieben um:</span></label>'+
+      '<div style="display:flex;gap:8px;align-items:center;margin-left:26px;font-size:13px;margin-top:4px;"><input type="number" id="anonShiftM" value="0" style="width:56px;"> Monate <input type="number" id="anonShiftY" value="0" style="width:56px;"> Jahre</div>'+
+      '<hr style="border:none;border-top:1px solid var(--line);margin:12px 0;">'+
+      '<p style="font-size:12.5px;font-weight:600;margin:6px 0 4px;">Ausnahmen (nie anonymisieren)</p>'+
+      '<p style="font-size:11.5px;color:var(--text-dim);margin:0 0 6px;">Diese Stellen bleiben immer im Klartext, auch wenn ein Muster oder Begriff zutreffen würde. Im Reiter „Anonymisieren“ Text markieren → „⊘ Ausnahme“.</p>'+
+      '<div style="display:flex;gap:6px;margin-bottom:6px;"><input type="text" id="newExclVal" placeholder="Begriff, der sichtbar bleiben soll" style="flex:1;"><button class="btn-blue" id="newExclAdd" style="background:var(--blue-600);color:#fff;border:none;">+</button></div>'+
+      '<div id="exclList"></div>'+
     '</div>',
     buttons:[{label:"Schliessen",cls:"btn-ghost",act:closeModal}]});
 
@@ -3123,7 +3143,7 @@ function openAnonTool(){
     // Kategorie-Toggles: alle Muster-Typen + eigene Kategorien
     const allCats=[...new Set([...anonCategories(),...ANON_PATTERNS.map(p=>p.type)])];
     $("anonCatToggles").innerHTML=allCats.map(c=>
-      '<label style="display:flex;align-items:center;gap:8px;font-size:13px;margin:5px 0;"><input type="checkbox" data-cat="'+c+'" '+(cfg.disabled.includes(c)?"":"checked")+'> '+catLabel(c)+'</label>'
+      '<label class="anon-chk"><input type="checkbox" data-cat="'+c+'" '+(cfg.disabled.includes(c)?"":"checked")+'><span>'+catLabel(c)+'</span></label>'
     ).join("");
     $("anonCatToggles").querySelectorAll("input[data-cat]").forEach(cb=>cb.addEventListener("change",()=>{
       const c=cb.getAttribute("data-cat");
@@ -3135,6 +3155,14 @@ function openAnonTool(){
     $("anonShiftDate").checked=!!cfg.shiftDates;
     $("anonShiftM").value=cfg.shiftMonths||0;
     $("anonShiftY").value=cfg.shiftYears||0;
+    renderExclList();
+  }
+  function renderExclList(){
+    const cfg=anonCfg();const excl=cfg.excludeTerms||[];
+    $("exclList").innerHTML=excl.length?excl.map(e=>'<span class="cat-chip">'+escapeHtml(e)+'<button data-delexcl="'+escapeHtml(e)+'" title="Ausnahme entfernen">✕</button></span>').join(""):'<span style="font-size:12px;color:var(--text-dim);">Noch keine Ausnahmen.</span>';
+    $("exclList").querySelectorAll("[data-delexcl]").forEach(b=>b.addEventListener("click",()=>{
+      const e=b.getAttribute("data-delexcl");cfg.excludeTerms=(cfg.excludeTerms||[]).filter(x=>x!==e);markDirty();renderExclList();
+    }));
   }
   function renderCustomCats(){
     const custom=(vault.settings&&vault.settings.anonCategories)||[];
@@ -3152,6 +3180,12 @@ function openAnonTool(){
     if(anonCategories().includes(v)){toast("Kategorie existiert bereits");return;}
     vault.settings.anonCategories.push(v);markDirty();$("newCatVal").value="";
     renderCustomCats();fillCatSelect($("termType"));fillCatSelect($("anonSelType"));renderAnonSettings();
+  });
+  $("newExclAdd").addEventListener("click",()=>{
+    const v=$("newExclVal").value.trim();if(!v)return;
+    const cfg=anonCfg();cfg.excludeTerms=cfg.excludeTerms||[];
+    if(!cfg.excludeTerms.includes(v)){cfg.excludeTerms.push(v);markDirty();}
+    $("newExclVal").value="";renderExclList();
   });
   $("anonRandNum").addEventListener("change",()=>{anonCfg().randomizeNumbers=$("anonRandNum").checked;markDirty();});
   $("anonShiftDate").addEventListener("change",()=>{anonCfg().shiftDates=$("anonShiftDate").checked;markDirty();});
@@ -3197,6 +3231,14 @@ function openAnonTool(){
     // direkt neu anonymisieren, damit der Effekt sofort sichtbar ist
     if($("anonIn").value.trim())$("anonGo").click();
   });
+  $("anonSelExclude").addEventListener("click",()=>{
+    const v=($("anonSelBar").dataset.sel||"").trim();if(!v)return;
+    const cfg=anonCfg();cfg.excludeTerms=cfg.excludeTerms||[];
+    if(!cfg.excludeTerms.includes(v)){cfg.excludeTerms.push(v);markDirty();toast("„"+v+"“ wird nicht mehr anonymisiert");}
+    else toast("Ausnahme existiert bereits");
+    $("anonSelBar").style.display="none";
+    if($("anonIn").value.trim())$("anonGo").click();
+  });
   $("anonCopy").addEventListener("click",()=>{copyText($("anonOut").value);toast("Kopiert");});
   $("anonSaveTerms").addEventListener("click",saveDetectedTerms);
   $("anonToNote").addEventListener("click",()=>{
@@ -3234,12 +3276,15 @@ function openAnonTool(){
     terms.slice().sort((a,b)=>a.value.localeCompare(b.value,"de")).forEach(t=>{
       const off=cfg.disabledTerms.includes(t.value);
       const row=document.createElement("div");row.className="term-row"+(off?" term-off":"");
-      const aliases=(t.aliases||[]).map(a=>'<span class="alias-chip">'+escapeHtml(a)+'<button data-delalias="'+escapeHtml(a)+'">✕</button></span>').join("");
-      row.innerHTML='<input type="checkbox" class="term-on" '+(off?"":"checked")+' title="Ein/Aus">'+
-        '<span class="term-type">'+escapeHtml(t.type||"BEGRIFF")+'</span>'+
-        '<span class="term-val-wrap"><span class="term-val"></span><span class="term-aliases">'+aliases+'</span></span>'+
-        '<button class="term-alias-add" title="Synonym hinzufügen">+ Syn.</button>'+
-        '<button class="term-del" title="Entfernen">✕</button>';
+      const aliases=(t.aliases||[]).map(a=>'<span class="alias-chip">'+escapeHtml(a)+'<button data-delalias="'+escapeHtml(a)+'" title="Synonym entfernen">✕</button></span>').join("");
+      row.innerHTML='<div class="term-main">'+
+          '<input type="checkbox" class="term-on" '+(off?"":"checked")+' title="Ein/Aus">'+
+          '<span class="term-type">'+escapeHtml(t.type||"BEGRIFF")+'</span>'+
+          '<span class="term-val"></span>'+
+          '<button class="term-alias-add" title="Synonym hinzufügen">+ Syn.</button>'+
+          '<button class="term-del" title="Begriff entfernen">✕</button>'+
+        '</div>'+
+        (aliases?'<div class="term-aliases">'+aliases+'</div>':'');
       row.querySelector(".term-val").textContent=t.value;
       row.querySelector(".term-on").addEventListener("change",e=>{
         if(e.target.checked)cfg.disabledTerms=cfg.disabledTerms.filter(x=>x!==t.value);
