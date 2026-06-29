@@ -403,6 +403,14 @@
   .viewer-loading{color:#fff;font-size:13px;padding:40px;}
   .pdf-page-wrap{position:relative;}
   .pdf-hit-mark{position:absolute;background:rgba(253,230,138,.55);border-radius:2px;}
+  .viewer-zoom{display:flex;align-items:center;gap:2px;background:rgba(255,255,255,.12);border-radius:7px;padding:2px;}
+  .viewer-zoom button{font-size:18px;line-height:1;width:30px;height:30px;justify-content:center;padding:0;}
+  .viewer-zoom #pvZoomLbl{font-size:12px;color:#fff;min-width:42px;text-align:center;}
+  /* PDF-Seiten-Wrapper: wird per scale() gezoomt. transform-origin oben-mitte für natürliches Gefühl. */
+  #pvPages{display:flex;flex-direction:column;align-items:center;gap:14px;transform-origin:top center;transition:transform .05s linear;}
+  /* Im PDF-Viewer das Canvas NICHT auf 100% begrenzen, sonst kann nicht vergrössert werden. */
+  #pvPages canvas{max-width:none;}
+  .viewer-body.panning{cursor:grabbing;}
 
   /* ---- Tabellen im Editor ---- */
   .ed-body table{border-collapse:collapse;width:100%;margin:.6em 0;font-size:14px;}
@@ -821,7 +829,8 @@ function manualNoteHtml(){return ""+
   "<li><b>Bilder &amp; Dateien:</b> Per Drag &amp; Drop, Einfügen oder über den Anhängen-Bereich. Alles wird verschlüsselt.</li>"+
   "<li><b>PDF-Vorschau:</b> PDFs zeigen ein Vorschaubild; Antippen öffnet eine Leseansicht mit eigener Volltextsuche.</li>"+
   "<li><b>Audio-Notizen:</b> Über das Mikrofon-Symbol direkt aufnehmen.</li>"+
-  "<li><b>OCR:</b> Aus Bildern Text erkennen (sofern eingerichtet).</li>"+
+  "<li><b>OCR (Texterkennung):</b> Aus Bildern Text erkennen. Funktioniert beim Einfügen eines Bildes über das OCR-Symbol in der Werkzeugleiste und auch nachträglich bei bereits angehängten Bildern über deren „OCR“-Knopf. Bei <b>gescannten PDFs</b> (nur Bild, kein echter Text) gibt es ebenfalls einen „OCR“-Knopf am Anhang: Er liest jede Seite per Texterkennung, damit das PDF über die Volltextsuche auffindbar wird. Läuft vollständig lokal, sobald die Tesseract-Engine-Dateien eingerichtet sind (siehe Hinweis-Dialog).</li>"+
+  "<li><b>PDF-Viewer:</b> Angehängte PDFs öffnen sich im integrierten Betrachter mit Volltextsuche. PDFs mit echtem Text werden schon beim Anhängen automatisch durchsuchbar. Zoomen per +/−-Knopf, Strg+Mausrad, Doppelklick oder Pinch-Geste (zwei Finger); bei vergrösserter Ansicht lässt sich das PDF mit der Maus verschieben.</li>"+
   "</ul>"+
 
   "<h2>Dokumentenscanner</h2>"+
@@ -2715,7 +2724,7 @@ function renderBacklinks(n){
 }
 function renderAttachments(n){const grid=$("attachGrid");grid.innerHTML="";const files=(n.attachments||[]).filter(a=>!a.inline);$("attachCount").textContent=files.length?"("+files.length+")":"";if(!files.length){grid.innerHTML='<div style="grid-column:1/-1;color:var(--text-dim);font-size:12.5px;">Noch keine angehängten Dateien. Bilder im Text erscheinen direkt in der Notiz.</div>';return;}
   files.forEach(att=>{const card=document.createElement("div");const isImg=(att.type||"").startsWith("image/");const isPdf=(att.type||"").includes("pdf");const isAudio=(att.type||"").startsWith("audio/");const ext=(att.name.split(".").pop()||"").slice(0,4).toUpperCase();card.className="att-card"+(isAudio?" att-audio":"")+(isPdf?" att-pdf":"");
-    card.innerHTML='<div class="att-thumb">'+(isImg?'<img alt="">':(isAudio?'<audio controls></audio>':(isPdf?'<canvas></canvas><span class="att-pagecount" id="pc_'+att.id+'"></span>':'<span class="ficon">'+(ext||"DAT")+'</span>')))+'</div><div class="att-info"><div class="att-name"></div><div class="att-size">'+fmtSize(att.size)+'</div></div><div class="att-actions"><button class="open" title="Öffnen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3h7v7M21 3l-9 9M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/></svg></button><button class="dl" title="Herunterladen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg></button>'+(isImg?'<button class="ocr" title="OCR">OCR</button>':'')+'<button class="del" title="Entfernen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button></div>';
+    card.innerHTML='<div class="att-thumb">'+(isImg?'<img alt="">':(isAudio?'<audio controls></audio>':(isPdf?'<canvas></canvas><span class="att-pagecount" id="pc_'+att.id+'"></span>':'<span class="ficon">'+(ext||"DAT")+'</span>')))+'</div><div class="att-info"><div class="att-name"></div><div class="att-size">'+fmtSize(att.size)+'</div></div><div class="att-actions"><button class="open" title="Öffnen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3h7v7M21 3l-9 9M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/></svg></button><button class="dl" title="Herunterladen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg></button>'+(isImg?'<button class="ocr" title="OCR">OCR</button>':(isPdf?'<button class="ocr" title="PDF durchsuchbar machen (OCR)">OCR</button>':''))+'<button class="del" title="Entfernen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button></div>';
     card.querySelector(".att-name").textContent=att.name;
     if(isImg)getAttUrl(att).then(u=>{if(u)card.querySelector(".att-thumb img").src=u;});
     if(isAudio)getAttUrl(att).then(u=>{if(u)card.querySelector(".att-thumb audio").src=u;});
@@ -2723,6 +2732,9 @@ function renderAttachments(n){const grid=$("attachGrid");grid.innerHTML="";const
     card.querySelector(".open").addEventListener("click",async()=>{if(isPdf){openPdfViewer(att);}else if(isImg){const u=await getAttUrl(att);if(u)openImageViewer(u,att.name);}else{const u=await getAttUrl(att);if(u)window.open(u,"_blank","noopener");}});
     card.querySelector(".dl").addEventListener("click",async()=>{const u=await getAttUrl(att);if(u){const a=document.createElement("a");a.href=u;a.download=att.name;a.click();}});
     if(isImg){const ob=card.querySelector(".ocr");if(ob)ob.addEventListener("click",async()=>{const rec=await idbGet("blobs",att.id);if(!rec)return;const buf=await decryptBytes(cryptoKey,rec);runOcr(new Blob([buf],{type:att.type}));});}
+    if(isPdf){const ob=card.querySelector(".ocr");if(ob)ob.addEventListener("click",()=>{
+      modal({title:"PDF durchsuchbar machen",body:'<p>Bei gescannten PDFs (nur Bild, kein echter Text) wird hier jede Seite per Texterkennung gelesen, damit das PDF über die Volltextsuche auffindbar wird.</p><p style="font-size:12px;color:var(--text-dim);">Hinweis: Bei vielen Seiten kann das eine Weile dauern. Die Verarbeitung läuft vollständig lokal.</p>',buttons:[{label:"Abbrechen",cls:"btn-ghost",act:closeModal},{label:"OCR starten",cls:"btn-blue",act:()=>{closeModal();runPdfOcr(att);}}]});
+    });}
     card.querySelector(".del").addEventListener("click",()=>{modal({title:"Anhang entfernen",body:'<p>"'+escapeHtml(att.name)+'" wird gelöscht.</p>',buttons:[{label:"Abbrechen",cls:"btn-ghost",act:closeModal},{label:"Entfernen",cls:"btn-red",act:async()=>{n.attachments=n.attachments.filter(a=>a.id!==att.id);await idbDelete("blobs",att.id);n.updated=now();markDirty();renderAttachments(n);renderNoteList();closeModal();}}]});});
     grid.appendChild(card);
   });
@@ -2781,7 +2793,7 @@ async function extractPdfText(att){
 async function openPdfViewer(att){
   const ok=await ensurePdfjs();if(!ok){pdfMissingModal();return;}
   const root=document.createElement("div");root.className="viewer-bg";
-  root.innerHTML='<div class="viewer-bar"><button id="pvClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button><span class="vb-title"></span><div class="viewer-search"><input type="text" id="pvSearch" placeholder="In PDF suchen…"><span class="vs-count" id="pvCount"></span><button id="pvPrev" title="Vorheriger Treffer">‹</button><button id="pvNext" title="Nächster Treffer">›</button></div><button id="pvDownload" title="Herunterladen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg></button></div><div class="viewer-body" id="pvBody"><div class="viewer-loading">PDF wird geladen …</div></div>';
+  root.innerHTML='<div class="viewer-bar"><button id="pvClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button><span class="vb-title"></span><div class="viewer-zoom"><button id="pvZoomOut" title="Verkleinern">−</button><span id="pvZoomLbl">100%</span><button id="pvZoomIn" title="Vergrössern">+</button></div><div class="viewer-search"><input type="text" id="pvSearch" placeholder="In PDF suchen…"><span class="vs-count" id="pvCount"></span><button id="pvPrev" title="Vorheriger Treffer">‹</button><button id="pvNext" title="Nächster Treffer">›</button></div><button id="pvDownload" title="Herunterladen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg></button></div><div class="viewer-body" id="pvBody"><div class="viewer-loading">PDF wird geladen …</div></div>';
   root.querySelector(".vb-title").textContent=att.name;
   document.body.appendChild(root);
   try{history.pushState({s:1,viewer:1},"");}catch(e){}
@@ -2839,6 +2851,51 @@ async function openPdfViewer(att){
   root.querySelector("#pvSearch").addEventListener("input",e=>{clearTimeout(searchTimer2);const v=e.target.value;searchTimer2=setTimeout(()=>runSearch(v),250);});
   root.querySelector("#pvNext").addEventListener("click",()=>{if(!hits.length)return;hitIdx=(hitIdx+1)%hits.length;goToHit();});
   root.querySelector("#pvPrev").addEventListener("click",()=>{if(!hits.length)return;hitIdx=(hitIdx-1+hits.length)%hits.length;goToHit();});
+
+  // ---- Zoom & Verschieben ----
+  // Alle Seiten liegen in einem Wrapper (#pvPages), den wir per CSS-scale zoomen. Das ist schnell
+  // (kein Neu-Rendern) und erlaubt Pinch-Zoom (Touch) sowie Strg+Mausrad und Zoom-Knöpfe.
+  const pagesWrap=document.createElement("div");pagesWrap.id="pvPages";
+  while(body.firstChild)pagesWrap.appendChild(body.firstChild);
+  body.appendChild(pagesWrap);
+  let zoom=1;const ZMIN=0.5,ZMAX=4;
+  function applyZoom(){pagesWrap.style.transform="scale("+zoom+")";$("pvZoomLbl").textContent=Math.round(zoom*100)+"%";}
+  function setZoom(z,centerX,centerY){
+    const old=zoom;zoom=Math.max(ZMIN,Math.min(ZMAX,z));
+    // Zoom um den angegebenen Punkt herum (damit es nicht wegspringt)
+    if(centerX!=null){
+      const rect=body.getBoundingClientRect();
+      const sx=body.scrollLeft+(centerX-rect.left), sy=body.scrollTop+(centerY-rect.top);
+      const ratio=zoom/old;
+      applyZoom();
+      body.scrollLeft=sx*ratio-(centerX-rect.left);
+      body.scrollTop=sy*ratio-(centerY-rect.top);
+    }else applyZoom();
+  }
+  root.querySelector("#pvZoomIn").addEventListener("click",()=>setZoom(zoom+0.25));
+  root.querySelector("#pvZoomOut").addEventListener("click",()=>setZoom(zoom-0.25));
+  // Strg + Mausrad zoomt
+  body.addEventListener("wheel",e=>{if(e.ctrlKey){e.preventDefault();setZoom(zoom*(e.deltaY<0?1.1:0.9),e.clientX,e.clientY);}},{passive:false});
+  // Doppeltipp/Doppelklick: zwischen 100% und 200% wechseln
+  body.addEventListener("dblclick",e=>{setZoom(zoom>1.2?1:2,e.clientX,e.clientY);});
+  // Pinch-Zoom (zwei Finger)
+  let pinchStart=0,pinchZoom0=1;
+  body.addEventListener("touchstart",e=>{if(e.touches.length===2){pinchStart=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);pinchZoom0=zoom;}},{passive:true});
+  body.addEventListener("touchmove",e=>{
+    if(e.touches.length===2&&pinchStart>0){
+      e.preventDefault();
+      const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+      const cx=(e.touches[0].clientX+e.touches[1].clientX)/2,cy=(e.touches[0].clientY+e.touches[1].clientY)/2;
+      setZoom(pinchZoom0*(d/pinchStart),cx,cy);
+    }
+  },{passive:false});
+  body.addEventListener("touchend",e=>{if(e.touches.length<2)pinchStart=0;});
+  // Bei vergrössertem PDF mit der Maus verschieben (Pan), wenn kein Text markiert wird
+  let panning=false,panX=0,panY=0,panSL=0,panST=0;
+  body.addEventListener("mousedown",e=>{if(zoom<=1)return;if(e.target.closest(".pdf-hit-mark"))return;panning=true;panX=e.clientX;panY=e.clientY;panSL=body.scrollLeft;panST=body.scrollTop;body.classList.add("panning");});
+  window.addEventListener("mousemove",e=>{if(!panning)return;body.scrollLeft=panSL-(e.clientX-panX);body.scrollTop=panST-(e.clientY-panY);});
+  window.addEventListener("mouseup",()=>{if(panning){panning=false;body.classList.remove("panning");}});
+  applyZoom();
   viewerCloseFns.push(close);
 }
 function openImageViewer(url,name){
@@ -2876,6 +2933,33 @@ async function runOcr(fileOrBlob){
   }catch(err){toast("OCR fehlgeschlagen");}
 }
 function ocrSetupModal(){modal({title:"OCR aktivieren",body:'<p>Damit Texterkennung <b>vollständig lokal</b> (ohne Datenübertragung) läuft, lege die Tesseract-Engine-Dateien neben diese App (gleicher Ordner / GitHub-Pages-Verzeichnis):</p><p style="font-family:monospace;font-size:12px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:10px;color:var(--text);">tesseract.min.js<br>tesseract-worker.min.js<br>tesseract-core.wasm.js<br>deu.traineddata.gz<br>eng.traineddata.gz</p><p>Quelle: das npm-Paket <b>tesseract.js</b>. Das Bild wird nur im Browser verarbeitet und nie hochgeladen.</p>',buttons:[{label:"Verstanden",cls:"btn-blue",act:closeModal}]});}
+/* OCR für ein gescanntes (bildbasiertes) PDF: jede Seite wird gerendert und per Tesseract erkannt.
+   Der gesammelte Text wird in att.text gespeichert -> fliesst automatisch in die Volltextsuche ein. */
+async function runPdfOcr(att){
+  const pdfOk=await ensurePdfjs();if(!pdfOk){pdfMissingModal();return;}
+  const tessOk=await ensureTesseract();if(!tessOk){return ocrSetupModal();}
+  const doc=await getPdfDoc(att);if(!doc){toast("PDF konnte nicht geladen werden");return;}
+  const total=doc.numPages;
+  try{
+    let all="";
+    for(let i=1;i<=total;i++){
+      toast("PDF-OCR: Seite "+i+" von "+total+" …");
+      const page=await doc.getPage(i);
+      // Höhere Auflösung verbessert die Erkennung deutlich (Faktor 2).
+      const vp=page.getViewport({scale:2});
+      const canvas=document.createElement("canvas");canvas.width=vp.width;canvas.height=vp.height;
+      await page.render({canvasContext:canvas.getContext("2d"),viewport:vp}).promise;
+      // Dieselbe bewährte recognize-Methode wie beim Bild-OCR (kompatibel über Tesseract-Versionen).
+      const res=await window.Tesseract.recognize(canvas,"deu+eng",{langPath:"./",corePath:"./",workerPath:"./tesseract-worker.min.js"});
+      all+=((res&&res.data&&res.data.text)||"")+"\n\n";
+      canvas.width=canvas.height=0; // Speicher freigeben
+    }
+    all=all.trim();
+    if(!all){toast("Kein Text erkannt");return;}
+    att.text=all.slice(0,200000);att.ocr=true;markDirty();
+    toast("PDF durchsuchbar gemacht ("+total+" Seiten)");
+  }catch(err){toast("PDF-OCR fehlgeschlagen");}
+}
 $("ocrBtn").addEventListener("mousedown",e=>e.preventDefault());
 $("ocrBtn").addEventListener("click",()=>$("ocrFile").click());
 $("ocrFile").addEventListener("change",async e=>{const f=e.target.files[0];e.target.value="";if(!f||!cur())return;await insertInlineImage(f);await runOcr(f);});
