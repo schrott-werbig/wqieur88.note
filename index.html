@@ -836,8 +836,20 @@ function manualNoteHtml(){return ""+
   "<h2>PDF-Export / Drucken</h2>"+
   "<p>Das Drucker-Symbol öffnet den System-Druckdialog. Dort lässt sich die Notiz drucken oder als PDF speichern.</p>"+
 
-  "<h2>Teilen an die App</h2>"+
-  "<p>Nach der Installation erscheint die App im Teilen-Menü des Geräts. Aus anderen Apps geteilter Text oder Link wird zu einer neuen Notiz.</p>"+
+  "<h2>Geräte-Sync (Syncthing &amp; Co.)</h2>"+
+  "<p>Über das Sync-Symbol (⟳) lässt sich der gesamte Tresor als <b>verschlüsselte Datei mit festem Namen</b> speichern. Legst du diese Datei in einen Ordner, den ein Sync-Programm wie <b>Syncthing</b> überwacht, gleicht es sie automatisch zwischen deinen Geräten ab. Auf jedem Gerät tippst du dann selbst auf „Aktualisieren“ (speichern) bzw. „Einlesen“ (importieren). Es findet bewusst kein automatisches Zusammenführen statt – du behältst die Kontrolle. Übertragen wird immer nur das <i>verschlüsselte</i> Paket.</p>"+
+
+  "<h2>Text anonymisieren (für KI)</h2>"+
+  "<p>Über das Masken-Symbol oben neben den Einstellungen. Dieses Werkzeug ersetzt sensible Stellen in einem Text durch neutrale Platzhalter, damit du den Text gefahrlos mit einer KI bearbeiten kannst – und macht das alles <b>ohne KI</b>, rein lokal über Mustererkennung und deine eigene Begriffsliste.</p>"+
+  "<ul>"+
+  "<li><b>Anonymisieren:</b> Text eingeben, „Anonymisieren“ tippen. Automatisch erkannt werden E-Mail, Telefon, IBAN, AHV-Nummer, Beträge, Datum, URL und PLZ/Ort. Den anonymisierten Text kopierst du in die KI.</li>"+
+  "<li><b>Begriffe markieren:</b> Im Originaltext ein Wort markieren (Maus/Finger) – eine Leiste erscheint, mit der du es als Begriff (Name/Ort/Firma…) oder als <b>Ausnahme</b> festlegen kannst. Begriffe werden künftig automatisch erkannt; die Liste wächst mit jedem Mal.</li>"+
+  "<li><b>Begriffe-Reiter:</b> Deine persönliche, wachsende Begriffsliste. Jeder Begriff lässt sich ein-/ausschalten, löschen und um <b>Synonyme</b> ergänzen (verschiedene Schreibweisen, die dasselbe meinen).</li>"+
+  "<li><b>Einstellungen-Reiter (⚙):</b> Hier wählst du, welche Kategorien anonymisiert werden, legst eigene Oberbegriffe an, definierst <b>Ausnahmen</b> (Stellen, die nie anonymisiert werden), und kannst alle Zahlen durch Zufallszahlen ersetzen sowie Datumsangaben um Monate/Jahre verschieben.</li>"+
+  "<li><b>Zurückübersetzen:</b> Die Antwort der KI hier einfügen – die Platzhalter werden wieder durch deine echten Daten ersetzt.</li>"+
+  "<li><b>In Notiz übertragen:</b> Erstellt eine Notiz mit vier Überschriften (Originaltext, Anonymisiert, KI-Antwort anonymisiert, KI-Antwort entschlüsselt). Die Zuordnung wird unsichtbar in der Notiz gespeichert. Hast du die KI-Antwort unter der dritten Überschrift eingefügt, entschlüsselt „⋯ → KI-Antwort entschlüsseln“ sie automatisch in die vierte.</li>"+
+  "</ul>"+
+  "<p><i>Tipp: Lies den anonymisierten Text vor dem Versand an die KI immer kurz gegen. Namen ohne Muster erkennt das Werkzeug nur, wenn sie in deiner Begriffsliste stehen.</i></p>"+
 
   "<h2>Rechtsklick-Menüs (am Computer)</h2>"+
   "<p>Rechtsklick im Text bietet Ausschneiden/Kopieren/Einfügen, Formatierung und Verlinkungen; in einer Tabelle alle Zeilen-/Spalten-Aktionen; auf einer Notiz in der Liste Öffnen, Favorit, Duplizieren, Notizbuch wechseln und Papierkorb.</p>"+
@@ -845,15 +857,16 @@ function manualNoteHtml(){return ""+
   "<h2>Organisieren &amp; Export</h2>"+
   "<ul>"+
   "<li><b>Notizfarben:</b> Über das Notiz-Menü (Rechtsklick auf eine Notiz am Computer) oder im Werkzeug-Menü „⋯ → Notizfarbe“ lässt sich jeder Notiz eine Farbe geben – praktisch zum visuellen Sortieren.</li>"+
-  "<li><b>Notiz einbetten:</b> Über „⋯ → Notiz einbetten“ lässt sich der Inhalt einer anderen Notiz lebendig einfügen. Du kannst den eingebetteten Text <b>direkt an Ort und Stelle bearbeiten</b> – die Änderung wird automatisch in der Originalnotiz gespeichert und erscheint überall, wo sie eingebettet ist. Für Bilder, Tabellen oder Checklisten in der eingebetteten Notiz „zum Original“ antippen. Mit dem ✕ rechts im Block-Kopf lässt sich eine Einbettung oder ein Schlagwort-Verzeichnis wieder entfernen (die Originalnotiz bleibt dabei erhalten).</li>"+
-  "<li><b>Feld-Verzeichnis (Feld::):</b> Schreibe in eine Notiz ein Feld der Form <code>Baubeginn:: 1. März 2026</code> (Feldname, zwei Doppelpunkte, Wert). Über „⋯ → Feld-Verzeichnis“ fügst du ein lebendes Verzeichnis ein, das alle Notizen mit diesem Feld samt Wert auflistet – ideal z.B. für Termine über mehrere Projekte hinweg. Es aktualisiert sich automatisch, sobald eine neue Notiz mit diesem Feld entsteht.</li>"+
+  "<li><b>Notiz einbetten (ganz oder kapitelweise):</b> Über „⋯ → Notiz einbetten“ lässt sich der Inhalt einer anderen Notiz lebendig einfügen – wahlweise die ganze Notiz oder nur ein einzelnes Kapitel (Abschnitt unter einer Überschrift). Beides ist <b>direkt an Ort und Stelle bearbeitbar</b>, auch die Überschrift eines eingebetteten Kapitels; jede Änderung wird automatisch in der Originalnotiz gespeichert und erscheint überall, wo sie eingebettet ist. Mit dem ✕ rechts im Block-Kopf lässt sich eine Einbettung wieder entfernen (die Originalnotiz bleibt erhalten).</li>"+
+  "<li><b>Felder (Feld:: Wert):</b> Schreibe in eine Notiz ein Feld der Form <code>Baubeginn:: 1. März 2026</code> (Feldname, zwei Doppelpunkte, Wert). Mehrere verschiedene Felder pro Notiz sind möglich. Ein Wert darf auch <b>über mehrere Zeilen</b> gehen (z.B. eine Adresse) – er läuft bis zur nächsten Leerzeile, zum nächsten Feld oder bis zu einer Liste. Schreibst du <code>Rubrik::</code> ganz ohne Wert, dient es nur als Überschrift und sammelt nichts ein.</li>"+
+  "<li><b>Felder-Rubrik &amp; Feld-Verzeichnis:</b> Alle verwendeten Feldnamen erscheinen automatisch links in der Seitenleiste unter „Felder“ – ein Klick zeigt alle Notizen mit diesem Feld. Über „⋯ → Feld-Verzeichnis“ fügst du zusätzlich ein lebendes Verzeichnis in eine Notiz ein, das alle Notizen mit diesem Feld samt Wert auflistet – ideal z.B. für Termine über mehrere Projekte hinweg. Es aktualisiert sich automatisch.</li>"+
   "<li><b>Rückgängig/Wiederherstellen:</b> Oben in der Notiz-Leiste stehen die Pfeil-Knöpfe zum Rückgängigmachen und Wiederherstellen (auch per Strg+Z bzw. Strg+Y).</li>"+
   "</ul>"+
   "<h2>Sicherheit &amp; Backup</h2>"+
   "<ul>"+
   "<li><b>Master-Passwort ändern:</b> In den Einstellungen. Der Vorgang ist absturzsicher.</li>"+
   "<li><b>Backup exportieren/importieren:</b> Erstellt eine verschlüsselte Sicherungsdatei. Bewahre sie sicher auf – sie lässt sich nur mit deinem Passwort öffnen.</li>"+
-  "<li><b>Cloud-Sync:</b> Optional über OneDrive/pCloud. Es wird nur das <i>verschlüsselte</i> Paket übertragen.</li>"+
+  "<li><b>Geräte-Sync:</b> Über das ⟳-Symbol – siehe Abschnitt „Geräte-Sync“ weiter oben. Es wird nur das <i>verschlüsselte</i> Paket übertragen.</li>"+
   "<li><b>Alles zurücksetzen:</b> In den Einstellungen – löscht den gesamten Tresor unwiderruflich und stellt den Auslieferungszustand wieder her. Nur mit doppelter Bestätigung.</li>"+
   "</ul>"+
 
@@ -3636,6 +3649,10 @@ function extractFields(html){
         const tag=c.tagName.toLowerCase();
         if(tag==="br"){text+="\n";return;}
         const block=/^(p|div|li|h1|h2|h3|tr|blockquote|pre)$/.test(tag);
+        // Listenelemente und Überschriften mit Sondermarker (\u0002) am Zeilenanfang versehen,
+        // damit ein mehrzeiliger Feldwert NICHT über eine Liste/Überschrift hinweg weiterläuft.
+        const isBreaker=/^(li|h1|h2|h3)$/.test(tag);
+        if(isBreaker)text+="\u0002";
         walk(c);
         if(block)text+="\n";
       }
@@ -3650,18 +3667,25 @@ function extractFields(html){
   let current=null; // aktuell offenes Feld für mehrzeilige Werte
   const flush=()=>{if(current&&current.field&&current.value.trim()){out.push({field:current.field,value:current.value.trim()});}current=null;};
   lines.forEach(rawLine=>{
-    const line=rawLine.replace(/\s+$/,"");
+    const isBreaker=rawLine.indexOf("\u0002")>=0; // Zeile stammt aus Liste/Überschrift
+    const line=rawLine.replace(/\u0002/g,"").replace(/\s+$/,"");
     const m=line.match(fieldStart);
     if(m){
       // Neues Feld beginnt -> vorheriges abschliessen
       flush();
-      current={field:m[1].trim(),value:m[2]};
+      const val=m[2];
+      if(val.trim()===""){
+        // Feld OHNE Wert (z.B. "Rubrik::" als Überschrift) -> NICHT mehrzeilig fortsetzen.
+        current=null;
+      }else{
+        current={field:m[1].trim(),value:val};
+      }
     }else if(current!==null){
-      if(line.trim()===""){
-        // Leerzeile beendet den mehrzeiligen Wert
+      if(line.trim()===""||isBreaker){
+        // Leerzeile ODER Listen-/Überschriftenzeile beendet den mehrzeiligen Wert.
         flush();
       }else{
-        // Folgezeile gehört zum mehrzeiligen Wert
+        // Folgezeile (reiner Textabsatz) gehört zum mehrzeiligen Wert
         current.value+="\n"+line;
       }
     }
