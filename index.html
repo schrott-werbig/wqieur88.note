@@ -1115,11 +1115,12 @@ function renderDynamicBlocks(n){
     const target=vault.notes.find(x=>x.id===tid&&!x.trashed);
     if(!target){box.innerHTML='<div class="embed-head" contenteditable="false">⚠ Eingebettete Notiz nicht gefunden<button class="block-del" data-block-del title="Block entfernen">✕</button></div>';bindDynamicBlockEvents();return;}
     if(section){
-      // Nur ein Abschnitt: lesend anzeigen (Bearbeitung über "zum Original")
+      // Nur ein Abschnitt: jetzt direkt bearbeitbar. Änderungen werden in den passenden
+      // Abschnitt der Originalnotiz zurückgeschrieben (replaceSection).
       const headings=collectHeadings(target.html||"");
       const head=headings.find(h=>h.id===section);
       const secHtml=head?extractSection(target.html||"",head.text):'<p class="ti-empty">Abschnitt nicht gefunden</p>';
-      box.innerHTML='<div class="embed-head" contenteditable="false">⧉ '+escapeHtml(target.title||"Ohne Titel")+' › '+escapeHtml(head?head.text:"Abschnitt")+'<button class="embed-edit" data-embed-edit="'+tid+'">zum Original</button><button class="block-del" data-block-del title="Einbettung entfernen">✕</button></div><div class="embed-body embed-readonly" contenteditable="false">'+sanitizeHtml(secHtml)+'</div>';
+      box.innerHTML='<div class="embed-head" contenteditable="false">⧉ '+escapeHtml(target.title||"Ohne Titel")+' › '+escapeHtml(head?head.text:"Abschnitt")+' <span class="embed-hint">direkt bearbeitbar</span><button class="embed-edit" data-embed-edit="'+tid+'">zum Original</button><button class="block-del" data-block-del title="Einbettung entfernen">✕</button></div><div class="embed-body" contenteditable="true" data-embed-body="'+tid+'" data-embed-body-section="'+escapeHtml(head?head.text:"")+'" data-embed-body-hidx="'+(head?headings.indexOf(head):-1)+'">'+sanitizeHtml(secHtml)+'</div>';
     }else{
       box.innerHTML='<div class="embed-head" contenteditable="false">⧉ '+escapeHtml(target.title||"Ohne Titel")+' <span class="embed-hint">direkt bearbeitbar</span><button class="embed-edit" data-embed-edit="'+tid+'">zum Original</button><button class="block-del" data-block-del title="Einbettung entfernen">✕</button></div><div class="embed-body" contenteditable="true" data-embed-body="'+tid+'">'+sanitizeHtml(target.html||"")+'</div>';
     }
@@ -1148,7 +1149,16 @@ function bindDynamicBlockEvents(){
       const tid=body.getAttribute("data-embed-body");
       const target=vault.notes.find(x=>x.id===tid&&!x.trashed);
       if(!target)return;
-      target.html=sanitizeHtml(body.innerHTML);
+      const sectionHead=body.getAttribute("data-embed-body-section");
+      if(sectionHead){
+        // Nur den eingebetteten Abschnitt in der Originalnotiz ersetzen, Rest unberührt lassen.
+        // Verankerung über den Heading-Index (data-embed-body-hidx) – so übersteht der Sync
+        // auch das Umbenennen der Überschrift im eingebetteten Block.
+        const hidx=parseInt(body.getAttribute("data-embed-body-hidx"),10);
+        target.html=sanitizeHtml(replaceSection(target.html||"",sectionHead,body.innerHTML,isNaN(hidx)?-1:hidx));
+      }else{
+        target.html=sanitizeHtml(body.innerHTML);
+      }
       target.updated=now();
       markDirty();
     };
@@ -1387,6 +1397,41 @@ function extractSection(html,headingText){
   }
   const wrap=document.createElement("div");result.forEach(r=>wrap.appendChild(r));
   return wrap.innerHTML;
+}
+/* Gegenstück zu extractSection: ersetzt einen Abschnitt im Original-HTML durch newSectionHtml.
+   Der Abschnitt wird über headingIndex (n-ter Heading, 0-basiert) verankert, falls angegeben –
+   das überlebt das Umbenennen der Überschrift. Sonst wird über den Text gesucht. */
+function replaceSection(html,headingText,newSectionHtml,headingIndex){
+  const d=document.createElement("div");d.innerHTML=html;
+  const all=[...d.childNodes];
+  let startIdx=-1,endIdx=all.length,startLevel=0,collecting=false,hCount=-1;
+  const useIndex=(headingIndex!=null&&headingIndex>=0);
+  for(let i=0;i<all.length;i++){
+    const node=all[i];
+    if(node.nodeType===1&&/^H[123]$/.test(node.tagName)){
+      const lvl=HLEVEL[node.tagName];
+      if(!collecting){
+        let isTarget;
+        if(useIndex){hCount++;isTarget=(hCount===headingIndex);}
+        else{
+          const clone=node.cloneNode(true);clone.querySelectorAll(".fold-toggle").forEach(x=>x.remove());
+          const text=(clone.textContent||"").replace(/\u200b/g,"").trim();
+          isTarget=(text===headingText);
+        }
+        if(isTarget){collecting=true;startLevel=lvl;startIdx=i;continue;}
+      }else if(lvl<=startLevel){endIdx=i;break;}
+    }
+  }
+  if(startIdx<0)return html; // Abschnitt nicht gefunden -> unverändert
+  // Knoten von startIdx bis endIdx-1 durch die neuen ersetzen
+  const newWrap=document.createElement("div");newWrap.innerHTML=newSectionHtml;
+  const newNodes=[...newWrap.childNodes];
+  const ref=all[startIdx];
+  // neue Knoten vor dem alten Start einfügen
+  newNodes.forEach(nn=>d.insertBefore(nn,ref));
+  // alte Knoten (startIdx..endIdx-1) entfernen
+  for(let i=startIdx;i<endIdx;i++){if(all[i]&&all[i].parentNode===d)d.removeChild(all[i]);}
+  return d.innerHTML;
 }
 $("codeBtn").addEventListener("mousedown",e=>e.preventDefault());
 $("codeBtn").addEventListener("click",()=>{$("edBody").focus();document.execCommand("formatBlock",false,"pre");syncBody();});
