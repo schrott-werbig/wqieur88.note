@@ -858,7 +858,7 @@ function manualNoteHtml(){return ""+
   "<ul>"+
   "<li><b>Notizfarben:</b> Über das Notiz-Menü (Rechtsklick auf eine Notiz am Computer) oder im Werkzeug-Menü „⋯ → Notizfarbe“ lässt sich jeder Notiz eine Farbe geben – praktisch zum visuellen Sortieren.</li>"+
   "<li><b>Notiz einbetten (ganz oder kapitelweise):</b> Über „⋯ → Notiz einbetten“ lässt sich der Inhalt einer anderen Notiz lebendig einfügen – wahlweise die ganze Notiz oder nur ein einzelnes Kapitel (Abschnitt unter einer Überschrift). Beides ist <b>direkt an Ort und Stelle bearbeitbar</b>, auch die Überschrift eines eingebetteten Kapitels; jede Änderung wird automatisch in der Originalnotiz gespeichert und erscheint überall, wo sie eingebettet ist. Mit dem ✕ rechts im Block-Kopf lässt sich eine Einbettung wieder entfernen (die Originalnotiz bleibt erhalten).</li>"+
-  "<li><b>Felder (Feld:: Wert):</b> Schreibe in eine Notiz ein Feld der Form <code>Baubeginn:: 1. März 2026</code> (Feldname, zwei Doppelpunkte, Wert). Mehrere verschiedene Felder pro Notiz sind möglich. Ein Wert darf auch <b>über mehrere Zeilen</b> gehen (z.B. eine Adresse) – er läuft bis zur nächsten Leerzeile, zum nächsten Feld oder bis zu einer Liste. Schreibst du <code>Rubrik::</code> ganz ohne Wert, dient es nur als Überschrift und sammelt nichts ein.</li>"+
+  "<li><b>Felder (Feld:: Wert):</b> Schreibe in eine Notiz ein Feld der Form <code>Baubeginn:: 1. März 2026</code> (Feldname, zwei Doppelpunkte, Wert). Mehrere verschiedene Felder pro Notiz sind möglich. Ein Wert darf auch <b>über mehrere Zeilen</b> gehen (z.B. eine Adresse) – er läuft bis zur nächsten Leerzeile, zum nächsten Feld oder bis zu einer Liste. Schreibst du <code>Rubrik::</code> ganz ohne Wert, dient es nur als Überschrift und sammelt nichts ein. <b>Soll eine Liste oder ein längerer Block zum Wert gehören</b>, setze ihn in Anführungszeichen: <code>Pendenzen:: \"</code> … Liste … <code>\"</code> – alles zwischen den Anführungszeichen (auch Aufzählungen) wird als Wert erfasst.</li>"+
   "<li><b>Felder-Rubrik &amp; Feld-Verzeichnis:</b> Alle verwendeten Feldnamen erscheinen automatisch links in der Seitenleiste unter „Felder“ – ein Klick zeigt alle Notizen mit diesem Feld. Über „⋯ → Feld-Verzeichnis“ fügst du zusätzlich ein lebendes Verzeichnis in eine Notiz ein, das alle Notizen mit diesem Feld samt Wert auflistet – ideal z.B. für Termine über mehrere Projekte hinweg. Es aktualisiert sich automatisch.</li>"+
   "<li><b>Rückgängig/Wiederherstellen:</b> Oben in der Notiz-Leiste stehen die Pfeil-Knöpfe zum Rückgängigmachen und Wiederherstellen (auch per Strg+Z bzw. Strg+Y).</li>"+
   "</ul>"+
@@ -3664,17 +3664,47 @@ function extractFields(html){
   const out=[];
   const lines=text.split(/\n/);
   const fieldStart=/^([\wäöüÄÖÜß .\-]+?)::[ \t]*(.*)$/;
-  let current=null; // aktuell offenes Feld für mehrzeilige Werte
-  const flush=()=>{if(current&&current.field&&current.value.trim()){out.push({field:current.field,value:current.value.trim()});}current=null;};
+  // Anführungszeichen-Varianten: gerade ("), typografische („ ... “ und " ... "), Guillemets
+  const OPEN_Q=/^[„"“»«]/;
+  const stripOpenQ=s=>s.replace(/^[„"“»«]\s?/,"");
+  const closeQreached=s=>/["“»«]\s*$/.test(s); // schliessendes Anführungszeichen am Zeilenende
+  const stripCloseQ=s=>s.replace(/\s*["“»«]\s*$/,"");
+  let current=null;      // aktuell offenes Feld für mehrzeilige Werte
+  let quoted=false;      // sind wir innerhalb eines "..."-gekapselten Werts?
+  const flush=()=>{if(current&&current.field&&current.value.trim()){out.push({field:current.field,value:current.value.trim()});}current=null;quoted=false;};
   lines.forEach(rawLine=>{
     const isBreaker=rawLine.indexOf("\u0002")>=0; // Zeile stammt aus Liste/Überschrift
     const line=rawLine.replace(/\u0002/g,"").replace(/\s+$/,"");
+    // Im gekapselten Modus: alles gehört zum Wert, bis das schliessende Anführungszeichen kommt.
+    if(quoted&&current!==null){
+      const lineHasField=fieldStart.test(line);
+      if(closeQreached(line)){
+        const piece=stripCloseQ(line);
+        if(piece.trim()!=="")current.value+="\n"+piece;
+        flush();
+        return;
+      }
+      // Listenpunkte mit Aufzählungszeichen versehen, damit die Struktur im Wert erhalten bleibt
+      current.value+="\n"+(isBreaker?"• "+line:line);
+      return;
+    }
     const m=line.match(fieldStart);
     if(m){
       // Neues Feld beginnt -> vorheriges abschliessen
       flush();
       const val=m[2];
-      if(val.trim()===""){
+      if(OPEN_Q.test(val)){
+        // Gekapselter Wert: alles (auch Listen/Leerzeilen) bis zum schliessenden Anführungszeichen.
+        let inner=stripOpenQ(val);
+        current={field:m[1].trim(),value:""};
+        if(closeQreached(inner)){
+          // öffnendes und schliessendes Zeichen in derselben Zeile
+          current.value=stripCloseQ(inner);
+          flush();
+        }else{
+          current.value=inner;quoted=true;
+        }
+      }else if(val.trim()===""){
         // Feld OHNE Wert (z.B. "Rubrik::" als Überschrift) -> NICHT mehrzeilig fortsetzen.
         current=null;
       }else{
@@ -3682,7 +3712,7 @@ function extractFields(html){
       }
     }else if(current!==null){
       if(line.trim()===""||isBreaker){
-        // Leerzeile ODER Listen-/Überschriftenzeile beendet den mehrzeiligen Wert.
+        // Leerzeile ODER Listen-/Überschriftenzeile beendet den (nicht gekapselten) mehrzeiligen Wert.
         flush();
       }else{
         // Folgezeile (reiner Textabsatz) gehört zum mehrzeiligen Wert
