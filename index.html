@@ -166,6 +166,17 @@
   .embed .embed-edit{font-size:11.5px;color:var(--blue-600);background:none;border:1px solid var(--line);border-radius:6px;padding:3px 9px;cursor:pointer;}
   .embed .embed-edit:hover{background:var(--panel);}
   .embed .embed-hint{font-size:10.5px;color:var(--text-dim);font-weight:400;text-transform:none;letter-spacing:0;margin-right:auto;opacity:.7;}
+  .calcblock{border:1px solid var(--line);border-left:3px solid #16a34a;border-radius:10px;margin:10px 0;background:var(--panel-2);overflow:hidden;}
+  .calcblock .calc-head{font-size:12px;font-weight:600;color:var(--text-dim);padding:7px 12px;background:var(--line-2);display:flex;align-items:center;gap:8px;}
+  .calcblock .calc-hint{font-size:10.5px;color:var(--text-dim);font-weight:400;margin-right:auto;opacity:.7;}
+  .calcblock .calc-grid{display:flex;gap:0;}
+  .calcblock .calc-input{flex:1 1 60%;border:none;background:none;resize:none;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;line-height:1.5;padding:10px 12px;color:var(--text);outline:none;overflow:hidden;min-height:40px;}
+  .calcblock .calc-results{flex:1 1 40%;border-left:1px dashed var(--line);padding:10px 12px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;line-height:1.5;background:var(--panel);min-width:90px;}
+  .calcblock .calc-line{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;height:1.5em;}
+  .calcblock .calc-line b{color:#16a34a;}
+  .calcblock .calc-name{color:var(--blue-600);}
+  .calcblock .calc-err{color:var(--danger);}
+  .calcblock .calc-comment{opacity:.3;}
   .embed .embed-body{padding:8px 12px;outline:none;}
   .embed .embed-body:focus{background:var(--panel);box-shadow:inset 0 0 0 2px var(--blue-500);border-radius:0 0 8px 8px;}
   .note-card .nc-select{display:none;}
@@ -581,6 +592,7 @@
           <button class="mt-item" id="tagIndexBtn"><span class="mt-ic">#</span>Schlagwort-Verzeichnis</button>
           <button class="mt-item" id="fieldIndexBtn"><span class="mt-ic">🗂</span>Feld-Verzeichnis (Feld::)</button>
           <button class="mt-item" id="embedBtn"><span class="mt-ic">⧉</span>Notiz einbetten</button>
+          <button class="mt-item" id="calcBtn"><span class="mt-ic">🧮</span>Rechenblock</button>
           <button class="mt-item" id="decryptKiBtn" style="display:none"><span class="mt-ic">🔓</span>KI-Antwort entschlüsseln</button>
         </div>
         <!-- versteckte Original-Buttons, damit bestehende Handler weiter funktionieren -->
@@ -867,6 +879,7 @@ function manualNoteHtml(){return ""+
   "<ul>"+
   "<li><b>Notizfarben:</b> Über das Notiz-Menü (Rechtsklick auf eine Notiz am Computer) oder im Werkzeug-Menü „⋯ → Notizfarbe“ lässt sich jeder Notiz eine Farbe geben – praktisch zum visuellen Sortieren.</li>"+
   "<li><b>Notiz einbetten (ganz oder kapitelweise):</b> Über „⋯ → Notiz einbetten“ lässt sich der Inhalt einer anderen Notiz lebendig einfügen – wahlweise die ganze Notiz oder nur ein einzelnes Kapitel (Abschnitt unter einer Überschrift). Beides ist <b>direkt an Ort und Stelle bearbeitbar</b>, auch die Überschrift eines eingebetteten Kapitels; jede Änderung wird automatisch in der Originalnotiz gespeichert und erscheint überall, wo sie eingebettet ist. Mit dem ✕ rechts im Block-Kopf lässt sich eine Einbettung wieder entfernen (die Originalnotiz bleibt erhalten).</li>"+
+  "<li><b>Rechenblock (🧮):</b> Über „⋯ → Rechenblock“ fügst du einen Mini-Rechner ein – ähnlich wie in MATLAB. Jede Zeile ist eine Rechnung oder eine Variablenzuweisung (<code>Radius = 5</code>), das Ergebnis erscheint rechts und aktualisiert sich live beim Tippen. Variablen können in folgenden Zeilen weiterverwendet werden. Unterstützt Grundrechnen, Klammern, Potenz (<code>^</code>), Prozent (<code>19%</code>), Konstanten (<code>pi</code>, <code>e</code>) und Funktionen wie <code>sqrt</code>, <code>wurzel</code>, <code>sin/cos/tan</code>, <code>log</code>, <code>exp</code>, <code>abs</code>, <code>round</code>, <code>min</code>, <code>max</code>, <code>summe</code>, <code>mittel</code>. Mit <code>//</code> beginnt eine Kommentarzeile. Rechnet vollständig lokal.</li>"+
   "<li><b>Felder (Feld:: Wert):</b> Schreibe in eine Notiz ein Feld der Form <code>Baubeginn:: 1. März 2026</code> (Feldname, zwei Doppelpunkte, Wert). Mehrere verschiedene Felder pro Notiz sind möglich. Ein Wert darf auch <b>über mehrere Zeilen</b> gehen (z.B. eine Adresse) – er läuft bis zur nächsten Leerzeile, zum nächsten Feld oder bis zu einer Liste. Schreibst du <code>Rubrik::</code> ganz ohne Wert, dient es nur als Überschrift und sammelt nichts ein. <b>Soll eine Liste oder ein längerer Block zum Wert gehören</b>, setze ihn in Anführungszeichen: <code>Pendenzen:: \"</code> … Liste … <code>\"</code> – alles zwischen den Anführungszeichen (auch Aufzählungen) wird als Wert erfasst.</li>"+
   "<li><b>Felder-Rubrik &amp; Feld-Verzeichnis:</b> Alle verwendeten Feldnamen erscheinen automatisch links in der Seitenleiste unter „Felder“ – ein Klick zeigt alle Notizen mit diesem Feld. Über „⋯ → Feld-Verzeichnis“ fügst du zusätzlich ein lebendes Verzeichnis in eine Notiz ein, das alle Notizen mit diesem Feld samt Wert auflistet – ideal z.B. für Termine über mehrere Projekte hinweg. Es aktualisiert sich automatisch.</li>"+
   "<li><b>Rückgängig/Wiederherstellen:</b> Oben in der Notiz-Leiste stehen die Pfeil-Knöpfe zum Rückgängigmachen und Wiederherstellen (auch per Strg+Z bzw. Strg+Y).</li>"+
@@ -1104,6 +1117,35 @@ function renderEditor(){
    - data-embed="notizId": eingebetteter (lebender) Inhalt einer anderen Notiz */
 function renderDynamicBlocks(n){
   const eb=$("edBody");
+  // 0. Rechenblöcke (MATLAB-artig): Formelzeilen links, Ergebnisse rechts, Live-Update.
+  eb.querySelectorAll('.calcblock[data-calc]').forEach(box=>{
+    if(box.dataset.rendered==="1")return; // nur einmal aufbauen, dann nur Ergebnisse aktualisieren
+    box.dataset.rendered="1";
+    const code=box.getAttribute("data-calc")||"";
+    box.innerHTML='<div class="calc-head" contenteditable="false">🧮 Rechenblock<span class="calc-hint">Variablen mit = zuweisen, z.B. x = 5</span><button class="block-del" data-block-del title="Block entfernen">✕</button></div>'+
+      '<div class="calc-grid"><textarea class="calc-input" spellcheck="false"></textarea><div class="calc-results"></div></div>';
+    const ta=box.querySelector(".calc-input");const res=box.querySelector(".calc-results");
+    ta.value=code;
+    const recalc=()=>{
+      const results=evalCalcBlock(ta.value);
+      res.innerHTML=results.map(r=>{
+        if(r.comment)return '<div class="calc-line calc-comment">&nbsp;</div>';
+        if(r.error)return '<div class="calc-line calc-err" title="'+escapeHtml(r.error)+'">⚠</div>';
+        const label=r.name?'<span class="calc-name">'+escapeHtml(r.name)+'</span> = ':'';
+        return '<div class="calc-line">'+label+'<b>'+fmtCalcResult(r.result)+'</b></div>';
+      }).join("");
+      // Höhe der Eingabe an Inhalt anpassen
+      ta.style.height="auto";ta.style.height=Math.max(ta.scrollHeight,40)+"px";
+    };
+    ta.addEventListener("input",()=>{
+      box.setAttribute("data-calc",ta.value); // Quelle im Block speichern
+      recalc();
+      // in die Notiz zurückschreiben (Block ist nicht editierbarer Container, daher manuell)
+      const note=cur();if(note){note.html=sanitizeForStore(stripDynamicBlocks(eb.innerHTML));note.updated=now();markDirty();}
+    });
+    ta.addEventListener("click",e=>e.stopPropagation());
+    recalc();
+  });
   // 1. Schlagwort-Verzeichnisse
   eb.querySelectorAll('.tagindex[data-tagindex]').forEach(box=>{
     const tag=box.getAttribute("data-tagindex");
@@ -1212,6 +1254,8 @@ function stripDynamicBlocks(html){
   d.querySelectorAll('.tagindex[data-tagindex]').forEach(b=>{b.innerHTML="";});
   d.querySelectorAll('.fieldindex[data-fieldindex]').forEach(b=>{b.innerHTML="";});
   d.querySelectorAll('.embed[data-embed]').forEach(b=>{b.innerHTML="";});
+  // Rechenblöcke leeren: nur der Platzhalter mit data-calc (Quelle) bleibt; gerenderte UI nicht speichern.
+  d.querySelectorAll('.calcblock[data-calc]').forEach(b=>{b.innerHTML="";b.removeAttribute("data-rendered");});
   // Falt-Pfeile entfernen und Falt-/Versteckt-Zustand zurücksetzen (reine Ansichtssache, nicht speichern)
   d.querySelectorAll(".fold-toggle").forEach(t=>t.remove());
   d.querySelectorAll(".section-hidden").forEach(e=>e.classList.remove("section-hidden"));
@@ -1375,6 +1419,17 @@ $("embedBtn").addEventListener("click",()=>{
 });
 $("decryptKiBtn").addEventListener("mousedown",e=>e.preventDefault());
 $("decryptKiBtn").addEventListener("click",()=>{closeMoreTools();const n=cur();if(!n){toast("Keine Notiz geöffnet");return;}decryptKiAnswerInNote(n);});
+$("calcBtn").addEventListener("mousedown",e=>e.preventDefault());
+$("calcBtn").addEventListener("click",()=>{
+  closeMoreTools();const n=cur();if(!n){toast("Keine Notiz geöffnet");return;}
+  restoreSelection();
+  // Rechenblock einfügen: data-calc enthält die Formelzeilen (Quelle), wird beim Speichern behalten.
+  const startCode="Radius = 5\nFläche = pi * Radius^2\nUmfang = 2 * pi * Radius";
+  const html='<div class="calcblock" data-calc="'+escapeHtml(startCode)+'" contenteditable="false"></div><p><br></p>';
+  document.execCommand("insertHTML",false,html);
+  syncBody();renderDynamicBlocks(n);
+  toast("Rechenblock eingefügt");
+});
 /* Zweiter Schritt der Einbettung: Abschnitt wählen (ganze Notiz oder ein Abschnitt unter einer Überschrift). */
 function embedSectionStep(id,target){
   const headings=collectHeadings(target&&target.html||"");
@@ -1779,6 +1834,140 @@ function evalArithmetic(input){
   skip();
   if(i<s.length)throw new Error("Rest: "+s.slice(i)); // unerwartete Zeichen
   return result;
+}
+/* ===== Rechenblock-Engine (MATLAB-artig, CSP-sicher ohne eval/new Function) =====
+   Wertet einen Ausdruck mit Variablen (vars-Objekt), Funktionen und Konstanten aus.
+   Unterstützt: + - * / , Klammern, ^ (Potenz), % (am Ende = Prozent, also /100),
+   Funktionen (sqrt, sin, cos, tan, asin, acos, atan, log, ln, log10, exp, abs, round, floor,
+   ceil, min, max, sum, mittel/avg, wurzel, pi(), …) und Konstanten (pi, e). */
+const CALC_FUNCS={
+  sqrt:a=>Math.sqrt(a), wurzel:a=>Math.sqrt(a),
+  sin:a=>Math.sin(a), cos:a=>Math.cos(a), tan:a=>Math.tan(a),
+  asin:a=>Math.asin(a), acos:a=>Math.acos(a), atan:a=>Math.atan(a),
+  sind:a=>Math.sin(a*Math.PI/180), cosd:a=>Math.cos(a*Math.PI/180), tand:a=>Math.tan(a*Math.PI/180),
+  log:a=>Math.log(a), ln:a=>Math.log(a), log10:a=>Math.log10(a), log2:a=>Math.log2(a),
+  exp:a=>Math.exp(a), abs:a=>Math.abs(a), sign:a=>Math.sign(a),
+  round:(a,b)=>{const f=Math.pow(10,b||0);return Math.round(a*f)/f;},
+  floor:a=>Math.floor(a), ceil:a=>Math.ceil(a),
+  min:(...a)=>Math.min(...a), max:(...a)=>Math.max(...a),
+  sum:(...a)=>a.reduce((x,y)=>x+y,0), summe:(...a)=>a.reduce((x,y)=>x+y,0),
+  mittel:(...a)=>a.reduce((x,y)=>x+y,0)/a.length, avg:(...a)=>a.reduce((x,y)=>x+y,0)/a.length,
+  mod:(a,b)=>a%b, pow:(a,b)=>Math.pow(a,b),
+};
+const CALC_CONSTS={pi:Math.PI, e:Math.E, "π":Math.PI};
+function evalCalcExpr(input, vars){
+  let s=String(input),i=0,argDepth=0; // argDepth>0 = innerhalb einer Funktions-Argumentliste
+  vars=vars||{};
+  function skip(){while(i<s.length&&/\s/.test(s[i]))i++;}
+  function parseExpr(){
+    let v=parseTerm();
+    for(;;){skip();const c=s[i];
+      if(c==="+"){i++;v+=parseTerm();}
+      else if(c==="-"){i++;v-=parseTerm();}
+      else break;
+    }
+    return v;
+  }
+  function parseTerm(){
+    let v=parsePower();
+    for(;;){skip();const c=s[i];
+      if(c==="*"){i++;v*=parsePower();}
+      else if(c==="/"){i++;v=v/parsePower();}
+      else if(c==="%"){ // Modulo nur wenn danach noch ein Faktor kommt, sonst Prozent (in parseFactor)
+        // Hier als Modulo behandeln, wenn ein Operand folgt
+        const save=i;i++;skip();
+        if(i<s.length&&/[0-9.([a-zA-ZäöüÄÖÜ_π]/.test(s[i])){v=v%parsePower();}
+        else{i=save;break;}
+      }
+      else break;
+    }
+    return v;
+  }
+  function parsePower(){
+    let base=parseFactor();
+    skip();
+    if(s[i]==="^"){i++;const exp=parsePower();return Math.pow(base,exp);} // rechts-assoziativ
+    return base;
+  }
+  function parseFactor(){
+    skip();
+    if(s[i]==="+"){i++;return parseFactor();}
+    if(s[i]==="-"){i++;return -parseFactor();}
+    if(s[i]==="("){i++;const v=parseExpr();skip();if(s[i]===")")i++;return applyPercent(v);}
+    // Name (Variable, Funktion oder Konstante)
+    if(/[a-zA-ZäöüÄÖÜ_π]/.test(s[i])){
+      let start=i;
+      while(i<s.length&&/[a-zA-Z0-9äöüÄÖÜ_π]/.test(s[i]))i++;
+      const name=s.slice(start,i);
+      skip();
+      if(s[i]==="("){ // Funktionsaufruf
+        i++;const args=[];
+        skip();
+        if(s[i]!==")"){
+          argDepth++;
+          args.push(parseExpr());
+          for(;;){skip();if(s[i]===","){i++;args.push(parseExpr());}else break;}
+          argDepth--;
+        }
+        skip();if(s[i]===")")i++;
+        const fn=CALC_FUNCS[name.toLowerCase()];
+        if(!fn)throw new Error("Unbekannte Funktion: "+name);
+        return applyPercent(fn(...args));
+      }
+      // Konstante?
+      const lc=name.toLowerCase();
+      if(lc in CALC_CONSTS)return applyPercent(CALC_CONSTS[lc]);
+      if(name==="π")return applyPercent(Math.PI);
+      // Variable?
+      if(name in vars)return applyPercent(vars[name]);
+      if(lc in vars)return applyPercent(vars[lc]);
+      throw new Error("Unbekannte Variable: "+name);
+    }
+    // Zahl. Dezimalkomma nur AUSSERHALB von Funktionsargumenten erlaubt (dort ist , ein Trenner).
+    let start=i;
+    while(i<s.length&&/[0-9._]/.test(s[i]))i++;
+    if(argDepth===0&&s[i]===","&&/[0-9]/.test(s[i+1])){i++;while(i<s.length&&/[0-9]/.test(s[i]))i++;}
+    let num=s.slice(start,i).replace(/_/g,"").replace(",",".");
+    if(num==="")throw new Error("Unerwartetes Zeichen: "+(s[i]||"Ende"));
+    return applyPercent(parseFloat(num));
+  }
+  function applyPercent(v){skip();if(s[i]==="%"){i++;return v/100;}return v;}
+  const result=parseExpr();
+  skip();
+  if(i<s.length)throw new Error("Rest: "+s.slice(i));
+  return result;
+}
+/* Wertet einen ganzen Rechenblock (mehrere Zeilen) aus. Jede Zeile ist entweder
+   "Name = Ausdruck" (Zuweisung) oder ein reiner Ausdruck. Liefert pro Zeile ein Ergebnis. */
+function evalCalcBlock(text){
+  const vars={};
+  const lines=String(text||"").split("\n");
+  return lines.map(line=>{
+    const raw=line.trim();
+    if(raw===""||raw.startsWith("//")||raw.startsWith("#"))return {line,result:null,comment:true};
+    try{
+      // Zuweisung erkennen: Name = Ausdruck  (ein einzelnes =, nicht == )
+      const m=raw.match(/^([a-zA-ZäöüÄÖÜ_π][a-zA-Z0-9äöüÄÖÜ_π]*)\s*=\s*(.+)$/);
+      if(m&&!m[2].startsWith("=")){
+        const name=m[1];
+        const val=evalCalcExpr(m[2],vars);
+        vars[name]=val;
+        return {line,name,result:val};
+      }
+      const val=evalCalcExpr(raw,vars);
+      return {line,result:val};
+    }catch(err){
+      return {line,error:(err&&err.message)||"Fehler"};
+    }
+  });
+}
+/* Formatiert ein Rechenergebnis lesbar (begrenzte Nachkommastellen, Tausender unverändert). */
+function fmtCalcResult(v){
+  if(v==null||isNaN(v))return "—";
+  if(!isFinite(v))return v>0?"∞":"-∞";
+  if(Math.abs(v)>=1e12||(Math.abs(v)<1e-6&&v!==0))return v.toExponential(4);
+  let r=Math.round(v*1e8)/1e8;
+  return String(r);
 }
 /* Alle Formelzellen einer Tabelle (oder aller Tabellen) neu berechnen. */
 /* Berechnet alle Formelzellen neu und zeigt das Ergebnis an – AUSSER bei Zellen, die gerade
@@ -3899,7 +4088,9 @@ function cleanAttrs(el){
     else if(name==="data-embed"&&tag==="DIV") keep=true;
     else if(name==="data-embed-section"&&tag==="DIV") keep=true;
     else if(name==="data-anonmap"&&tag==="DIV") keep=true;
-    else if(name==="contenteditable"&&tag==="DIV"&&(el.classList.contains("toc")||el.classList.contains("tagindex")||el.classList.contains("fieldindex")||el.classList.contains("embed")||el.classList.contains("anonmap"))) keep=(val==="false");
+    else if(name==="data-calc"&&tag==="DIV") keep=true;
+    else if(name==="data-embed-body-hidx"&&tag==="DIV") keep=true;
+    else if(name==="contenteditable"&&tag==="DIV"&&(el.classList.contains("toc")||el.classList.contains("tagindex")||el.classList.contains("fieldindex")||el.classList.contains("embed")||el.classList.contains("anonmap")||el.classList.contains("calcblock"))) keep=(val==="false");
     else if(name==="style"&&tag==="DIV"&&el.classList.contains("anonmap")) keep=(val==="display:none");
     else if(name==="data-formula"&&(tag==="TD"||tag==="TH")) keep=true;
     else if(name==="class"){
@@ -3910,6 +4101,7 @@ function cleanAttrs(el){
       else if(tag==="DIV"&&val==="fieldindex") keep=true;
       else if(tag==="DIV"&&val==="anonmap") keep=true;
       else if(tag==="DIV"&&val==="embed") keep=true;
+      else if(tag==="DIV"&&val==="calcblock") keep=true;
       else if(tag==="A"&&/^(lvl[123])$/.test(val)) keep=true;
       else if((tag==="TD"||tag==="TH")&&val==="formula") keep=true;
     }
