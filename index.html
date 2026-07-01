@@ -820,6 +820,7 @@ function manualNoteHtml(){return ""+
   "<li><b>Interne Verknüpfung:</b> Mit dem ↪-Symbol auf eine andere Notiz verlinken. Ein Klick öffnet sie.</li>"+
   "<li><b>Rückverweise:</b> Unter jeder Notiz steht automatisch, welche anderen Notizen auf sie verweisen.</li>"+
   "<li><b>Inhaltsverzeichnis:</b> Erst Überschriften erstellen, dann das Listen-Symbol – es baut automatisch ein anklickbares Verzeichnis. Doppelklick darauf entfernt es.</li>"+
+  "<li><b>Überschriften ein-/ausklappen:</b> Vor jeder Überschrift (H1–H3) erscheint ein kleiner Pfeil (▾/▸). Ein Klick blendet den ganzen Abschnitt darunter aus oder wieder ein – praktisch, um lange Notizen übersichtlich zu halten. Das ist reine Ansicht und wird nicht mitgespeichert.</li>"+
   "<li><b>Web-Links:</b> Über das Ketten-Symbol normale Internet-Links einfügen.</li>"+
   "</ul>"+
 
@@ -841,7 +842,7 @@ function manualNoteHtml(){return ""+
   "<li><b>Bilder &amp; Dateien:</b> Per Drag &amp; Drop, Einfügen oder über den Anhängen-Bereich. Alles wird verschlüsselt.</li>"+
   "<li><b>PDF-Vorschau:</b> PDFs zeigen ein Vorschaubild; Antippen öffnet eine Leseansicht mit eigener Volltextsuche.</li>"+
   "<li><b>Audio-Notizen:</b> Über das Mikrofon-Symbol direkt aufnehmen.</li>"+
-  "<li><b>OCR (Texterkennung):</b> Aus Bildern Text erkennen. Funktioniert beim Einfügen eines Bildes über das OCR-Symbol in der Werkzeugleiste und auch nachträglich bei bereits angehängten Bildern über deren „OCR“-Knopf. Bei <b>gescannten PDFs</b> (nur Bild, kein echter Text) gibt es ebenfalls einen „OCR“-Knopf am Anhang: Er liest jede Seite per Texterkennung, damit das PDF über die Volltextsuche auffindbar wird. Läuft vollständig lokal, sobald die Tesseract-Engine-Dateien eingerichtet sind (siehe Hinweis-Dialog).</li>"+
+  "<li><b>OCR (Texterkennung):</b> Aus Bildern Text erkennen. Funktioniert beim Einfügen eines Bildes über das OCR-Symbol in der Werkzeugleiste und auch nachträglich bei bereits angehängten Bildern über deren „OCR“-Knopf. Bei <b>gescannten PDFs</b> (nur Bild, kein echter Text) gibt es ebenfalls einen „OCR“-Knopf am Anhang: Er liest jede Seite per Texterkennung, damit das PDF über die Volltextsuche auffindbar wird. Läuft vollständig lokal, sobald die Tesseract-Engine-Dateien eingerichtet sind (siehe Hinweis-Dialog). <b>Hinweis:</b> Die Erkennung ist auf <b>gedruckten/getippten Text</b> ausgelegt und dort zuverlässig. <b>Handschrift</b> wird nur bei sehr sauberen Druckbuchstaben ansatzweise erkannt; normale Schreibschrift kann die lokale Engine nicht sinnvoll lesen – dafür bräuchte es Cloud-Dienste, die aber dem Datenschutz-Prinzip dieser App (alles lokal, nichts wird hochgeladen) widersprechen würden.</li>"+
   "<li><b>PDF-Viewer:</b> Angehängte PDFs öffnen sich im integrierten Betrachter mit Volltextsuche. PDFs mit echtem Text werden schon beim Anhängen automatisch durchsuchbar. Zoomen per +/−-Knopf, Strg+Mausrad, Doppelklick oder Pinch-Geste (zwei Finger); bei vergrösserter Ansicht lässt sich das PDF mit der Maus verschieben.</li>"+
   "</ul>"+
 
@@ -883,6 +884,9 @@ function manualNoteHtml(){return ""+
   "<li><b>Felder (Feld:: Wert):</b> Schreibe in eine Notiz ein Feld der Form <code>Baubeginn:: 1. März 2026</code> (Feldname, zwei Doppelpunkte, Wert). Mehrere verschiedene Felder pro Notiz sind möglich. Ein Wert darf auch <b>über mehrere Zeilen</b> gehen (z.B. eine Adresse) – er läuft bis zur nächsten Leerzeile, zum nächsten Feld oder bis zu einer Liste. Schreibst du <code>Rubrik::</code> ganz ohne Wert, dient es nur als Überschrift und sammelt nichts ein. <b>Soll eine Liste oder ein längerer Block zum Wert gehören</b>, setze ihn in Anführungszeichen: <code>Pendenzen:: \"</code> … Liste … <code>\"</code> – alles zwischen den Anführungszeichen (auch Aufzählungen) wird als Wert erfasst.</li>"+
   "<li><b>Felder-Rubrik &amp; Feld-Verzeichnis:</b> Alle verwendeten Feldnamen erscheinen automatisch links in der Seitenleiste unter „Felder“ – ein Klick zeigt alle Notizen mit diesem Feld. Über „⋯ → Feld-Verzeichnis“ fügst du zusätzlich ein lebendes Verzeichnis in eine Notiz ein, das alle Notizen mit diesem Feld samt Wert auflistet – ideal z.B. für Termine über mehrere Projekte hinweg. Es aktualisiert sich automatisch.</li>"+
   "<li><b>Rückgängig/Wiederherstellen:</b> Oben in der Notiz-Leiste stehen die Pfeil-Knöpfe zum Rückgängigmachen und Wiederherstellen (auch per Strg+Z bzw. Strg+Y).</li>"+
+  "<li><b>Mehrfachauswahl:</b> Über „⋯ → Mehrere auswählen…“ (oder den Auswahl-Knopf im Notizlisten-Kopf) lassen sich mehrere Notizen antippen und markieren. Mit „Links sammeln“ entsteht eine neue Notiz, die auf alle markierten verweist.</li>"+
+  "<li><b>Duplizieren:</b> Über das Notiz-Menü – erstellt eine Kopie samt Anhängen.</li>"+
+  "<li><b>Markdown-Export:</b> Über das Notiz-Menü lässt sich eine einzelne Notiz als <code>.md</code>-Datei exportieren (z.B. für Obsidian).</li>"+
   "</ul>"+
   "<h2>Sicherheit &amp; Backup</h2>"+
   "<ul>"+
