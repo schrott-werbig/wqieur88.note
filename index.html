@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https: https://*.pcloud.com https://login.microsoftonline.com https://graph.microsoft.com https://*.onedrive.com https://*.1drv.com https://*.sharepoint.com; font-src 'none'; media-src blob:; object-src 'none'; frame-src 'none'; worker-src 'self' blob:; child-src 'none'; manifest-src 'self'; base-uri 'none'; form-action 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https: http: https://*.pcloud.com https://login.microsoftonline.com https://graph.microsoft.com https://*.onedrive.com https://*.1drv.com https://*.sharepoint.com; font-src 'none'; media-src blob:; object-src 'none'; frame-src 'none'; worker-src 'self' blob:; child-src 'none'; manifest-src 'self'; base-uri 'none'; form-action 'none';">
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#13233f">
 <meta name="mobile-web-app-capable" content="yes">
@@ -680,7 +680,7 @@
 /* App-Version: wird bei JEDER Auslieferung erhöht (Datum.Laufnummer) und auf dem
    Sperrbildschirm angezeigt – so ist nach einem Update sofort sichtbar, ob die
    PWA bereits die neue Fassung geladen hat oder noch die alte aus dem Cache zeigt. */
-const APP_VERSION="2026-07-06.1";
+const APP_VERSION="2026-07-06.2";
 
 /* ---- IndexedDB ---- */
 const DB_NAME="secureNotesDB", DB_VER=2;
@@ -872,6 +872,8 @@ function manualNoteHtml(){return ""+
 
   "<h2>Geräte-Sync (Syncthing &amp; Co.)</h2>"+
   "<p>Über das Sync-Symbol (⟳) lässt sich der gesamte Tresor als <b>verschlüsselte Datei mit festem Namen</b> speichern. Legst du diese Datei in einen Ordner, den ein Sync-Programm wie <b>Syncthing</b> überwacht, gleicht es sie automatisch zwischen deinen Geräten ab. Auf jedem Gerät tippst du dann selbst auf „Aktualisieren“ (speichern) bzw. „Einlesen“ (importieren). Es findet bewusst kein automatisches Zusammenführen statt – du behältst die Kontrolle. Übertragen wird immer nur das <i>verschlüsselte</i> Paket.</p>"+
+  "<h3>Automatischer Sync (WebDAV, pCloud, OneDrive)</h3>"+
+  "<p>Für vollautomatischen Abgleich: In der Seitenleiste „Cloud-Sync“ wählen. <b>WebDAV</b> ist der einfachste Weg – er funktioniert mit NAS, Nextcloud oder einem eigenen Server (Einrichtung Schritt für Schritt in der Datei SYNC-EINRICHTUNG.txt im Programmpaket, inkl. Anleitung für einen eigenen Linux-Server). Ist der Sync verbunden, gleicht die App selbstständig ab: beim Entsperren, beim Zurückkehren in die App, kurz nach Änderungen und beim Verlassen. Notizen werden dabei <b>einzeln zusammengeführt</b> – auf zwei Geräten bearbeitete <i>verschiedene</i> Notizen bleiben beide erhalten; bei derselben Notiz gewinnt die neuere Fassung. Übertragen wird ausschliesslich das AES-256-verschlüsselte Paket, der Server sieht nie Klartext.</p>"+
 
   "<h2>Text anonymisieren (für KI)</h2>"+
   "<p>Über das Masken-Symbol oben neben den Einstellungen. Dieses Werkzeug ersetzt sensible Stellen in einem Text durch neutrale Platzhalter, damit du den Text gefahrlos mit einer KI bearbeiten kannst – und macht das alles <b>ohne KI</b>, rein lokal über Mustererkennung und deine eigene Begriffsliste.</p>"+
@@ -914,7 +916,7 @@ function manualNoteHtml(){return ""+
 async function launchApp(){$("lock").classList.add("hidden");$("app").classList.remove("hidden");applyTheme(vault.settings.theme||"light");applyAutolockSetting();$("sortSelect").value=vault.settings.sort||"updated";currentView={type:"all"};renderAll();resetAutolock();backInit();startReminderWatch();maybeHandleShare();await loadSyncCfg();updateSyncUI();const hadPending=!!pendingOAuth;await maybeCompleteOAuth();if(!hadPending&&sync&&sync.autoSync)syncNow(true);}
 
 /* ---- Persistenz ---- */
-function markDirty(){dirty=true;updateSaveState();clearTimeout(saveTimer);saveTimer=setTimeout(persist,600);}
+function markDirty(){dirty=true;updateSaveState();clearTimeout(saveTimer);saveTimer=setTimeout(persist,600);scheduleAutoPush();}
 async function persist(){if(!cryptoKey||!vault)return;try{const blob=await encryptObj(cryptoKey,vault);await idbPut("vault",{id:"vault",...blob});dirty=false;updateSaveState();}catch(e){toast("Speichern fehlgeschlagen");}}
 function updateSaveState(){const dot=$("saveDot"),t=$("saveText");if(!dot)return;if(dirty){dot.classList.add("dirty");t.textContent="Nicht gespeichert…";}else{dot.classList.remove("dirty");t.textContent="Gespeichert";}}
 
@@ -4513,7 +4515,7 @@ function openSyncModal(){
         '<input type="text" id="__wurl" placeholder="WebDAV-Adresse, z.B. https://nas.example.com/remote.php/dav/files/mike/Notizen/" autocomplete="off">'+
         '<input type="text" id="__wuser" placeholder="Benutzername" autocomplete="off">'+
         '<input type="password" id="__wpass" placeholder="Passwort (ggf. App-Passwort)" autocomplete="new-password">'+
-        '<p style="font-size:11.5px;color:var(--text-dim);margin:2px 0 0;">Die Adresse muss auf ein <b>bestehendes Verzeichnis</b> zeigen und mit <b>https://</b> beginnen. Zugangsdaten werden verschlüsselt lokal gespeichert. In die Cloud kommt nur das verschlüsselte Paket.</p>'+
+        '<p style="font-size:11.5px;color:var(--text-dim);margin:2px 0 0;">Die Adresse muss auf ein <b>bestehendes Verzeichnis</b> zeigen. <b>https://</b> funktioniert immer; <b>http://</b> (z.B. Server im Heimnetz) nur, wenn diese App selbst per http vom Server geladen wird – Details in SYNC-EINRICHTUNG.txt. Zugangsdaten werden verschlüsselt lokal gespeichert; übertragen wird nur das verschlüsselte Paket.</p>'+
       '</div>'+
       '<div id="__oauthFields" style="display:none;">'+
         '<input type="text" id="__cid" placeholder="Client-ID / App-ID">'+
@@ -4540,7 +4542,13 @@ async function connectFromModal(){
     const user=($("__wuser").value||"").trim();
     const pass=$("__wpass").value||"";
     const msg=$("__wmsg");msg.textContent="";
-    if(!/^https:\/\//i.test(url)){msg.textContent="Die Adresse muss mit https:// beginnen.";return;}
+    if(!/^https?:\/\//i.test(url)){msg.textContent="Die Adresse muss mit https:// oder http:// beginnen.";return;}
+    // Mixed-Content-Realität: Läuft DIESE App über https (z.B. GitHub Pages), blockiert der
+    // Browser jeden http://-Abruf hart. http-WebDAV geht nur, wenn die App selbst per http
+    // (z.B. direkt vom eigenen Server im LAN) oder von localhost geladen wurde.
+    if(/^http:\/\//i.test(url)&&location.protocol==="https:"&&!/^http:\/\/(localhost|127\.0\.0\.1)/i.test(url)){
+      msg.textContent="Diese App läuft über https – der Browser blockiert dann http-Ziele (Mixed Content). Entweder den Server per https erreichbar machen oder die App direkt vom Server (http) laden.";return;
+    }
     if(!user){msg.textContent="Bitte einen Benutzernamen eingeben.";return;}
     // Temporär sync setzen für den Test
     const prevSync=sync;
@@ -4563,6 +4571,21 @@ async function connectFromModal(){
 }
 $("syncBtn").addEventListener("click",openSyncModal);
 document.addEventListener("visibilitychange",()=>{if(document.hidden&&cryptoKey&&sync&&sync.autoSync)pushOnly();});
+/* Beim Zurückkehren in die App (Vordergrund): Änderungen der anderen Geräte holen.
+   Mindestabstand 60s, damit nicht jeder kurze Tab-Wechsel einen Sync auslöst. */
+document.addEventListener("visibilitychange",()=>{
+  if(!document.hidden&&cryptoKey&&sync&&sync.autoSync){
+    if(now()-(sync.lastSync||0)>60000)syncNow(true);
+  }
+});
+/* Auto-Push: nach der letzten Änderung 45s warten, dann verschlüsseltes Paket hochladen.
+   Der Timer wird bei jeder weiteren Änderung neu gestartet (kein Push mitten im Tippen). */
+let autoPushTimer=null;
+function scheduleAutoPush(){
+  if(!sync||!sync.autoSync||!cryptoKey)return;
+  clearTimeout(autoPushTimer);
+  autoPushTimer=setTimeout(()=>{pushOnly();},45000);
+}
 
 /* ---- Save on hide/close ---- */
 document.addEventListener("visibilitychange",()=>{if(document.hidden&&cryptoKey){saveCurrentNote(true);persist();}});
