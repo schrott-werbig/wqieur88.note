@@ -417,11 +417,15 @@
   .viewer-zoom{display:flex;align-items:center;gap:2px;background:rgba(255,255,255,.12);border-radius:7px;padding:2px;}
   .viewer-zoom button{font-size:18px;line-height:1;width:30px;height:30px;justify-content:center;padding:0;}
   .viewer-zoom #pvZoomLbl{font-size:12px;color:#fff;min-width:42px;text-align:center;}
-  /* PDF-Seiten-Wrapper: wird per scale() gezoomt. transform-origin oben-mitte für natürliches Gefühl. */
-  #pvPages{display:flex;flex-direction:column;align-items:center;gap:14px;transform-origin:top center;transition:transform .05s linear;}
+  /* PDF-Seiten-Wrapper: wird per scale() gezoomt. transform-origin top LEFT ist wichtig:
+     nur Überlauf nach rechts/unten ist scrollbar – bei "center" wäre die linke Hälfte
+     des gezoomten PDFs unerreichbar abgeschnitten. */
+  #pvPages{display:flex;flex-direction:column;align-items:center;gap:14px;transform-origin:top left;transition:transform .05s linear;}
   /* Im PDF-Viewer das Canvas NICHT auf 100% begrenzen, sonst kann nicht vergrössert werden. */
   #pvPages canvas{max-width:none;}
   .viewer-body.panning{cursor:grabbing;}
+  /* Eigene Pinch-Geste erlauben (Browser-Zoom der Seite nicht dazwischenfunken lassen) */
+  .viewer-body{touch-action:pan-x pan-y;}
 
   /* ---- Tabellen im Editor ---- */
   .ed-body table{border-collapse:collapse;width:100%;margin:.6em 0;font-size:14px;}
@@ -1208,7 +1212,7 @@ function bindDynamicBlockEvents(){
   // Lösch-Knopf entfernt den ganzen lebenden Block (Verzeichnis oder Einbettung) aus der Notiz.
   // Entfernt nur den Block hier – die eingebettete Originalnotiz bleibt selbstverständlich bestehen.
   eb.querySelectorAll('.block-del[data-block-del]').forEach(b=>{
-    b.onclick=e=>{e.preventDefault();e.stopPropagation();const block=b.closest(".tagindex,.fieldindex,.embed");if(block){block.remove();syncBody();toast("Block entfernt");}};
+    b.onclick=e=>{e.preventDefault();e.stopPropagation();const block=b.closest(".tagindex,.fieldindex,.embed,.calcblock");if(block){block.remove();syncBody();toast("Block entfernt");}};
   });
   // Direkte Bearbeitung im eingebetteten Block: Änderungen in die ZIELnotiz zurückschreiben.
   eb.querySelectorAll('.embed-body[data-embed-body]').forEach(body=>{
@@ -1542,6 +1546,7 @@ function insertTable(rows,cols){
 }
 /* Tab/Shift+Tab springt zwischen Tabellenzellen; Enter in letzter Zelle fügt neue Zeile hinzu */
 $("edBody").addEventListener("keydown",e=>{
+  if(e.target&&e.target.closest&&e.target.closest(".calcblock"))return; // Rechenblock: eigene Eingabe
   const sel=window.getSelection();if(!sel.rangeCount)return;
   let node=sel.getRangeAt(0).startContainer;if(node.nodeType===3)node=node.parentNode;
   const cell=node&&node.closest?node.closest("td,th"):null;if(!cell)return;
@@ -1935,7 +1940,17 @@ function evalCalcExpr(input, vars){
     if(num==="")throw new Error("Unerwartetes Zeichen: "+(s[i]||"Ende"));
     return applyPercent(parseFloat(num));
   }
-  function applyPercent(v){skip();if(s[i]==="%"){i++;return v/100;}return v;}
+  function applyPercent(v){
+    skip();
+    if(s[i]==="%"){
+      // Lookahead: folgt nach dem % ein Operand (Zahl/Klammer/Name), ist es der MODULO-Operator
+      // und gehört parseTerm – hier nicht konsumieren. Sonst: Prozent (/100).
+      let j=i+1;while(j<s.length&&/\s/.test(s[j]))j++;
+      if(j<s.length&&/[0-9.(a-zA-ZäöüÄÖÜ_π]/.test(s[j]))return v;
+      i++;return v/100;
+    }
+    return v;
+  }
   const result=parseExpr();
   skip();
   if(i<s.length)throw new Error("Rest: "+s.slice(i));
@@ -2729,6 +2744,8 @@ $("edBody").addEventListener("click",e=>{const a=e.target.closest("a");if(!a)ret
 /* ---- Keyboard ---- */
 $("edBody").addEventListener("keydown",e=>{
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"){e.preventDefault();syncBody();persist();toast("Gespeichert");return;}
+  // Eingaben im Rechenblock (textarea) nicht abfangen – dort gelten die normalen Textfeld-Regeln.
+  if(e.target&&e.target.closest&&e.target.closest(".calcblock"))return;
   if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&e.key.toLowerCase()==="y"){e.preventDefault();doRedo();return;}
   if((e.ctrlKey||e.metaKey)&&e.shiftKey&&e.key.toLowerCase()==="z"){e.preventDefault();doRedo();return;}
   if(e.key===" "){if(handleMarkdownShortcut(e))return;}
@@ -3083,11 +3100,18 @@ async function openPdfViewer(att){
     }
   },{passive:false});
   body.addEventListener("touchend",e=>{if(e.touches.length<2)pinchStart=0;});
-  // Bei vergrössertem PDF mit der Maus verschieben (Pan), wenn kein Text markiert wird
+  // Bei vergrössertem PDF mit der Maus verschieben (Pan), wenn kein Text markiert wird.
+  // Die window-Listener werden beim Schliessen des Viewers wieder entfernt (kein Leck).
   let panning=false,panX=0,panY=0,panSL=0,panST=0;
   body.addEventListener("mousedown",e=>{if(zoom<=1)return;if(e.target.closest(".pdf-hit-mark"))return;panning=true;panX=e.clientX;panY=e.clientY;panSL=body.scrollLeft;panST=body.scrollTop;body.classList.add("panning");});
-  window.addEventListener("mousemove",e=>{if(!panning)return;body.scrollLeft=panSL-(e.clientX-panX);body.scrollTop=panST-(e.clientY-panY);});
-  window.addEventListener("mouseup",()=>{if(panning){panning=false;body.classList.remove("panning");}});
+  const onPanMove=e=>{if(!panning)return;body.scrollLeft=panSL-(e.clientX-panX);body.scrollTop=panST-(e.clientY-panY);};
+  const onPanUp=()=>{if(panning){panning=false;body.classList.remove("panning");}};
+  window.addEventListener("mousemove",onPanMove);
+  window.addEventListener("mouseup",onPanUp);
+  const _origClose=close;
+  close=function(){window.removeEventListener("mousemove",onPanMove);window.removeEventListener("mouseup",onPanUp);const ix=viewerCloseFns.indexOf(close);if(ix>=0)viewerCloseFns.splice(ix,1);_origClose();};
+  // Hinweis: Der bestehende pvClose-Listener ruft über die Closure-Variable automatisch
+  // diese neue close-Funktion auf – KEIN zweiter Handler nötig (sonst liefe history.back doppelt).
   applyZoom();
   viewerCloseFns.push(close);
 }
@@ -3108,7 +3132,7 @@ const eb=$("edBody");
 ["dragenter","dragover"].forEach(ev=>eb.addEventListener(ev,e=>{e.preventDefault();eb.classList.add("dragover");}));
 ["dragleave","drop"].forEach(ev=>eb.addEventListener(ev,e=>{e.preventDefault();eb.classList.remove("dragover");}));
 eb.addEventListener("drop",async e=>{const n=cur();if(!n||n.trashed)return;const files=[...(e.dataTransfer.files||[])];if(!files.length)return;for(const f of files){if(f.type.startsWith("image/"))await insertInlineImage(f);else await addAttachment(f,false);}renderAttachments(n);renderNoteList();});
-eb.addEventListener("paste",async e=>{const n=cur();if(!n||n.trashed)return;const cd=e.clipboardData;const items=[...(cd?cd.items:[])];const imgs=items.filter(i=>i.kind==="file"&&i.type.startsWith("image/"));if(imgs.length){e.preventDefault();for(const it of imgs){const f=it.getAsFile();if(f)await insertInlineImage(f);}return;}const html=cd?cd.getData("text/html"):"";if(html){e.preventDefault();restoreSelection();document.execCommand("insertHTML",false,sanitizeHtml(html));bindChecklistEvents();syncBody();}});
+eb.addEventListener("paste",async e=>{if(e.target&&e.target.closest&&e.target.closest(".calcblock"))return;const n=cur();if(!n||n.trashed)return;const cd=e.clipboardData;const items=[...(cd?cd.items:[])];const imgs=items.filter(i=>i.kind==="file"&&i.type.startsWith("image/"));if(imgs.length){e.preventDefault();for(const it of imgs){const f=it.getAsFile();if(f)await insertInlineImage(f);}return;}const html=cd?cd.getData("text/html"):"";if(html){e.preventDefault();restoreSelection();document.execCommand("insertHTML",false,sanitizeHtml(html));bindChecklistEvents();syncBody();}});
 
 /* ---- OCR (lokal, selbst gehostet) ---- */
 let tessLoading=null;
@@ -4180,6 +4204,7 @@ function clipboardWrite(text){try{if(navigator.clipboard&&navigator.clipboard.wr
 /* Rechtsklick im Editor */
 $("edBody").addEventListener("contextmenu",e=>{
   if(isMobile())return; // auf Touch das System-Menü lassen
+  if(e.target&&e.target.closest&&e.target.closest(".calcblock"))return; // im Rechenblock: natives Menü (Kopieren/Einfügen)
   e.preventDefault();
   const sel=window.getSelection();
   const hasSel=sel&&!sel.isCollapsed&&sel.toString().trim().length>0;
