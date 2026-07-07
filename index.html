@@ -680,7 +680,7 @@
 /* App-Version: wird bei JEDER Auslieferung erhöht (Datum.Laufnummer) und auf dem
    Sperrbildschirm angezeigt – so ist nach einem Update sofort sichtbar, ob die
    PWA bereits die neue Fassung geladen hat oder noch die alte aus dem Cache zeigt. */
-const APP_VERSION="2026-07-06.4";
+const APP_VERSION="2026-07-07.1";
 
 /* ---- IndexedDB ---- */
 const DB_NAME="secureNotesDB", DB_VER=2;
@@ -1995,9 +1995,13 @@ function evalCalcBlock(text){
 function fmtCalcResult(v){
   if(v==null||isNaN(v))return "—";
   if(!isFinite(v))return v>0?"∞":"-∞";
-  if(Math.abs(v)>=1e12||(Math.abs(v)<1e-6&&v!==0))return v.toExponential(4);
-  let r=Math.round(v*1e8)/1e8;
-  return String(r);
+  // Gleitkomma-Rauschen wegrunden: 1-0.9-0.1 ergibt intern -2.8e-17 (binäre Arithmetik,
+  // 0.9/0.1 sind binär nicht exakt darstellbar) – solche Winzwerte sind praktisch immer 0.
+  if(Math.abs(v)<1e-14)return "0";
+  if(Math.abs(v)>=1e12||Math.abs(v)<1e-6)return v.toExponential(4);
+  // Auf 12 signifikante Stellen runden: entfernt Artefakte wie 0.30000000000000004,
+  // ohne bei grossen Zahlen Präzision zu verlieren.
+  return String(parseFloat(v.toPrecision(12)));
 }
 /* Alle Formelzellen einer Tabelle (oder aller Tabellen) neu berechnen. */
 /* Berechnet alle Formelzellen neu und zeigt das Ergebnis an – AUSSER bei Zellen, die gerade
