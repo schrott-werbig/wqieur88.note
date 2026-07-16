@@ -177,6 +177,8 @@
   .calcblock .calc-line b{color:#16a34a;}
   .calcblock .calc-name{color:var(--blue-600);}
   .calcblock .calc-err{color:var(--danger);}
+  .calcblock .calc-errtxt{font-size:10.5px;opacity:.75;}
+  .calcblock .calc-def{color:#8b5cf6;font-style:italic;}
   .calcblock .calc-comment{opacity:.3;}
   .embed .embed-body{padding:8px 12px;outline:none;}
   .embed .embed-body:focus{background:var(--panel);box-shadow:inset 0 0 0 2px var(--blue-500);border-radius:0 0 8px 8px;}
@@ -680,7 +682,7 @@
 /* App-Version: wird bei JEDER Auslieferung erhöht (Datum.Laufnummer) und auf dem
    Sperrbildschirm angezeigt – so ist nach einem Update sofort sichtbar, ob die
    PWA bereits die neue Fassung geladen hat oder noch die alte aus dem Cache zeigt. */
-const APP_VERSION="2026-07-07.1";
+const APP_VERSION="2026-07-07.2";
 
 /* ---- IndexedDB ---- */
 const DB_NAME="secureNotesDB", DB_VER=2;
@@ -895,7 +897,7 @@ function manualNoteHtml(){return ""+
   "<ul>"+
   "<li><b>Notizfarben:</b> Über das Notiz-Menü (Rechtsklick auf eine Notiz am Computer) oder im Werkzeug-Menü „⋯ → Notizfarbe“ lässt sich jeder Notiz eine Farbe geben – praktisch zum visuellen Sortieren.</li>"+
   "<li><b>Notiz einbetten (ganz oder kapitelweise):</b> Über „⋯ → Notiz einbetten“ lässt sich der Inhalt einer anderen Notiz lebendig einfügen – wahlweise die ganze Notiz oder nur ein einzelnes Kapitel (Abschnitt unter einer Überschrift). Beides ist <b>direkt an Ort und Stelle bearbeitbar</b>, auch die Überschrift eines eingebetteten Kapitels; jede Änderung wird automatisch in der Originalnotiz gespeichert und erscheint überall, wo sie eingebettet ist. Mit dem ✕ rechts im Block-Kopf lässt sich eine Einbettung wieder entfernen (die Originalnotiz bleibt erhalten).</li>"+
-  "<li><b>Rechenblock (🧮):</b> Über „⋯ → Rechenblock“ fügst du einen Mini-Rechner ein – ähnlich wie in MATLAB. Jede Zeile ist eine Rechnung oder eine Variablenzuweisung (<code>Radius = 5</code>), das Ergebnis erscheint rechts und aktualisiert sich live beim Tippen. Variablen können in folgenden Zeilen weiterverwendet werden. Unterstützt Grundrechnen, Klammern, Potenz (<code>^</code>), Prozent (<code>19%</code>), Konstanten (<code>pi</code>, <code>e</code>) und Funktionen wie <code>sqrt</code>, <code>wurzel</code>, <code>sin/cos/tan</code>, <code>log</code>, <code>exp</code>, <code>abs</code>, <code>round</code>, <code>min</code>, <code>max</code>, <code>summe</code>, <code>mittel</code>. Mit <code>//</code> beginnt eine Kommentarzeile. Rechnet vollständig lokal.</li>"+
+  "<li><b>Rechenblock (🧮):</b> Über „⋯ → Rechenblock“ fügst du einen Mini-Rechner ein – ähnlich wie in MATLAB. Jede Zeile ist eine Rechnung oder eine Variablenzuweisung (<code>Radius = 5</code>), das Ergebnis erscheint rechts und aktualisiert sich live beim Tippen. Variablen können in folgenden Zeilen weiterverwendet werden. Unterstützt Grundrechnen, Klammern, Potenz (<code>^</code>), Prozent (<code>19%</code>), Konstanten (<code>pi</code>, <code>e</code>) und Funktionen wie <code>sqrt</code>, <code>wurzel</code>, <code>sin/cos/tan</code>, <code>log</code>, <code>exp</code>, <code>abs</code>, <code>round</code>, <code>min</code>, <code>max</code>, <code>summe</code>, <code>mittel</code>. Mit <code>//</code> beginnt eine Kommentarzeile. Rechnet vollständig lokal.<br><b>Listen &amp; Formeln:</b> <code>werte = [1, 2, 3]</code> oder <code>jahre = folge(1, 10)</code> erzeugt eine Liste; alle Rechnungen wirken <b>elementweise</b> (<code>1000 * 1.05^jahre</code> ergibt den Kontostand für jedes Jahr – das ersetzt Schleifen wie in MATLAB). Eigene Formeln definierst du mit <code>f(x) = x^2 - 2</code> und wendest sie auf Einzelwerte oder ganze Listen an: <code>f(werte)</code>. <b>Gleichung lösen:</b> <code>solve(f, 1)</code> sucht numerisch die Nullstelle von f nahe dem Startwert (oder <code>solve(f, von, bis)</code> im Bereich). <b>Schleife:</b> <code>iter(f, startwert, anzahl)</code> wendet f wiederholt an (z.B. Zinseszins: <code>f(k) = k * 1.05</code>, dann <code>iter(f, 1000, 10)</code>). In Listen und Funktionsklammern ist das Komma Trenner – Dezimalzahlen dort mit Punkt schreiben.</li>"+
   "<li><b>Felder (Feld:: Wert):</b> Schreibe in eine Notiz ein Feld der Form <code>Baubeginn:: 1. März 2026</code> (Feldname, zwei Doppelpunkte, Wert). Mehrere verschiedene Felder pro Notiz sind möglich. Ein Wert darf auch <b>über mehrere Zeilen</b> gehen (z.B. eine Adresse) – er läuft bis zur nächsten Leerzeile, zum nächsten Feld oder bis zu einer Liste. Schreibst du <code>Rubrik::</code> ganz ohne Wert, dient es nur als Überschrift und sammelt nichts ein. <b>Soll eine Liste oder ein längerer Block zum Wert gehören</b>, setze ihn in Anführungszeichen: <code>Pendenzen:: \"</code> … Liste … <code>\"</code> – alles zwischen den Anführungszeichen (auch Aufzählungen) wird als Wert erfasst.</li>"+
   "<li><b>Felder-Rubrik &amp; Feld-Verzeichnis:</b> Alle verwendeten Feldnamen erscheinen automatisch links in der Seitenleiste unter „Felder“ – ein Klick zeigt alle Notizen mit diesem Feld. Über „⋯ → Feld-Verzeichnis“ fügst du zusätzlich ein lebendes Verzeichnis in eine Notiz ein, das alle Notizen mit diesem Feld samt Wert auflistet – ideal z.B. für Termine über mehrere Projekte hinweg. Es aktualisiert sich automatisch.</li>"+
   "<li><b>Rückgängig/Wiederherstellen:</b> Oben in der Notiz-Leiste stehen die Pfeil-Knöpfe zum Rückgängigmachen und Wiederherstellen (auch per Strg+Z bzw. Strg+Y).</li>"+
@@ -1149,9 +1151,10 @@ function renderDynamicBlocks(n){
       const results=evalCalcBlock(ta.value);
       res.innerHTML=results.map(r=>{
         if(r.comment)return '<div class="calc-line calc-comment">&nbsp;</div>';
-        if(r.error)return '<div class="calc-line calc-err" title="'+escapeHtml(r.error)+'">⚠</div>';
+        if(r.error)return '<div class="calc-line calc-err" title="'+escapeHtml(r.error)+'">⚠ <span class="calc-errtxt">'+escapeHtml(r.error)+'</span></div>';
+        if(r.def)return '<div class="calc-line calc-def">ƒ '+escapeHtml(r.def)+'</div>';
         const label=r.name?'<span class="calc-name">'+escapeHtml(r.name)+'</span> = ':'';
-        return '<div class="calc-line">'+label+'<b>'+fmtCalcResult(r.result)+'</b></div>';
+        return '<div class="calc-line" title="'+escapeHtml(fmtCalcResult(r.result))+'">'+label+'<b>'+escapeHtml(fmtCalcResult(r.result))+'</b></div>';
       }).join("");
       // Höhe der Eingabe an Inhalt anpassen
       ta.style.height="auto";ta.style.height=Math.max(ta.scrollHeight,40)+"px";
@@ -1358,13 +1361,71 @@ $("newNoteBtn").addEventListener("click",()=>createNewNote(true));
 
 /* ---- Selection helpers ---- */
 document.addEventListener("selectionchange",()=>{const sel=window.getSelection();if(sel.rangeCount&&$("edBody").contains(sel.anchorNode))savedRange=sel.getRangeAt(0).cloneRange();});
+/* ---- Editor-Struktur normalisieren ----
+   Chromes natives "Liste entfernen" hinterlässt Zeilen oft als NACKTE Textknoten mit <br>
+   dazwischen (ohne <p>-Hülle) direkt im Editor-Wurzelelement. Ein späteres
+   insertUnorderedList auf solchen Pseudo-Zeilen trifft dann scheinbar willkürlich die
+   falsche Zeile. Diese Funktion packt alle losen Zeilen in echte <p>-Blöcke –
+   die Cursor-Position wird über einen unsichtbaren Marker exakt erhalten. */
+function normalizeEditorBlocks(){
+  const eb=$("edBody");
+  const isBlock=n=>n.nodeType===1&&(/^(P|DIV|UL|OL|H1|H2|H3|TABLE|BLOCKQUOTE|PRE|HR)$/.test(n.tagName));
+  // Gibt es überhaupt lose Inline-Knoten auf oberster Ebene? Sonst nichts tun.
+  let hasLoose=false;
+  for(const c of eb.childNodes){if(!isBlock(c)&&!(c.nodeType===3&&!c.textContent.trim())){hasLoose=true;break;}}
+  if(!hasLoose)return;
+  // Cursor mit Marker sichern (wandert beim Umhängen automatisch mit)
+  const sel=window.getSelection();let marker=null;
+  if(sel.rangeCount&&eb.contains(sel.anchorNode)){
+    marker=document.createTextNode("\u200b");
+    const r=sel.getRangeAt(0).cloneRange();r.collapse(true);
+    try{r.insertNode(marker);}catch(e){marker=null;}
+  }
+  let node=eb.firstChild;
+  while(node){
+    if(isBlock(node)){node=node.nextSibling;continue;}
+    // Inline-Sequenz bis zum nächsten Block einsammeln
+    const seq=[];let n=node;
+    while(n&&!isBlock(n)){seq.push(n);n=n.nextSibling;}
+    // An <br> in Zeilen aufteilen
+    const lines=[[]];
+    seq.forEach(x=>{if(x.nodeType===1&&x.tagName==="BR")lines.push([]);else lines[lines.length-1].push(x);});
+    // Ein abschliessendes Leer-"line" (durch <br> direkt vor einem Block) erzeugt KEINEN
+    // eigenen Absatz – das <br> war dort nur Zeilenende, keine sichtbare Leerzeile.
+    if(lines.length>1&&lines[lines.length-1].length===0)lines.pop();
+    const frag=document.createDocumentFragment();
+    lines.forEach(parts=>{
+      const p=document.createElement("p");
+      parts.forEach(x=>p.appendChild(x)); // verschiebt die Knoten (Cursor-Marker wandert mit)
+      if(!p.textContent.replace(/\u200b/g,"").trim()&&!p.querySelector("img,input,a"))p.appendChild(document.createElement("br"));
+      frag.appendChild(p);
+    });
+    // Übrig gebliebene <br> der Sequenz entfernen
+    seq.forEach(x=>{if(x.parentNode===eb)eb.removeChild(x);});
+    eb.insertBefore(frag,n||null);
+    node=n;
+  }
+  // Cursor an die Markerstelle zurücksetzen, Marker entfernen
+  if(marker&&marker.parentNode){
+    const p=marker.parentNode;const idx=Array.prototype.indexOf.call(p.childNodes,marker);
+    marker.remove();
+    const r=document.createRange();
+    try{r.setStart(p,Math.min(idx,p.childNodes.length));r.collapse(true);sel.removeAllRanges();sel.addRange(r);}catch(e){}
+  }
+}
+/* Listen-Befehle immer mit Struktur-Normalisierung davor UND danach ausführen. */
+function execListCommand(cmd){
+  normalizeEditorBlocks();
+  document.execCommand(cmd,false,null);
+  normalizeEditorBlocks();
+}
 function restoreSelection(){$("edBody").focus();const sel=window.getSelection();if(savedRange){sel.removeAllRanges();sel.addRange(savedRange);}else{const r=document.createRange();r.selectNodeContents($("edBody"));r.collapse(false);sel.removeAllRanges();sel.addRange(r);}}
 
 /* ---- Toolbar ---- */
 $("edBody").addEventListener("keyup",updateToolbarState);
 $("edBody").addEventListener("mouseup",updateToolbarState);
 function updateToolbarState(){["bold","italic","underline","strikeThrough"].forEach(c=>{const btn=document.querySelector('.tb-btn[data-cmd="'+c+'"]');if(btn)try{btn.classList.toggle("on",document.queryCommandState(c));}catch(e){}});}
-document.querySelectorAll('.tb-btn[data-cmd],.mt-item[data-cmd]').forEach(btn=>{btn.addEventListener("mousedown",e=>e.preventDefault());btn.addEventListener("click",()=>{const cmd=btn.dataset.cmd,val=btn.dataset.val;$("edBody").focus();if(cmd==="formatBlock")document.execCommand("formatBlock",false,val);else document.execCommand(cmd,false,null);syncBody();updateToolbarState();closeMoreTools();});});
+document.querySelectorAll('.tb-btn[data-cmd],.mt-item[data-cmd]').forEach(btn=>{btn.addEventListener("mousedown",e=>e.preventDefault());btn.addEventListener("click",()=>{const cmd=btn.dataset.cmd,val=btn.dataset.val;$("edBody").focus();if(cmd==="formatBlock")document.execCommand("formatBlock",false,val);else if(cmd==="insertUnorderedList"||cmd==="insertOrderedList")execListCommand(cmd);else document.execCommand(cmd,false,null);syncBody();updateToolbarState();closeMoreTools();});});
 
 /* "Mehr"-Werkzeuge-Menü öffnen/schliessen und Einträge an die bestehenden Funktionen weiterleiten */
 function closeMoreTools(){const m=$("moreTools");if(m){m.classList.add("hidden");document.removeEventListener("click",moreOutside,true);}}
@@ -1860,6 +1921,8 @@ function evalArithmetic(input){
    Unterstützt: + - * / , Klammern, ^ (Potenz), % (am Ende = Prozent, also /100),
    Funktionen (sqrt, sin, cos, tan, asin, acos, atan, log, ln, log10, exp, abs, round, floor,
    ceil, min, max, sum, mittel/avg, wurzel, pi(), …) und Konstanten (pi, e). */
+/* ===== Rechenblock-Engine v2: Listen, elementweises Rechnen, eigene Funktionen,
+   solve (Nullstellensuche) und iter (Schleife) – alles CSP-sicher ohne eval. ===== */
 const CALC_FUNCS={
   sqrt:a=>Math.sqrt(a), wurzel:a=>Math.sqrt(a),
   sin:a=>Math.sin(a), cos:a=>Math.cos(a), tan:a=>Math.tan(a),
@@ -1869,21 +1932,85 @@ const CALC_FUNCS={
   exp:a=>Math.exp(a), abs:a=>Math.abs(a), sign:a=>Math.sign(a),
   round:(a,b)=>{const f=Math.pow(10,b||0);return Math.round(a*f)/f;},
   floor:a=>Math.floor(a), ceil:a=>Math.ceil(a),
-  min:(...a)=>Math.min(...a), max:(...a)=>Math.max(...a),
-  sum:(...a)=>a.reduce((x,y)=>x+y,0), summe:(...a)=>a.reduce((x,y)=>x+y,0),
-  mittel:(...a)=>a.reduce((x,y)=>x+y,0)/a.length, avg:(...a)=>a.reduce((x,y)=>x+y,0)/a.length,
   mod:(a,b)=>a%b, pow:(a,b)=>Math.pow(a,b),
 };
+/* Aggregatfunktionen: erhalten alle Werte (Listen werden ausgebreitet) als flache Zahlenliste. */
+const CALC_AGG={
+  min:a=>Math.min(...a), max:a=>Math.max(...a),
+  sum:a=>a.reduce((x,y)=>x+y,0), summe:a=>a.reduce((x,y)=>x+y,0),
+  mittel:a=>a.reduce((x,y)=>x+y,0)/a.length, avg:a=>a.reduce((x,y)=>x+y,0)/a.length,
+  laenge:a=>a.length, len:a=>a.length, anzahl:a=>a.length,
+};
 const CALC_CONSTS={pi:Math.PI, e:Math.E, "π":Math.PI};
-function evalCalcExpr(input, vars){
-  let s=String(input),i=0,argDepth=0; // argDepth>0 = innerhalb einer Funktions-Argumentliste
-  vars=vars||{};
+const isCalcArr=v=>Array.isArray(v);
+/* Broadcast: wendet f elementweise an, sobald ein Argument eine Liste ist.
+   Skalare werden auf die Listenlänge "gedehnt"; mehrere Listen müssen gleich lang sein. */
+function calcBroadcast(args,f){
+  let len=null;
+  for(const a of args){if(isCalcArr(a)){if(len===null)len=a.length;else if(a.length!==len)throw new Error("Listen ungleicher Länge ("+len+" vs "+a.length+")");}}
+  if(len===null)return f(...args);
+  const out=new Array(len);
+  for(let i=0;i<len;i++)out[i]=f(...args.map(a=>isCalcArr(a)?a[i]:a));
+  return out;
+}
+function calcFlat(args){const out=[];args.forEach(a=>{if(isCalcArr(a))a.forEach(x=>out.push(x));else out.push(a);});return out;}
+/* Eigene Funktion aufrufen (mit Broadcast über Listen-Argumente).
+   Parameter überlagern die Block-Variablen; Rekursionstiefe begrenzt. */
+function callCalcUserFunc(def,args,vars,funcs,depth){
+  if(args.length!==def.params.length)throw new Error(def.name+" erwartet "+def.params.length+" Argument(e)");
+  if(depth>50)throw new Error("Zu tiefe Verschachtelung");
+  return calcBroadcast(args,(...sc)=>{
+    const local=Object.create(vars);
+    def.params.forEach((p,i)=>{local[p]=sc[i];});
+    return evalCalcExpr(def.expr,local,funcs,depth+1);
+  });
+}
+/* Numerische Nullstellensuche: solve(f, start) oder solve(f, von, bis).
+   Mit Intervall und Vorzeichenwechsel: Bisektion (robust). Sonst: Sekantenverfahren. */
+function calcSolve(f,a,b){
+  const F=x=>{const v=f(x);if(isCalcArr(v))throw new Error("solve: Funktion muss einen Einzelwert liefern");return v;};
+  let lo,hi;
+  if(b!=null){lo=Math.min(a,b);hi=Math.max(a,b);}
+  else{
+    let d=Math.max(0.1,Math.abs(a)*0.5);lo=a-d;hi=a+d;
+    for(let k=0;k<60;k++){
+      const flo=F(lo),fa=F(a),fhi=F(hi);
+      if(isFinite(flo)&&isFinite(fa)&&flo*fa<=0){hi=a;break;}
+      if(isFinite(fa)&&isFinite(fhi)&&fa*fhi<=0){lo=a;break;}
+      d*=1.7;lo=a-d;hi=a+d;
+    }
+  }
+  let flo=F(lo),fhi=F(hi);
+  if(isFinite(flo)&&Math.abs(flo)<1e-14)return lo;
+  if(isFinite(fhi)&&Math.abs(fhi)<1e-14)return hi;
+  if(!(isFinite(flo)&&isFinite(fhi))||flo*fhi>0){
+    // Kein sicherer Vorzeichenwechsel: Sekantenverfahren ab dem Startbereich
+    let x0=a,x1=(b!=null?b:a+Math.max(0.1,Math.abs(a)*0.1)),f0=F(x0),f1=F(x1);
+    for(let i=0;i<200;i++){
+      const dn=f1-f0;if(!dn||!isFinite(dn))break;
+      const x2=x1-f1*(x1-x0)/dn;if(!isFinite(x2))break;
+      x0=x1;f0=f1;x1=x2;f1=F(x1);
+      if(isFinite(f1)&&Math.abs(f1)<1e-12)return x1;
+    }
+    throw new Error("solve: keine Nullstelle gefunden – anderen Startwert oder Bereich angeben");
+  }
+  for(let i=0;i<200;i++){
+    const m=(lo+hi)/2,fm=F(m);
+    if(!isFinite(fm))throw new Error("solve: Funktion nicht auswertbar");
+    if(Math.abs(fm)<1e-14||hi-lo<1e-13)return m;
+    if(flo*fm<0){hi=m;fhi=fm;}else{lo=m;flo=fm;}
+  }
+  return (lo+hi)/2;
+}
+function evalCalcExpr(input, vars, funcs, depth){
+  let s=String(input),i=0,argDepth=0; // argDepth>0 = innerhalb einer Argument-/Listenaufzählung
+  vars=vars||{};funcs=funcs||{};depth=depth||0;
   function skip(){while(i<s.length&&/\s/.test(s[i]))i++;}
   function parseExpr(){
     let v=parseTerm();
     for(;;){skip();const c=s[i];
-      if(c==="+"){i++;v+=parseTerm();}
-      else if(c==="-"){i++;v-=parseTerm();}
+      if(c==="+"){i++;v=calcBroadcast([v,parseTerm()],(a,b)=>a+b);}
+      else if(c==="-"){i++;v=calcBroadcast([v,parseTerm()],(a,b)=>a-b);}
       else break;
     }
     return v;
@@ -1891,12 +2018,11 @@ function evalCalcExpr(input, vars){
   function parseTerm(){
     let v=parsePower();
     for(;;){skip();const c=s[i];
-      if(c==="*"){i++;v*=parsePower();}
-      else if(c==="/"){i++;v=v/parsePower();}
-      else if(c==="%"){ // Modulo nur wenn danach noch ein Faktor kommt, sonst Prozent (in parseFactor)
-        // Hier als Modulo behandeln, wenn ein Operand folgt
+      if(c==="*"){i++;v=calcBroadcast([v,parsePower()],(a,b)=>a*b);}
+      else if(c==="/"){i++;v=calcBroadcast([v,parsePower()],(a,b)=>a/b);}
+      else if(c==="%"){
         const save=i;i++;skip();
-        if(i<s.length&&/[0-9.([a-zA-ZäöüÄÖÜ_π]/.test(s[i])){v=v%parsePower();}
+        if(i<s.length&&/[0-9.([a-zA-ZäöüÄÖÜ_π]/.test(s[i])){v=calcBroadcast([v,parsePower()],(a,b)=>a%b);}
         else{i=save;break;}
       }
       else break;
@@ -1906,44 +2032,100 @@ function evalCalcExpr(input, vars){
   function parsePower(){
     let base=parseFactor();
     skip();
-    if(s[i]==="^"){i++;const exp=parsePower();return Math.pow(base,exp);} // rechts-assoziativ
+    if(s[i]==="^"){i++;const exp=parsePower();return calcBroadcast([base,exp],(a,b)=>Math.pow(a,b));}
     return base;
+  }
+  function parseName(){
+    skip();
+    if(!/[a-zA-ZäöüÄÖÜ_π]/.test(s[i]||""))return null;
+    let st=i;while(i<s.length&&/[a-zA-Z0-9äöüÄÖÜ_π]/.test(s[i]))i++;
+    return s.slice(st,i);
+  }
+  function parseArgs(){
+    const args=[];skip();
+    if(s[i]!==")"){
+      argDepth++;
+      args.push(parseExpr());
+      for(;;){skip();if(s[i]===","){i++;args.push(parseExpr());}else break;}
+      argDepth--;
+    }
+    skip();if(s[i]===")")i++;else throw new Error("Klammer ) fehlt");
+    return args;
+  }
+  function resolveFuncRef(fname){
+    if(funcs[fname])return x=>callCalcUserFunc(funcs[fname],[x],vars,funcs,depth);
+    const lc=fname.toLowerCase();
+    if(CALC_FUNCS[lc])return x=>CALC_FUNCS[lc](x);
+    throw new Error("Unbekannte Funktion: "+fname);
   }
   function parseFactor(){
     skip();
     if(s[i]==="+"){i++;return parseFactor();}
-    if(s[i]==="-"){i++;return -parseFactor();}
+    if(s[i]==="-"){i++;const v=parseFactor();return calcBroadcast([v],a=>-a);}
     if(s[i]==="("){i++;const v=parseExpr();skip();if(s[i]===")")i++;return applyPercent(v);}
+    // Listen-Literal [1, 2, 3]
+    if(s[i]==="["){
+      i++;const items=[];skip();
+      if(s[i]!=="]"){
+        argDepth++;
+        items.push(parseExpr());
+        for(;;){skip();if(s[i]===","){i++;items.push(parseExpr());}else break;}
+        argDepth--;
+      }
+      skip();if(s[i]==="]")i++;else throw new Error("Klammer ] fehlt");
+      items.forEach(x=>{if(isCalcArr(x))throw new Error("Verschachtelte Listen werden nicht unterstützt");});
+      return applyPercent(items);
+    }
     // Name (Variable, Funktion oder Konstante)
     if(/[a-zA-ZäöüÄÖÜ_π]/.test(s[i])){
-      let start=i;
-      while(i<s.length&&/[a-zA-Z0-9äöüÄÖÜ_π]/.test(s[i]))i++;
-      const name=s.slice(start,i);
+      const name=parseName();
       skip();
-      if(s[i]==="("){ // Funktionsaufruf
-        i++;const args=[];
-        skip();
-        if(s[i]!==")"){
-          argDepth++;
-          args.push(parseExpr());
-          for(;;){skip();if(s[i]===","){i++;args.push(parseExpr());}else break;}
-          argDepth--;
+      if(s[i]==="("){
+        i++;
+        const lc=name.toLowerCase();
+        // solve/iter: erstes Argument ist ein FUNKTIONSNAME
+        if(lc==="solve"||lc==="iter"){
+          const fname=parseName();
+          if(!fname)throw new Error(lc+": zuerst den Funktionsnamen angeben");
+          const fref=resolveFuncRef(fname);
+          skip();if(s[i]===",")i++;else throw new Error(lc+": Argumente fehlen");
+          const rest=parseArgs();
+          if(lc==="solve"){
+            if(rest.length<1||rest.length>2)throw new Error("solve(f, start) oder solve(f, von, bis)");
+            return applyPercent(calcSolve(fref,rest[0],rest[1]));
+          }
+          // iter(f, startwert, anzahl): f wiederholt anwenden (Schleife)
+          if(rest.length!==2)throw new Error("iter(f, startwert, anzahl)");
+          let x=rest[0];const n=Math.floor(rest[1]);
+          if(!isFinite(n)||n<0||n>100000)throw new Error("iter: Anzahl 0–100000");
+          for(let k=0;k<n;k++)x=fref(x);
+          return applyPercent(x);
         }
-        skip();if(s[i]===")")i++;
-        const fn=CALC_FUNCS[name.toLowerCase()];
+        const args=parseArgs();
+        if(funcs[name])return applyPercent(callCalcUserFunc(funcs[name],args,vars,funcs,depth));
+        if(lc==="folge"){
+          // folge(start, ende, schritt=1) -> Liste
+          if(args.length<2||args.length>3)throw new Error("folge(start, ende, schritt)");
+          const st=args[0],en=args[1],sp=args.length===3?args[2]:(en>=st?1:-1);
+          if(!sp||(en-st)/sp<0)throw new Error("folge: Schritt passt nicht zur Richtung");
+          const cnt=Math.floor((en-st)/sp+1e-9)+1;
+          if(cnt>100000)throw new Error("folge: zu viele Werte (max 100000)");
+          const out=[];for(let k=0;k<cnt;k++)out.push(st+k*sp);
+          return applyPercent(out);
+        }
+        if(CALC_AGG[lc])return applyPercent(CALC_AGG[lc](calcFlat(args)));
+        const fn=CALC_FUNCS[lc];
         if(!fn)throw new Error("Unbekannte Funktion: "+name);
-        return applyPercent(fn(...args));
+        return applyPercent(calcBroadcast(args,fn));
       }
-      // Konstante?
       const lc=name.toLowerCase();
       if(lc in CALC_CONSTS)return applyPercent(CALC_CONSTS[lc]);
-      if(name==="π")return applyPercent(Math.PI);
-      // Variable?
       if(name in vars)return applyPercent(vars[name]);
       if(lc in vars)return applyPercent(vars[lc]);
+      if(funcs[name])throw new Error(name+" ist eine Funktion – mit Klammern aufrufen: "+name+"(…)");
       throw new Error("Unbekannte Variable: "+name);
     }
-    // Zahl. Dezimalkomma nur AUSSERHALB von Funktionsargumenten erlaubt (dort ist , ein Trenner).
+    // Zahl. Dezimalkomma nur AUSSERHALB von Argument-/Listenaufzählungen (dort ist , ein Trenner).
     let start=i;
     while(i<s.length&&/[0-9._]/.test(s[i]))i++;
     if(argDepth===0&&s[i]===","&&/[0-9]/.test(s[i+1])){i++;while(i<s.length&&/[0-9]/.test(s[i]))i++;}
@@ -1954,11 +2136,9 @@ function evalCalcExpr(input, vars){
   function applyPercent(v){
     skip();
     if(s[i]==="%"){
-      // Lookahead: folgt nach dem % ein Operand (Zahl/Klammer/Name), ist es der MODULO-Operator
-      // und gehört parseTerm – hier nicht konsumieren. Sonst: Prozent (/100).
       let j=i+1;while(j<s.length&&/\s/.test(s[j]))j++;
-      if(j<s.length&&/[0-9.(a-zA-ZäöüÄÖÜ_π]/.test(s[j]))return v;
-      i++;return v/100;
+      if(j<s.length&&/[0-9.(a-zA-ZäöüÄÖÜ_π[]/.test(s[j]))return v; // Modulo -> gehört parseTerm
+      i++;return calcBroadcast([v],a=>a/100);
     }
     return v;
   }
@@ -1967,32 +2147,48 @@ function evalCalcExpr(input, vars){
   if(i<s.length)throw new Error("Rest: "+s.slice(i));
   return result;
 }
-/* Wertet einen ganzen Rechenblock (mehrere Zeilen) aus. Jede Zeile ist entweder
-   "Name = Ausdruck" (Zuweisung) oder ein reiner Ausdruck. Liefert pro Zeile ein Ergebnis. */
+/* Wertet einen ganzen Rechenblock aus. Zeilen:
+   "f(x) = Ausdruck"  -> Funktionsdefinition
+   "Name = Ausdruck"  -> Variablenzuweisung
+   "Ausdruck"         -> Rechnung
+   Kommentare mit // oder #. Fehler bleiben pro Zeile isoliert. */
 function evalCalcBlock(text){
-  const vars={};
+  const vars={},funcs={};
   const lines=String(text||"").split("\n");
   return lines.map(line=>{
     const raw=line.trim();
     if(raw===""||raw.startsWith("//")||raw.startsWith("#"))return {line,result:null,comment:true};
     try{
-      // Zuweisung erkennen: Name = Ausdruck  (ein einzelnes =, nicht == )
-      const m=raw.match(/^([a-zA-ZäöüÄÖÜ_π][a-zA-Z0-9äöüÄÖÜ_π]*)\s*=\s*(.+)$/);
-      if(m&&!m[2].startsWith("=")){
+      // Funktionsdefinition: name(p1, p2) = Ausdruck
+      const fm=raw.match(/^([a-zA-ZäöüÄÖÜ_π][a-zA-Z0-9äöüÄÖÜ_π]*)\s*\(\s*([a-zA-ZäöüÄÖÜ_π][a-zA-Z0-9äöüÄÖÜ_π]*(?:\s*,\s*[a-zA-ZäöüÄÖÜ_π][a-zA-Z0-9äöüÄÖÜ_π]*)*)\s*\)\s*=\s*(?!=)(.+)$/);
+      if(fm){
+        const name=fm[1],params=fm[2].split(",").map(x=>x.trim());
+        funcs[name]={name,params,expr:fm[3]};
+        return {line,def:name+"("+params.join(", ")+")"};
+      }
+      const m=raw.match(/^([a-zA-ZäöüÄÖÜ_π][a-zA-Z0-9äöüÄÖÜ_π]*)\s*=\s*(?!=)(.+)$/);
+      if(m){
         const name=m[1];
-        const val=evalCalcExpr(m[2],vars);
+        const val=evalCalcExpr(m[2],vars,funcs,0);
         vars[name]=val;
         return {line,name,result:val};
       }
-      const val=evalCalcExpr(raw,vars);
+      const val=evalCalcExpr(raw,vars,funcs,0);
       return {line,result:val};
     }catch(err){
       return {line,error:(err&&err.message)||"Fehler"};
     }
   });
 }
-/* Formatiert ein Rechenergebnis lesbar (begrenzte Nachkommastellen, Tausender unverändert). */
+/* Formatiert ein Rechenergebnis lesbar; Listen werden gekürzt angezeigt. */
 function fmtCalcResult(v){
+  if(isCalcArr(v)){
+    const shown=v.slice(0,8).map(fmtCalcNum);
+    return "["+shown.join(", ")+(v.length>8?", … ("+v.length+" Werte)":"")+"]";
+  }
+  return fmtCalcNum(v);
+}
+function fmtCalcNum(v){
   if(v==null||isNaN(v))return "—";
   if(!isFinite(v))return v>0?"∞":"-∞";
   // Gleitkomma-Rauschen wegrunden: 1-0.9-0.1 ergibt intern -2.8e-17 (binäre Arithmetik,
@@ -2665,6 +2861,7 @@ function toggleChecklist(){
 }
 function insertChecklistItem(){
   $("edBody").focus();
+  normalizeEditorBlocks(); // lose Zeilen erst in echte Absätze packen, sonst landet die Checkbox falsch
   const id="cb"+uid();
   document.execCommand("insertHTML",false,'<ul class="checklist"><li><input type="checkbox" id="'+id+'"><span>\u200b</span></li></ul>');
   bindChecklistEvents();
@@ -2806,6 +3003,7 @@ function handleMarkdownShortcut(e){
   deleteLineagePrefix(node,offset);
   $("edBody").focus();
   if(action[0]==="formatBlock")document.execCommand("formatBlock",false,action[1]);
+  else if(action[0]==="insertUnorderedList"||action[0]==="insertOrderedList")execListCommand(action[0]);
   else document.execCommand(action[0],false,null);
   syncBody();updateToolbarState();
   return true;
