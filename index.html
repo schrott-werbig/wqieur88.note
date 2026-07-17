@@ -682,7 +682,7 @@
 /* App-Version: wird bei JEDER Auslieferung erhöht (Datum.Laufnummer) und auf dem
    Sperrbildschirm angezeigt – so ist nach einem Update sofort sichtbar, ob die
    PWA bereits die neue Fassung geladen hat oder noch die alte aus dem Cache zeigt. */
-const APP_VERSION="2026-07-07.2";
+const APP_VERSION="2026-07-17.1";
 
 /* ---- IndexedDB ---- */
 const DB_NAME="secureNotesDB", DB_VER=2;
@@ -711,6 +711,10 @@ async function decryptBytes(key,rec){return crypto.subtle.decrypt({name:"AES-GCM
 
 /* ---- Status ---- */
 let cryptoKey=null, vault=null;
+/* Tresor-Passwort der laufenden Sitzung – NUR im Arbeitsspeicher, nie gespeichert, beim Sperren
+   gelöscht. Wird gebraucht, um Sync-Pakete zu lesen, die von einem Tresor mit anderem Salt stammen
+   (gleiches Passwort ergibt bei anderem Salt einen anderen Schlüssel). */
+let sessionPw=null;
 let viewerCloseFns=[];
 let currentView={type:"all"}, currentNoteId=null;
 let saveTimer=null, dirty=false, autolockTimer=null, edLoading=false, savedRange=null;
@@ -782,16 +786,17 @@ async function doUnlock(){
   try{
     if(isSetup){
       const salt=crypto.getRandomValues(new Uint8Array(16));
-      cryptoKey=await deriveKey(pw,salt,PBKDF2_ITER);vault=freshVault();
+      cryptoKey=await deriveKey(pw,salt,PBKDF2_ITER);vault=freshVault();sessionPw=pw;
       const blob=await encryptObj(cryptoKey,vault);
       await idbPut("meta",{id:"config",salt:b64e(salt),iter:PBKDF2_ITER});
       await idbPut("vault",{id:"vault",...blob});
     }else{
       cryptoKey=await deriveKey(pw,b64d(cfg.salt),cfg.iter||PBKDF2_ITER);
       vault=await decryptObj(cryptoKey,await idbGet("vault","vault"));
+      sessionPw=pw;
     }
     $("pw").value="";$("pw2").value="";launchApp();
-  }catch(err){cryptoKey=null;vault=null;msg.classList.add("err");msg.textContent="Falsches Passwort oder beschädigter Tresor.";}
+  }catch(err){cryptoKey=null;vault=null;sessionPw=null;msg.classList.add("err");msg.textContent="Falsches Passwort oder beschädigter Tresor.";}
   finally{$("unlockBtn").disabled=false;$("unlockBtn").textContent=isSetup?"Tresor erstellen":"Entsperren";}
 }
 function freshVault(){const nbId=uid();return {version:2,notebooks:[{id:nbId,name:"Mein erstes Notizbuch",created:now()}],
@@ -925,7 +930,7 @@ function updateSaveState(){const dot=$("saveDot"),t=$("saveText");if(!dot)return
 
 /* ---- Lock ---- */
 function revokeUrls(){noteObjectUrls.forEach(u=>URL.revokeObjectURL(u));noteObjectUrls=[];}
-function lockApp(){clearTimeout(saveTimer);clearInterval(reminderTimer);saveCurrentNote(true);persist().finally(()=>{revokeUrls();cryptoKey=null;vault=null;currentNoteId=null;sync=null;pendingOAuth=null;updateSyncUI();$("app").classList.add("hidden");$("lock").classList.remove("hidden");$("lockMsg").textContent="";$("pw").value="";$("pw").focus();});}
+function lockApp(){clearTimeout(saveTimer);clearInterval(reminderTimer);saveCurrentNote(true);persist().finally(()=>{revokeUrls();cryptoKey=null;vault=null;sessionPw=null;currentNoteId=null;sync=null;pendingOAuth=null;updateSyncUI();$("app").classList.add("hidden");$("lock").classList.remove("hidden");$("lockMsg").textContent="";$("pw").value="";$("pw").focus();});}
 $("lockBtn").addEventListener("click",lockApp);
 function resetAutolock(){clearTimeout(autolockTimer);autolockTimer=setTimeout(()=>{if(cryptoKey)lockApp();},AUTOLOCK_MS);}
 ["click","keydown","mousemove","touchstart","touchmove","pointerdown","scroll"].forEach(ev=>document.addEventListener(ev,()=>{if(cryptoKey)resetAutolock();},{passive:true,capture:true}));
@@ -4100,7 +4105,7 @@ async function doChangePassword(){
     for(const rec of blobs){await idbDelete("blobs","__tmp_"+rec.id);}
     await idbDelete("vault","__tmp_vault");
     await idbDelete("meta","__pwchange");
-    cryptoKey=newKey;closeModal();toast("Passwort geändert");
+    cryptoKey=newKey;sessionPw=n1;closeModal();toast("Passwort geändert");
   }catch(err){pm.textContent="Aktuelles Passwort ist falsch.";}
 }
 /* Stellt nach einem unterbrochenen Passwortwechsel einen konsistenten Zustand wieder her.
@@ -4717,8 +4722,39 @@ async function disconnectSync(){sync=null;await idbDelete("meta","synccfg");}
 /* Paket bauen (= verschlüsseltes Backup als Bytes) */
 async function buildPackageBytes(){saveCurrentNote(true);await persist();const cfg=await idbGet("meta","config");const blob=await encryptObj(cryptoKey,vault);const blobs=await idbGetAll("blobs");const pkg={app:"Notizen",format:"encrypted-vault-v2",salt:cfg.salt,iter:cfg.iter,iv:blob.iv,ct:blob.ct,blobs:blobs.map(b=>({id:b.id,iv:b64e(b.iv),ct:b64e(b.ct)})),exported:now()};return new TextEncoder().encode(JSON.stringify(pkg));}
 async function mergeRemotePackage(pkg){
-  const imported=await decryptObj(cryptoKey,{iv:pkg.iv,ct:pkg.ct});
-  for(const b of (pkg.blobs||[])){if(!(await idbGet("blobs",b.id)))await idbPut("blobs",{id:b.id,iv:b64d(b.iv),ct:b64d(b.ct).buffer});}
+  // Das Paket ist mit dem Schlüssel des HOCHLADENDEN Geräts verschlüsselt. Bei gleichem Salt
+  // ist das unser eigener Schlüssel. Bei ANDEREM Salt (z.B. Tresor auf dem anderen Gerät neu
+  // angelegt) ergibt dasselbe Passwort einen anderen Schlüssel – dann leiten wir ihn aus dem
+  // Sitzungspasswort + Paket-Salt ab und schlüsseln Anhänge auf unseren Schlüssel um.
+  const cfg=await idbGet("meta","config");
+  const sameSalt=!!(cfg&&pkg.salt&&pkg.salt===cfg.salt);
+  let pkgKey=cryptoKey;
+  if(!sameSalt){
+    if(!sessionPw)throw new Error("Sync-Paket stammt von einem Tresor mit anderem Schlüssel – bitte einmal sperren und neu entsperren, dann erneut synchronisieren.");
+    pkgKey=await deriveKey(sessionPw,b64d(pkg.salt),pkg.iter||PBKDF2_ITER);
+  }
+  let imported;
+  try{
+    imported=await decryptObj(pkgKey,{iv:pkg.iv,ct:pkg.ct});
+  }catch(e){
+    throw new Error(sameSalt
+      ?"Sync-Paket konnte nicht entschlüsselt werden (Datei beschädigt?)"
+      :"Das Sync-Paket ist mit einem ANDEREN Passwort verschlüsselt. Bitte auf allen Geräten exakt dasselbe Tresor-Passwort verwenden.");
+  }
+  for(const b of (pkg.blobs||[])){
+    if(await idbGet("blobs",b.id))continue;
+    if(sameSalt){
+      await idbPut("blobs",{id:b.id,iv:b64d(b.iv),ct:b64d(b.ct).buffer});
+    }else{
+      // Anhang mit dem Paket-Schlüssel lesen und mit UNSEREM Schlüssel neu verschlüsseln –
+      // sonst wäre er später nicht mehr zu öffnen.
+      try{
+        const pt=await decryptBytes(pkgKey,{iv:b64d(b.iv),ct:b64d(b.ct).buffer});
+        const {iv,ct}=await encryptBytes(cryptoKey,pt);
+        await idbPut("blobs",{id:b.id,iv,ct});
+      }catch(e){/* einzelner defekter Anhang blockiert den Sync nicht */}
+    }
+  }
   const nbIds=new Set(vault.notebooks.map(n=>n.id));(imported.notebooks||[]).forEach(nb=>{if(!nbIds.has(nb.id))vault.notebooks.push(nb);});
   const byId={};vault.notes.forEach(n=>byId[n.id]=n);
   (imported.notes||[]).forEach(rn=>{const ln=byId[rn.id];if(!ln){vault.notes.push(rn);byId[rn.id]=rn;}else if((rn.updated||0)>(ln.updated||0))Object.assign(ln,rn);});
@@ -4806,7 +4842,12 @@ async function syncNow(silent){
     const nm=await providerRemoteMeta();
     sync.lastSync=now();sync.lastRemoteModified=(nm&&nm.modified)||now();
     await saveSyncCfg();renderAll();updateSyncUI();if(!silent)toast("Synchronisiert");
-  }catch(err){updateSyncUI();toast("Sync-Fehler: "+(err&&err.message||err));}
+  }catch(err){
+    updateSyncUI();
+    let m=(err&&err.message)||"";
+    if(!m||/^OperationError$/i.test(m)||(err&&err.name==="OperationError"))m="Entschlüsselung fehlgeschlagen – prüfe, ob alle Geräte dasselbe Tresor-Passwort verwenden.";
+    toast("Sync-Fehler: "+m);
+  }
   finally{syncing=false;}
 }
 async function pushOnly(){if(!sync||!sync.provider||syncing)return;try{await providerEnsureToken();const up=await buildPackageBytes();await providerUpload(up);sync.lastSync=now();const m=await providerRemoteMeta();sync.lastRemoteModified=(m&&m.modified)||now();await saveSyncCfg();}catch(e){}}
