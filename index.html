@@ -169,6 +169,10 @@
   .embed .embed-hint{font-size:10.5px;color:var(--text-dim);font-weight:400;text-transform:none;letter-spacing:0;margin-right:auto;opacity:.7;}
   /* Bildausschnitt einer aufgeteilten Notizbuchseite: zeigt einen Ausschnitt des EINMAL
      gespeicherten Seitenfotos (data-crop = Anfang,Ende als Anteil der Bildhöhe). */
+  .sp-sel{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;max-height:60vh;overflow:auto;}
+  .sp-pick{display:flex;flex-direction:column;gap:4px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:6px;cursor:pointer;text-align:left;}
+  .sp-pick img{width:100%;height:90px;object-fit:cover;border-radius:5px;background:#fff;}
+  .sp-pick span{font-size:11.5px;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .imgcrop{position:relative;border:1px solid var(--line);border-left:3px solid #d97706;border-radius:10px;margin:10px 0;background:var(--panel-2);overflow:hidden;}
   .imgcrop .crop-view{position:relative;width:100%;overflow:hidden;background:#fff;}
   .imgcrop .crop-view img{position:absolute;left:0;width:100%;display:block;max-width:none;}
@@ -611,6 +615,7 @@
           <button class="mt-item" id="fieldIndexBtn"><span class="mt-ic">🗂</span>Feld-Verzeichnis (Feld::)</button>
           <button class="mt-item" id="embedBtn"><span class="mt-ic">⧉</span>Notiz einbetten</button>
           <button class="mt-item" id="calcBtn"><span class="mt-ic">🧮</span>Rechenblock</button>
+          <button class="mt-item" id="splitPageBtn"><span class="mt-ic">✂</span>Seite aufteilen (Bild)</button>
           <button class="mt-item" id="decryptKiBtn" style="display:none"><span class="mt-ic">🔓</span>KI-Antwort entschlüsseln</button>
         </div>
         <!-- versteckte Original-Buttons, damit bestehende Handler weiter funktionieren -->
@@ -692,7 +697,7 @@
 /* App-Version: wird bei JEDER Auslieferung erhöht (Datum.Laufnummer) und auf dem
    Sperrbildschirm angezeigt – so ist nach einem Update sofort sichtbar, ob die
    PWA bereits die neue Fassung geladen hat oder noch die alte aus dem Cache zeigt. */
-const APP_VERSION="2026-07-18.1";
+const APP_VERSION="2026-07-18.2";
 
 /* ---- IndexedDB ---- */
 const DB_NAME="secureNotesDB", DB_VER=2;
@@ -1365,7 +1370,7 @@ function stripDynamicBlocks(html){
   d.querySelectorAll('[class=""]').forEach(e=>e.removeAttribute("class"));
   return d.innerHTML;
 }
-function reconcileInline(n,html){const d=document.createElement("div");d.innerHTML=html;const present=new Set();d.querySelectorAll("img[data-att]").forEach(i=>present.add(i.getAttribute("data-att")));n.attachments=(n.attachments||[]).filter(a=>!a.inline||present.has(a.id));}
+function reconcileInline(n,html){const d=document.createElement("div");d.innerHTML=html;const present=new Set();d.querySelectorAll("img[data-att]").forEach(i=>present.add(i.getAttribute("data-att")));d.querySelectorAll(".imgcrop[data-att]").forEach(i=>present.add(i.getAttribute("data-att")));n.attachments=(n.attachments||[]).filter(a=>!a.inline||present.has(a.id));}
 function syncBody(){const n=cur();if(!n||n.trashed)return;const html=sanitizeForStore($("edBody").innerHTML);snapshotNote(n,html,n.title);reconcileInline(n,html);n.html=html;n.updated=now();updateCounts();markDirty();}
 function saveCurrentNote(silent){const n=cur();if(!n||n.trashed)return;n.title=$("edTitle").value;const html=sanitizeForStore($("edBody").innerHTML);reconcileInline(n,html);n.html=html;if(!silent)markDirty();}
 
@@ -1576,6 +1581,24 @@ $("embedBtn").addEventListener("click",()=>{
 });
 $("decryptKiBtn").addEventListener("mousedown",e=>e.preventDefault());
 $("decryptKiBtn").addEventListener("click",()=>{closeMoreTools();const n=cur();if(!n){toast("Keine Notiz geöffnet");return;}decryptKiAnswerInNote(n);});
+$("splitPageBtn").addEventListener("mousedown",e=>e.preventDefault());
+$("splitPageBtn").addEventListener("click",()=>{
+  closeMoreTools();
+  const n=cur();if(!n){toast("Keine Notiz geöffnet");return;}
+  const imgs=(n.attachments||[]).filter(a=>(a.type||"").startsWith("image/"));
+  if(!imgs.length){toast("Diese Notiz enthält kein Bild zum Aufteilen");return;}
+  if(imgs.length===1){openPageSplitDialog(imgs[0]);return;}
+  modal({title:"Welche Seite aufteilen?",body:'<div id="__spSel" class="sp-sel"></div>',buttons:[{label:"Abbrechen",cls:"btn-ghost",act:closeModal}]});
+  const box=$("__spSel");
+  imgs.forEach(a=>{
+    const b=document.createElement("button");b.className="sp-pick";
+    b.innerHTML='<img alt=""><span></span>';
+    b.querySelector("span").textContent=a.name||"Bild";
+    b.onclick=()=>{closeModal();openPageSplitDialog(a);};
+    box.appendChild(b);
+    getAttUrl(a).then(u=>{if(u)b.querySelector("img").src=u;}).catch(()=>{});
+  });
+});
 $("calcBtn").addEventListener("mousedown",e=>e.preventDefault());
 $("calcBtn").addEventListener("click",()=>{
   closeMoreTools();const n=cur();if(!n){toast("Keine Notiz geöffnet");return;}
