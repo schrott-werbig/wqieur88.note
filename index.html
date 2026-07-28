@@ -697,7 +697,7 @@
 /* App-Version: wird bei JEDER Auslieferung erhöht (Datum.Laufnummer) und auf dem
    Sperrbildschirm angezeigt – so ist nach einem Update sofort sichtbar, ob die
    PWA bereits die neue Fassung geladen hat oder noch die alte aus dem Cache zeigt. */
-const APP_VERSION="2026-07-18.2";
+const APP_VERSION="2026-07-18.3";
 
 /* ---- IndexedDB ---- */
 const DB_NAME="secureNotesDB", DB_VER=2;
@@ -1209,7 +1209,9 @@ function renderDynamicBlocks(n){
       getAttUrl(att).then(url=>{
         if(!url)return;
         const fit=()=>{if(!img.naturalWidth)return;const r=img.naturalHeight/img.naturalWidth;
-          view.style.paddingBottom=((t1-t0)*r*100)+"%";img.style.top=(-t0*r*100)+"%";};
+          const h=Math.max(0.0001,t1-t0);
+          // padding-bottom in % bezieht sich auf die BREITE, top in % auf die HÖHE des Rahmens.
+          view.style.paddingBottom=(h*r*100)+"%";img.style.top=(-t0/h*100)+"%";};
         img.onload=fit;img.src=url;if(img.complete)fit();
       }).catch(()=>{});
     }else{
@@ -1269,7 +1271,8 @@ function renderDynamicBlocks(n){
       getAttUrl(a).then(u=>{
         if(!u)return;
         const fit=()=>{if(!im.naturalWidth)return;const r=im.naturalHeight/im.naturalWidth;
-          cb.style.paddingBottom=((t1-t0)*r*100)+"%";im.style.top=(-t0*r*100)+"%";};
+          const h=Math.max(0.0001,t1-t0);
+          cb.style.paddingBottom=(h*r*100)+"%";im.style.top=(-t0/h*100)+"%";};
         im.onload=fit;im.src=u;if(im.complete)fit();
       }).catch(()=>{});
     });
@@ -1433,7 +1436,7 @@ function restoreHistoryVersion(h){
   n.title=h.title||"";n.html=sanitizeForStore(h.html||"");n.updated=now();markDirty();
   $("edTitle").value=n.title;
   edLoading=true;$("edBody").innerHTML=sanitizeHtml(n.html);edLoading=false;
-  hydrateImages();bindChecklistEvents();buildTocs();recalcTables();renderNoteList();
+  hydrateImages();bindChecklistEvents();buildTocs();recalcTables();renderDynamicBlocks(n);renderNoteList();
   closeModal();toast("Fassung wiederhergestellt");
 }
 
@@ -4609,7 +4612,7 @@ function cleanAttrs(el){
     else if(name==="data-embed-section"&&tag==="DIV") keep=true;
     else if(name==="data-anonmap"&&tag==="DIV") keep=true;
     else if(name==="data-calc"&&tag==="DIV") keep=true;
-    else if((name==="data-att"||name==="data-crop"||name==="data-caption")&&tag==="DIV") keep=true;
+    else if(name.indexOf("data-")===0&&(tag==="DIV"||tag==="SPAN")) keep=true;
     else if(name==="data-embed-body-hidx"&&tag==="DIV") keep=true;
     else if(name==="contenteditable"&&tag==="DIV"&&(el.classList.contains("toc")||el.classList.contains("tagindex")||el.classList.contains("fieldindex")||el.classList.contains("embed")||el.classList.contains("anonmap")||el.classList.contains("calcblock")||el.classList.contains("imgcrop"))) keep=(val==="false");
     else if(name==="style"&&tag==="DIV"&&el.classList.contains("anonmap")) keep=(val==="display:none");
