@@ -169,6 +169,10 @@
   .embed .embed-hint{font-size:10.5px;color:var(--text-dim);font-weight:400;text-transform:none;letter-spacing:0;margin-right:auto;opacity:.7;}
   /* Bildausschnitt einer aufgeteilten Notizbuchseite: zeigt einen Ausschnitt des EINMAL
      gespeicherten Seitenfotos (data-crop = Anfang,Ende als Anteil der Bildhöhe). */
+  .sp-mode{display:flex;gap:6px;margin:0 0 8px;flex-wrap:wrap;}
+  .sp-mb{font-size:12.5px;padding:6px 10px;border:1px solid var(--line);border-radius:7px;background:var(--panel-2);color:var(--text-dim);cursor:pointer;}
+  .sp-mb.active{background:var(--blue-500);border-color:var(--blue-500);color:#fff;}
+  .imgcrop > .crop-split{position:absolute;top:6px;right:36px;background:rgba(0,0,0,.45);color:#fff;border:none;border-radius:6px;width:24px;height:24px;cursor:pointer;line-height:1;}
   .sp-sel{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;max-height:60vh;overflow:auto;}
   .sp-pick{display:flex;flex-direction:column;gap:4px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:6px;cursor:pointer;text-align:left;}
   .sp-pick img{width:100%;height:90px;object-fit:cover;border-radius:5px;background:#fff;}
@@ -703,7 +707,7 @@
 /* App-Version: wird bei JEDER Auslieferung erhöht (Datum.Laufnummer) und auf dem
    Sperrbildschirm angezeigt – so ist nach einem Update sofort sichtbar, ob die
    PWA bereits die neue Fassung geladen hat oder noch die alte aus dem Cache zeigt. */
-const APP_VERSION="2026-07-18.5";
+const APP_VERSION="2026-07-19.1";
 
 /* ---- IndexedDB ---- */
 const DB_NAME="secureNotesDB", DB_VER=2;
@@ -883,7 +887,7 @@ function manualNoteHtml(){return ""+
   "<li><b>PDF-Vorschau:</b> PDFs zeigen ein Vorschaubild; Antippen öffnet eine Leseansicht mit eigener Volltextsuche.</li>"+
   "<li><b>Audio-Notizen:</b> Über das Mikrofon-Symbol direkt aufnehmen.</li>"+
   "<li><b>OCR (Texterkennung):</b> Aus Bildern Text erkennen. Funktioniert beim Einfügen eines Bildes über das OCR-Symbol in der Werkzeugleiste und auch nachträglich bei bereits angehängten Bildern über deren „OCR“-Knopf. Bei <b>gescannten PDFs</b> (nur Bild, kein echter Text) gibt es ebenfalls einen „OCR“-Knopf am Anhang: Er liest jede Seite per Texterkennung, damit das PDF über die Volltextsuche auffindbar wird. Läuft vollständig lokal, sobald die Tesseract-Engine-Dateien eingerichtet sind (siehe Hinweis-Dialog). <b>Hinweis:</b> Die Erkennung ist auf <b>gedruckten/getippten Text</b> ausgelegt und dort zuverlässig. <b>Handschrift</b> wird nur bei sehr sauberen Druckbuchstaben ansatzweise erkannt; normale Schreibschrift kann die lokale Engine nicht sinnvoll lesen – dafür bräuchte es Cloud-Dienste, die aber dem Datenschutz-Prinzip dieser App (alles lokal, nichts wird hochgeladen) widersprechen würden.</li>"+
-  "<li><b>Analoge Notizen aufteilen (✂):</b> Notizbuchseiten wie gewohnt scannen oder fotografieren. Am Bild-Anhang öffnet der <b>✂</b>-Knopf die Seitenaufteilung: Mit einem Tipp setzt du <b>Trennlinien</b> – z.B. vor jedem Zwischentitel bzw. jeder Besprechung. Aus jedem Abschnitt entsteht ein eigener <b>Bildausschnitt</b> in der Notiz. Das Seitenfoto wird dabei nur <i>einmal</i> gespeichert (bleibt als vollständige Sicherung erhalten); die Ausschnitte sind lediglich Sichten darauf und brauchen kaum Platz.</li>"+
+  "<li><b>Analoge Notizen aufteilen (✂):</b> Notizbuchseiten wie gewohnt scannen oder fotografieren. Über „⋯ → Seite aufteilen (Bild)“ – oder am Bild-Anhang über den <b>✂</b>-Knopf – öffnest du die Seitenaufteilung. Zwei Richtungen stehen zur Wahl: <b>waagrecht</b> für Abschnitte innerhalb einer Seite und <b>senkrecht</b>, um eine fotografierte <b>Doppelseite in zwei Seiten</b> zu teilen (die Trennlinie wird gleich in der Mitte vorgeschlagen). Jeder entstandene Ausschnitt hat oben rechts einen eigenen <b>✂</b>-Knopf und lässt sich damit <b>weiter unterteilen</b> – so halbierst du zuerst die Doppelseite und gliederst danach jede Hälfte einzeln in ihre Besprechungen. Mit einem Tipp setzt du <b>Trennlinien</b> – z.B. vor jedem Zwischentitel bzw. jeder Besprechung. Aus jedem Abschnitt entsteht ein eigener <b>Bildausschnitt</b> in der Notiz. Das Seitenfoto wird dabei nur <i>einmal</i> gespeichert (bleibt als vollständige Sicherung erhalten); die Ausschnitte sind lediglich Sichten darauf und brauchen kaum Platz.</li>"+
   "<li><b>Ausschnitte mit Feldern verknüpfen:</b> Unter jedem Bildausschnitt steht eine Beschriftungszeile. Schreibst du dort ein Feld wie <code>Besprechung:: Kerzers</code>, wird der Ausschnitt genau wie ein Text-Feld erfasst. Ein <b>Feld-Verzeichnis</b> (⋯ → Feld-Verzeichnis) sammelt dann alle Notizen zu diesem Thema – und zeigt die zugehörigen <b>Bildausschnitte gleich mit an</b>. So fügen sich handschriftliche Notizen nahtlos in dieselbe Struktur wie die digitalen ein. Mehrere Felder pro Beschriftung sind möglich (je Zeile eines).</li>"+
   "<li><b>PDF-Viewer:</b> Angehängte PDFs öffnen sich im integrierten Betrachter mit Volltextsuche. PDFs mit echtem Text werden schon beim Anhängen automatisch durchsuchbar. Zoomen per +/−-Knopf, Strg+Mausrad, Doppelklick oder Pinch-Geste (zwei Finger); bei vergrösserter Ansicht lässt sich das PDF mit der Maus verschieben. Beim Hineinzoomen werden die sichtbaren Seiten automatisch <b>nachgeschärft</b> (kurz nach dem Zoomen in höherer Auflösung neu gezeichnet).</li>"+
   "<li><b>PDF-Ausdruck (wie OneNote):</b> Der <b>📄+</b>-Knopf am PDF-Anhang fügt Seiten des PDFs als <b>Bilder direkt in die Notiz</b> ein – alle oder eine Auswahl (z.B. <code>1-3,5</code>). So kannst du direkt neben den Seiten Notizen schreiben, und auf den eingefügten Bildern funktioniert auch die OCR-Texterkennung.</li>"+
@@ -1164,6 +1168,26 @@ function renderEditor(){
 /* Lebende Blöcke, die bei jedem Öffnen der Notiz frisch berechnet werden:
    - data-tagindex="schlagwort": automatisches Verzeichnis aller Notizen mit diesem Schlagwort
    - data-embed="notizId": eingebetteter (lebender) Inhalt einer anderen Notiz */
+/* Ausschnitt-Koordinaten: "t0,t1" (nur waagrecht, alte Fassung) oder "t0,t1,l0,l1". */
+function cropParts(str){
+  const p=String(str||"0,1").split(",").map(parseFloat);
+  const t0=Math.max(0,Math.min(1,isNaN(p[0])?0:p[0]));
+  const t1=Math.max(t0,Math.min(1,isNaN(p[1])?1:p[1]));
+  const l0=Math.max(0,Math.min(1,isNaN(p[2])?0:p[2]));
+  const l1=Math.max(l0,Math.min(1,isNaN(p[3])?1:p[3]));
+  return {t0,t1,l0,l1};
+}
+/* Zeigt genau den Bildbereich c im Rahmen box. padding-bottom in % bezieht sich auf die BREITE,
+   left/top in % auf Breite bzw. HÖHE des Rahmens – daher die unterschiedlichen Nenner. */
+function applyCropGeom(box,img,c){
+  if(!img.naturalWidth)return;
+  const r=img.naturalHeight/img.naturalWidth;
+  const h=Math.max(0.0001,c.t1-c.t0), w=Math.max(0.0001,c.l1-c.l0);
+  box.style.paddingBottom=(h*r/w*100)+"%";
+  img.style.width=(100/w)+"%";
+  img.style.left=(-c.l0/w*100)+"%";
+  img.style.top=(-c.t0/h*100)+"%";
+}
 function renderDynamicBlocks(n){
   const eb=$("edBody");
   // 0. Rechenblöcke (MATLAB-artig): Formelzeilen links, Ergebnisse rechts, Live-Update.
@@ -1201,11 +1225,10 @@ function renderDynamicBlocks(n){
     if(box.dataset.rendered==="1")return;
     box.dataset.rendered="1";
     const attId=box.getAttribute("data-att");
-    const cr=String(box.getAttribute("data-crop")||"0,1").split(",").map(parseFloat);
-    const t0=Math.max(0,Math.min(1,isNaN(cr[0])?0:cr[0]));
-    const t1=Math.max(t0,Math.min(1,isNaN(cr[1])?1:cr[1]));
+    const cgeom=cropParts(box.getAttribute("data-crop"));
     box.innerHTML='<div class="crop-view"><img alt=""></div>'+
       '<div class="crop-cap" contenteditable="true" data-ph="Beschriftung, z.B. Besprechung:: Kerzers"></div>'+
+      '<button class="crop-split" title="Diesen Ausschnitt weiter aufteilen">✂</button>'+
       '<button class="block-del" data-block-del title="Ausschnitt entfernen">✕</button>';
     const view=box.querySelector(".crop-view"), img=box.querySelector("img"), cap=box.querySelector(".crop-cap");
     cap.textContent=box.getAttribute("data-caption")||"";
@@ -1214,12 +1237,11 @@ function renderDynamicBlocks(n){
     if(att){
       getAttUrl(att).then(url=>{
         if(!url)return;
-        const fit=()=>{if(!img.naturalWidth)return;const r=img.naturalHeight/img.naturalWidth;
-          const h=Math.max(0.0001,t1-t0);
-          // padding-bottom in % bezieht sich auf die BREITE, top in % auf die HÖHE des Rahmens.
-          view.style.paddingBottom=(h*r*100)+"%";img.style.top=(-t0/h*100)+"%";};
+        const fit=()=>applyCropGeom(view,img,cgeom);
         img.onload=fit;img.src=url;if(img.complete)fit();
       }).catch(()=>{});
+      const sb=box.querySelector(".crop-split");
+      if(sb)sb.onclick=e=>{e.preventDefault();e.stopPropagation();openPageSplitDialog(att,box);};
     }else{
       view.innerHTML='<div class="ti-empty" style="padding:10px">Seitenbild nicht gefunden</div>';
     }
@@ -1293,14 +1315,11 @@ function renderDynamicBlocks(n){
         const src=vault.notes.find(x=>x.id===cb.getAttribute("data-note"));
         const a=src&&(src.attachments||[]).find(z=>z.id===cb.getAttribute("data-att"));
         if(!a)return;
-        const cr=String(cb.getAttribute("data-crop")||"0,1").split(",").map(parseFloat);
-        const t0=Math.max(0,Math.min(1,isNaN(cr[0])?0:cr[0])), t1=Math.max(t0,Math.min(1,isNaN(cr[1])?1:cr[1]));
+        const cg=cropParts(cb.getAttribute("data-crop"));
         const im=cb.querySelector("img");
         getAttUrl(a).then(u=>{
           if(!u)return;
-          const fit=()=>{if(!im.naturalWidth)return;const r=im.naturalHeight/im.naturalWidth;
-            const h=Math.max(0.0001,t1-t0);
-            cb.style.paddingBottom=(h*r*100)+"%";im.style.top=(-t0/h*100)+"%";};
+          const fit=()=>applyCropGeom(cb,im,cg);
           im.onload=fit;im.src=u;if(im.complete)fit();
           cb.onclick=e=>{e.preventDefault();e.stopPropagation();openImageViewer(u,(a.name||"Seite")+" – "+(src.title||""));};
         }).catch(()=>{});
@@ -3647,64 +3666,96 @@ async function runPdfPrintout(att){
       }}
     ]});
 }
-/* Seite in Abschnitte aufteilen: Trennlinien setzen, daraus entstehen Bildausschnitte,
-   die alle auf dasselbe (nur einmal gespeicherte) Seitenfoto verweisen. */
-async function openPageSplitDialog(att){
+/* Seite aufteilen: waagrecht in Abschnitte oder senkrecht (Doppelseite halbieren).
+   baseEl = optionaler bestehender Ausschnitt, der weiter unterteilt werden soll –
+   dadurch lassen sich Ausschnitte verschachteln (erst halbieren, dann je Hälfte gliedern). */
+async function openPageSplitDialog(att,baseEl){
   const n=cur();if(!n){toast("Keine Notiz geöffnet");return;}
   const url=await getAttUrl(att);if(!url){toast("Bild konnte nicht geladen werden");return;}
-  let lines=[];
-  modal({wide:true,title:"Seite in Abschnitte aufteilen",body:
-    '<p style="font-size:12px;color:var(--text-dim);margin:0 0 8px;">Tippe auf die Seite, um eine <b>Trennlinie</b> zu setzen (z.B. vor jedem Zwischentitel). Linien lassen sich ziehen, das ✕ entfernt sie. Aus jedem Abschnitt entsteht ein eigener Bildausschnitt in der Notiz – das Seitenfoto selbst bleibt als Ganzes erhalten.</p>'+
-    '<div id="__spWrap" style="position:relative;width:100%;user-select:none;touch-action:none;background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden;cursor:crosshair;"><img id="__spImg" alt="" style="width:100%;display:block;"></div>'+
+  const base=cropParts(baseEl?baseEl.getAttribute("data-crop"):"0,1");
+  let mode="h", lines=[];
+  modal({wide:true,title:baseEl?"Ausschnitt weiter aufteilen":"Seite aufteilen",body:
+    '<div class="sp-mode" id="__spMode">'+
+      '<button class="sp-mb active" data-m="h">▤ Waagrecht (Abschnitte)</button>'+
+      '<button class="sp-mb" data-m="v">▥ Senkrecht (Doppelseite halbieren)</button>'+
+    '</div>'+
+    '<p style="font-size:12px;color:var(--text-dim);margin:0 0 8px;" id="__spHint"></p>'+
+    '<div id="__spOuter" style="position:relative;width:100%;user-select:none;touch-action:none;background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden;cursor:crosshair;"><img id="__spImg" alt="" style="position:absolute;left:0;top:0;display:block;max-width:none;"></div>'+
     '<div id="__spInfo" style="font-size:12px;color:var(--text-dim);margin-top:6px;"></div>',
     buttons:[
       {label:"Abbrechen",cls:"btn-ghost",act:closeModal},
       {label:"Übernehmen",cls:"btn-blue",act:()=>{
         const parts=[0].concat(lines.slice().sort((a,b)=>a-b)).concat([1]);
+        const dt=base.t1-base.t0, dl=base.l1-base.l0;
         let out="";
         for(let i=0;i<parts.length-1;i++){
           if(parts[i+1]-parts[i]<0.01)continue; // zu dünne Streifen überspringen
-          out+='<div class="imgcrop" data-att="'+escapeHtml(att.id)+'" data-crop="'+parts[i].toFixed(4)+','+parts[i+1].toFixed(4)+'" data-caption="" contenteditable="false"></div>';
+          let t0,t1,l0,l1;
+          if(mode==="h"){t0=base.t0+parts[i]*dt;t1=base.t0+parts[i+1]*dt;l0=base.l0;l1=base.l1;}
+          else{l0=base.l0+parts[i]*dl;l1=base.l0+parts[i+1]*dl;t0=base.t0;t1=base.t1;}
+          const cap=(i===0&&baseEl)?(baseEl.getAttribute("data-caption")||""):"";
+          out+='<div class="imgcrop" data-att="'+escapeHtml(att.id)+'" data-crop="'+
+            t0.toFixed(4)+','+t1.toFixed(4)+','+l0.toFixed(4)+','+l1.toFixed(4)+
+            '" data-caption="'+escapeHtml(cap)+'" contenteditable="false"></div>';
         }
         if(!out){toast("Keine Abschnitte");return;}
         closeModal();
         const eb=$("edBody");
-        eb.insertAdjacentHTML("beforeend",out+'<p><br></p>');
+        if(baseEl&&baseEl.parentNode){baseEl.insertAdjacentHTML("beforebegin",out);baseEl.remove();}
+        else eb.insertAdjacentHTML("beforeend",out+'<p><br></p>');
         syncBody();renderDynamicBlocks(n);
-        toast((parts.length-1)+" Abschnitt(e) eingefügt");
+        toast("In "+(out.match(/imgcrop/g)||[]).length+" Teil(e) aufgeteilt");
       }}
     ]});
-  const wrap=$("__spWrap"),img=$("__spImg"),info=$("__spInfo");
-  img.src=url;
+  const outer=$("__spOuter"),img=$("__spImg"),info=$("__spInfo"),hint=$("__spHint");
+  const fit=()=>applyCropGeom(outer,img,base);
+  img.onload=fit;img.src=url;if(img.complete)fit();
   let dragIx=-1;
   const draw=()=>{
-    wrap.querySelectorAll(".sp-line").forEach(e=>e.remove());
-    lines.slice().sort((a,b)=>a-b).forEach((f)=>{
+    outer.querySelectorAll(".sp-line").forEach(e=>e.remove());
+    lines.slice().sort((a,b)=>a-b).forEach(f=>{
       const el=document.createElement("div");el.className="sp-line";
-      el.style.cssText="position:absolute;left:0;right:0;top:"+(f*100)+"%;height:0;border-top:2px dashed #d97706;z-index:5;";
-      const grip=document.createElement("div");
-      grip.style.cssText="position:absolute;left:0;right:0;top:-9px;height:18px;cursor:ns-resize;";
-      grip.dataset.f=String(f);
+      el.style.cssText=mode==="h"
+        ? "position:absolute;left:0;right:0;top:"+(f*100)+"%;height:0;border-top:2px dashed #d97706;z-index:5;"
+        : "position:absolute;top:0;bottom:0;left:"+(f*100)+"%;width:0;border-left:2px dashed #d97706;z-index:5;";
       const del=document.createElement("button");del.textContent="✕";
-      del.style.cssText="position:absolute;right:4px;top:-11px;width:22px;height:22px;border:none;border-radius:5px;background:#d97706;color:#fff;cursor:pointer;line-height:1;z-index:6;";
-      del.onclick=(e)=>{e.stopPropagation();lines=lines.filter(x=>Math.abs(x-f)>1e-9);draw();};
-      el.appendChild(grip);el.appendChild(del);wrap.appendChild(el);
+      del.style.cssText=mode==="h"
+        ? "position:absolute;right:4px;top:-11px;width:22px;height:22px;border:none;border-radius:5px;background:#d97706;color:#fff;cursor:pointer;line-height:1;z-index:6;"
+        : "position:absolute;left:-11px;top:4px;width:22px;height:22px;border:none;border-radius:5px;background:#d97706;color:#fff;cursor:pointer;line-height:1;z-index:6;";
+      del.onclick=e=>{e.stopPropagation();lines=lines.filter(x=>Math.abs(x-f)>1e-9);draw();};
+      el.appendChild(del);outer.appendChild(el);
     });
-    info.textContent=(lines.length+1)+" Abschnitt(e)";
+    info.textContent=(lines.length+1)+(mode==="h"?" Abschnitt(e)":" Spalte(n)");
+    hint.textContent=mode==="h"
+      ? "Tippe auf die Seite, um eine waagrechte Trennlinie zu setzen – z.B. vor jedem Zwischentitel. Linien lassen sich ziehen, das ✕ entfernt sie."
+      : "Tippe in die Mitte der Doppelseite, um sie senkrecht zu teilen. Jede Hälfte wird zu einer eigenen Seite, die du anschliessend mit ihrem ✂-Knopf weiter gliedern kannst.";
   };
-  const yFrac=(clientY)=>{const r=wrap.getBoundingClientRect();return Math.max(0,Math.min(1,(clientY-r.top)/r.height));};
-  wrap.addEventListener("pointerdown",e=>{
+  const frac=e=>{
+    const r=outer.getBoundingClientRect();
+    return mode==="h"
+      ? Math.max(0,Math.min(1,(e.clientY-r.top)/r.height))
+      : Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
+  };
+  outer.addEventListener("pointerdown",e=>{
     if(e.target.tagName==="BUTTON")return;
-    const f=yFrac(e.clientY);
-    // nahe an bestehender Linie -> ziehen, sonst neue Linie
+    const f=frac(e);
     let near=-1,best=0.02;
     lines.forEach((L,i)=>{const d=Math.abs(L-f);if(d<best){best=d;near=i;}});
     if(near>=0){dragIx=near;}else{lines.push(f);dragIx=lines.length-1;}
-    draw();wrap.setPointerCapture(e.pointerId);
+    draw();outer.setPointerCapture(e.pointerId);
   });
-  wrap.addEventListener("pointermove",e=>{if(dragIx<0)return;lines[dragIx]=yFrac(e.clientY);draw();});
-  wrap.addEventListener("pointerup",()=>{dragIx=-1;});
-  wrap.addEventListener("pointercancel",()=>{dragIx=-1;});
+  outer.addEventListener("pointermove",e=>{if(dragIx<0)return;lines[dragIx]=frac(e);draw();});
+  outer.addEventListener("pointerup",()=>{dragIx=-1;});
+  outer.addEventListener("pointercancel",()=>{dragIx=-1;});
+  $("__spMode").querySelectorAll(".sp-mb").forEach(b=>{
+    b.onclick=()=>{
+      if(b.dataset.m===mode)return;
+      mode=b.dataset.m;lines=[];
+      $("__spMode").querySelectorAll(".sp-mb").forEach(x=>x.classList.toggle("active",x.dataset.m===mode));
+      if(mode==="v")lines=[0.5]; // Doppelseite: Vorschlag in der Mitte
+      draw();
+    };
+  });
   draw();
 }
 async function runPdfOcr(att){
