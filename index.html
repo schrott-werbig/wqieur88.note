@@ -179,7 +179,9 @@
   .imgcrop .crop-cap{font-size:13px;padding:7px 12px;color:var(--text);outline:none;min-height:1.4em;border-top:1px solid var(--line);}
   .imgcrop .crop-cap:empty:before{content:attr(data-ph);color:var(--text-dim);opacity:.7;}
   .imgcrop > .block-del{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.45);color:#fff;border:none;border-radius:6px;width:24px;height:24px;cursor:pointer;line-height:1;}
-  .fieldindex .fi-crop{width:100%;max-width:260px;border:1px solid var(--line);border-radius:6px;overflow:hidden;position:relative;background:#fff;}
+  .fieldindex .fi-crop{width:100%;max-width:none;border:1px solid var(--line);border-radius:6px;overflow:hidden;position:relative;background:#fff;cursor:zoom-in;margin:6px 0 2px;}
+  .fieldindex .fi-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px;}
+  .fieldindex .fi-head a{font-weight:400;font-size:12.5px;}
   .fieldindex .fi-crop img{position:absolute;left:0;width:100%;display:block;max-width:none;}
   .calcblock{border:1px solid var(--line);border-left:3px solid #16a34a;border-radius:10px;margin:10px 0;background:var(--panel-2);overflow:hidden;}
   .calcblock .calc-head{font-size:12px;font-weight:600;color:var(--text-dim);padding:7px 12px;background:var(--line-2);display:flex;align-items:center;gap:8px;}
@@ -697,7 +699,7 @@
 /* App-Version: wird bei JEDER Auslieferung erhöht (Datum.Laufnummer) und auf dem
    Sperrbildschirm angezeigt – so ist nach einem Update sofort sichtbar, ob die
    PWA bereits die neue Fassung geladen hat oder noch die alte aus dem Cache zeigt. */
-const APP_VERSION="2026-07-18.3";
+const APP_VERSION="2026-07-18.4";
 
 /* ---- IndexedDB ---- */
 const DB_NAME="secureNotesDB", DB_VER=2;
@@ -1257,7 +1259,9 @@ function renderDynamicBlocks(n){
     });
     rows.sort((a,b)=>a.value.localeCompare(b.value,"de",{numeric:true}));
     const body=rows.length
-      ? '<table class="fi-table"><tbody>'+rows.map(r=>'<tr><td class="fi-val">'+escapeHtml(r.value).replace(/\n/g,"<br>")+(r.att?'<div class="fi-crop" data-note="'+r.id+'" data-att="'+escapeHtml(r.att)+'" data-crop="'+escapeHtml(r.crop||"0,1")+'"><img alt=""></div>':"")+'</td><td><a href="#" data-note="'+r.id+'">'+escapeHtml(r.title)+'</a></td></tr>').join("")+'</tbody></table>'
+      ? '<table class="fi-table"><tbody>'+rows.map(r=>r.att
+          ? '<tr><td colspan="2" class="fi-val"><div class="fi-head">'+escapeHtml(r.value).replace(/\n/g,"<br>")+' <a href="#" data-note="'+r.id+'">'+escapeHtml(r.title)+'</a></div><div class="fi-crop" title="Zum Vergrössern antippen" data-note="'+r.id+'" data-att="'+escapeHtml(r.att)+'" data-crop="'+escapeHtml(r.crop||"0,1")+'"><img alt=""></div></td></tr>'
+          : '<tr><td class="fi-val">'+escapeHtml(r.value).replace(/\n/g,"<br>")+'</td><td><a href="#" data-note="'+r.id+'">'+escapeHtml(r.title)+'</a></td></tr>').join("")+'</tbody></table>'
       : '<span class="ti-empty">Noch keine Notizen mit dem Feld „'+escapeHtml(field)+'::“</span>';
     box.innerHTML='<div class="ti-title">🗂 '+escapeHtml(field)+' ('+rows.length+')<button class="block-del" data-block-del title="Block entfernen">✕</button></div>'+body;
     // Bildausschnitte im Verzeichnis nachladen (Bild liegt bei der jeweiligen Quellnotiz).
@@ -1274,6 +1278,7 @@ function renderDynamicBlocks(n){
           const h=Math.max(0.0001,t1-t0);
           cb.style.paddingBottom=(h*r*100)+"%";im.style.top=(-t0/h*100)+"%";};
         im.onload=fit;im.src=u;if(im.complete)fit();
+        cb.onclick=e=>{e.preventDefault();e.stopPropagation();openImageViewer(u,(a.name||"Seite")+" – "+(src.title||""));};
       }).catch(()=>{});
     });
   });
