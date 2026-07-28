@@ -167,6 +167,16 @@
   .embed .embed-edit{font-size:11.5px;color:var(--blue-600);background:none;border:1px solid var(--line);border-radius:6px;padding:3px 9px;cursor:pointer;}
   .embed .embed-edit:hover{background:var(--panel);}
   .embed .embed-hint{font-size:10.5px;color:var(--text-dim);font-weight:400;text-transform:none;letter-spacing:0;margin-right:auto;opacity:.7;}
+  /* Bildausschnitt einer aufgeteilten Notizbuchseite: zeigt einen Ausschnitt des EINMAL
+     gespeicherten Seitenfotos (data-crop = Anfang,Ende als Anteil der Bildhöhe). */
+  .imgcrop{position:relative;border:1px solid var(--line);border-left:3px solid #d97706;border-radius:10px;margin:10px 0;background:var(--panel-2);overflow:hidden;}
+  .imgcrop .crop-view{position:relative;width:100%;overflow:hidden;background:#fff;}
+  .imgcrop .crop-view img{position:absolute;left:0;width:100%;display:block;max-width:none;}
+  .imgcrop .crop-cap{font-size:13px;padding:7px 12px;color:var(--text);outline:none;min-height:1.4em;border-top:1px solid var(--line);}
+  .imgcrop .crop-cap:empty:before{content:attr(data-ph);color:var(--text-dim);opacity:.7;}
+  .imgcrop > .block-del{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.45);color:#fff;border:none;border-radius:6px;width:24px;height:24px;cursor:pointer;line-height:1;}
+  .fieldindex .fi-crop{width:100%;max-width:260px;border:1px solid var(--line);border-radius:6px;overflow:hidden;position:relative;background:#fff;}
+  .fieldindex .fi-crop img{position:absolute;left:0;width:100%;display:block;max-width:none;}
   .calcblock{border:1px solid var(--line);border-left:3px solid #16a34a;border-radius:10px;margin:10px 0;background:var(--panel-2);overflow:hidden;}
   .calcblock .calc-head{font-size:12px;font-weight:600;color:var(--text-dim);padding:7px 12px;background:var(--line-2);display:flex;align-items:center;gap:8px;}
   .calcblock .calc-hint{font-size:10.5px;color:var(--text-dim);font-weight:400;margin-right:auto;opacity:.7;}
@@ -682,7 +692,7 @@
 /* App-Version: wird bei JEDER Auslieferung erhöht (Datum.Laufnummer) und auf dem
    Sperrbildschirm angezeigt – so ist nach einem Update sofort sichtbar, ob die
    PWA bereits die neue Fassung geladen hat oder noch die alte aus dem Cache zeigt. */
-const APP_VERSION="2026-07-17.2";
+const APP_VERSION="2026-07-18.1";
 
 /* ---- IndexedDB ---- */
 const DB_NAME="secureNotesDB", DB_VER=2;
@@ -862,6 +872,8 @@ function manualNoteHtml(){return ""+
   "<li><b>PDF-Vorschau:</b> PDFs zeigen ein Vorschaubild; Antippen öffnet eine Leseansicht mit eigener Volltextsuche.</li>"+
   "<li><b>Audio-Notizen:</b> Über das Mikrofon-Symbol direkt aufnehmen.</li>"+
   "<li><b>OCR (Texterkennung):</b> Aus Bildern Text erkennen. Funktioniert beim Einfügen eines Bildes über das OCR-Symbol in der Werkzeugleiste und auch nachträglich bei bereits angehängten Bildern über deren „OCR“-Knopf. Bei <b>gescannten PDFs</b> (nur Bild, kein echter Text) gibt es ebenfalls einen „OCR“-Knopf am Anhang: Er liest jede Seite per Texterkennung, damit das PDF über die Volltextsuche auffindbar wird. Läuft vollständig lokal, sobald die Tesseract-Engine-Dateien eingerichtet sind (siehe Hinweis-Dialog). <b>Hinweis:</b> Die Erkennung ist auf <b>gedruckten/getippten Text</b> ausgelegt und dort zuverlässig. <b>Handschrift</b> wird nur bei sehr sauberen Druckbuchstaben ansatzweise erkannt; normale Schreibschrift kann die lokale Engine nicht sinnvoll lesen – dafür bräuchte es Cloud-Dienste, die aber dem Datenschutz-Prinzip dieser App (alles lokal, nichts wird hochgeladen) widersprechen würden.</li>"+
+  "<li><b>Analoge Notizen aufteilen (✂):</b> Notizbuchseiten wie gewohnt scannen oder fotografieren. Am Bild-Anhang öffnet der <b>✂</b>-Knopf die Seitenaufteilung: Mit einem Tipp setzt du <b>Trennlinien</b> – z.B. vor jedem Zwischentitel bzw. jeder Besprechung. Aus jedem Abschnitt entsteht ein eigener <b>Bildausschnitt</b> in der Notiz. Das Seitenfoto wird dabei nur <i>einmal</i> gespeichert (bleibt als vollständige Sicherung erhalten); die Ausschnitte sind lediglich Sichten darauf und brauchen kaum Platz.</li>"+
+  "<li><b>Ausschnitte mit Feldern verknüpfen:</b> Unter jedem Bildausschnitt steht eine Beschriftungszeile. Schreibst du dort ein Feld wie <code>Besprechung:: Kerzers</code>, wird der Ausschnitt genau wie ein Text-Feld erfasst. Ein <b>Feld-Verzeichnis</b> (⋯ → Feld-Verzeichnis) sammelt dann alle Notizen zu diesem Thema – und zeigt die zugehörigen <b>Bildausschnitte gleich mit an</b>. So fügen sich handschriftliche Notizen nahtlos in dieselbe Struktur wie die digitalen ein. Mehrere Felder pro Beschriftung sind möglich (je Zeile eines).</li>"+
   "<li><b>PDF-Viewer:</b> Angehängte PDFs öffnen sich im integrierten Betrachter mit Volltextsuche. PDFs mit echtem Text werden schon beim Anhängen automatisch durchsuchbar. Zoomen per +/−-Knopf, Strg+Mausrad, Doppelklick oder Pinch-Geste (zwei Finger); bei vergrösserter Ansicht lässt sich das PDF mit der Maus verschieben. Beim Hineinzoomen werden die sichtbaren Seiten automatisch <b>nachgeschärft</b> (kurz nach dem Zoomen in höherer Auflösung neu gezeichnet).</li>"+
   "<li><b>PDF-Ausdruck (wie OneNote):</b> Der <b>📄+</b>-Knopf am PDF-Anhang fügt Seiten des PDFs als <b>Bilder direkt in die Notiz</b> ein – alle oder eine Auswahl (z.B. <code>1-3,5</code>). So kannst du direkt neben den Seiten Notizen schreiben, und auf den eingefügten Bildern funktioniert auch die OCR-Texterkennung.</li>"+
   "</ul>"+
@@ -1173,6 +1185,37 @@ function renderDynamicBlocks(n){
     ta.addEventListener("click",e=>e.stopPropagation());
     recalc();
   });
+  // 0b. Bildausschnitte: Sicht auf einen Teil des einmal gespeicherten Seitenfotos.
+  eb.querySelectorAll('.imgcrop[data-att][data-crop]').forEach(box=>{
+    if(box.dataset.rendered==="1")return;
+    box.dataset.rendered="1";
+    const attId=box.getAttribute("data-att");
+    const cr=String(box.getAttribute("data-crop")||"0,1").split(",").map(parseFloat);
+    const t0=Math.max(0,Math.min(1,isNaN(cr[0])?0:cr[0]));
+    const t1=Math.max(t0,Math.min(1,isNaN(cr[1])?1:cr[1]));
+    box.innerHTML='<div class="crop-view"><img alt=""></div>'+
+      '<div class="crop-cap" contenteditable="true" data-ph="Beschriftung, z.B. Besprechung:: Kerzers"></div>'+
+      '<button class="block-del" data-block-del title="Ausschnitt entfernen">✕</button>';
+    const view=box.querySelector(".crop-view"), img=box.querySelector("img"), cap=box.querySelector(".crop-cap");
+    cap.textContent=box.getAttribute("data-caption")||"";
+    const note=cur();
+    const att=note&&(note.attachments||[]).find(a=>a.id===attId);
+    if(att){
+      getAttUrl(att).then(url=>{
+        if(!url)return;
+        const fit=()=>{if(!img.naturalWidth)return;const r=img.naturalHeight/img.naturalWidth;
+          view.style.paddingBottom=((t1-t0)*r*100)+"%";img.style.top=(-t0*r*100)+"%";};
+        img.onload=fit;img.src=url;if(img.complete)fit();
+      }).catch(()=>{});
+    }else{
+      view.innerHTML='<div class="ti-empty" style="padding:10px">Seitenbild nicht gefunden</div>';
+    }
+    cap.addEventListener("input",()=>{
+      box.setAttribute("data-caption",cap.textContent||"");
+      const nn=cur();if(nn){nn.html=sanitizeForStore(stripDynamicBlocks(eb.innerHTML));nn.updated=now();markDirty();}
+    });
+    cap.addEventListener("click",e=>e.stopPropagation());
+  });
   // 1. Schlagwort-Verzeichnisse
   eb.querySelectorAll('.tagindex[data-tagindex]').forEach(box=>{
     const tag=box.getAttribute("data-tagindex");
@@ -1189,15 +1232,42 @@ function renderDynamicBlocks(n){
     const rows=[];
     activeNotes().forEach(x=>{
       if(x.id===n.id)return;
+      // Bildausschnitte dieser Notiz vorbereiten, damit Treffer aus einer Beschriftung
+      // im Verzeichnis gleich als Bild erscheinen können.
+      let crops=[];
+      try{crops=[...new DOMParser().parseFromString(x.html||"","text/html").body.querySelectorAll(".imgcrop[data-caption]")];}catch(e){}
       extractFields(x.html||"").forEach(f=>{
-        if(f.field.toLowerCase()===fieldLow)rows.push({id:x.id,title:x.title||"Ohne Titel",value:f.value});
+        if(f.field.toLowerCase()!==fieldLow)return;
+        const row={id:x.id,title:x.title||"Ohne Titel",value:f.value};
+        const hit=crops.find(cel=>{
+          const cap=cel.getAttribute("data-caption")||"";
+          if(!cap)return false;
+          return extractFields("<div>"+escapeHtml(cap)+"</div>").some(cf=>cf.field.toLowerCase()===fieldLow&&cf.value===f.value);
+        });
+        if(hit){row.att=hit.getAttribute("data-att");row.crop=hit.getAttribute("data-crop");}
+        rows.push(row);
       });
     });
     rows.sort((a,b)=>a.value.localeCompare(b.value,"de",{numeric:true}));
     const body=rows.length
-      ? '<table class="fi-table"><tbody>'+rows.map(r=>'<tr><td class="fi-val">'+escapeHtml(r.value).replace(/\n/g,"<br>")+'</td><td><a href="#" data-note="'+r.id+'">'+escapeHtml(r.title)+'</a></td></tr>').join("")+'</tbody></table>'
+      ? '<table class="fi-table"><tbody>'+rows.map(r=>'<tr><td class="fi-val">'+escapeHtml(r.value).replace(/\n/g,"<br>")+(r.att?'<div class="fi-crop" data-note="'+r.id+'" data-att="'+escapeHtml(r.att)+'" data-crop="'+escapeHtml(r.crop||"0,1")+'"><img alt=""></div>':"")+'</td><td><a href="#" data-note="'+r.id+'">'+escapeHtml(r.title)+'</a></td></tr>').join("")+'</tbody></table>'
       : '<span class="ti-empty">Noch keine Notizen mit dem Feld „'+escapeHtml(field)+'::“</span>';
     box.innerHTML='<div class="ti-title">🗂 '+escapeHtml(field)+' ('+rows.length+')<button class="block-del" data-block-del title="Block entfernen">✕</button></div>'+body;
+    // Bildausschnitte im Verzeichnis nachladen (Bild liegt bei der jeweiligen Quellnotiz).
+    box.querySelectorAll(".fi-crop").forEach(cb=>{
+      const src=vault.notes.find(x=>x.id===cb.getAttribute("data-note"));
+      const a=src&&(src.attachments||[]).find(z=>z.id===cb.getAttribute("data-att"));
+      if(!a)return;
+      const cr=String(cb.getAttribute("data-crop")||"0,1").split(",").map(parseFloat);
+      const t0=Math.max(0,Math.min(1,isNaN(cr[0])?0:cr[0])), t1=Math.max(t0,Math.min(1,isNaN(cr[1])?1:cr[1]));
+      const im=cb.querySelector("img");
+      getAttUrl(a).then(u=>{
+        if(!u)return;
+        const fit=()=>{if(!im.naturalWidth)return;const r=im.naturalHeight/im.naturalWidth;
+          cb.style.paddingBottom=((t1-t0)*r*100)+"%";im.style.top=(-t0*r*100)+"%";};
+        im.onload=fit;im.src=u;if(im.complete)fit();
+      }).catch(()=>{});
+    });
   });
   // 2. Eingebettete Notizen
   eb.querySelectorAll('.embed[data-embed]').forEach(box=>{
@@ -1231,7 +1301,7 @@ function bindDynamicBlockEvents(){
   // Lösch-Knopf entfernt den ganzen lebenden Block (Verzeichnis oder Einbettung) aus der Notiz.
   // Entfernt nur den Block hier – die eingebettete Originalnotiz bleibt selbstverständlich bestehen.
   eb.querySelectorAll('.block-del[data-block-del]').forEach(b=>{
-    b.onclick=e=>{e.preventDefault();e.stopPropagation();const block=b.closest(".tagindex,.fieldindex,.embed,.calcblock");if(block){block.remove();syncBody();toast("Block entfernt");}};
+    b.onclick=e=>{e.preventDefault();e.stopPropagation();const block=b.closest(".tagindex,.fieldindex,.embed,.calcblock,.imgcrop");if(block){block.remove();syncBody();toast("Block entfernt");}};
   });
   // Direkte Bearbeitung im eingebetteten Block: Änderungen in die ZIELnotiz zurückschreiben.
   eb.querySelectorAll('.embed-body[data-embed-body]').forEach(body=>{
@@ -1283,6 +1353,8 @@ function stripDynamicBlocks(html){
   d.querySelectorAll('.embed[data-embed]').forEach(b=>{b.innerHTML="";});
   // Rechenblöcke leeren: nur der Platzhalter mit data-calc (Quelle) bleibt; gerenderte UI nicht speichern.
   d.querySelectorAll('.calcblock[data-calc]').forEach(b=>{b.innerHTML="";b.removeAttribute("data-rendered");});
+  // Bildausschnitte leeren: nur Verweis (data-att), Koordinaten (data-crop) und Beschriftung bleiben.
+  d.querySelectorAll('.imgcrop[data-att]').forEach(b=>{b.innerHTML="";b.removeAttribute("data-rendered");});
   // Falt-Pfeile entfernen und Falt-/Versteckt-Zustand zurücksetzen (reine Ansichtssache, nicht speichern)
   d.querySelectorAll(".fold-toggle").forEach(t=>t.remove());
   d.querySelectorAll(".section-hidden").forEach(e=>e.classList.remove("section-hidden"));
@@ -1623,7 +1695,7 @@ function insertTable(rows,cols){
 }
 /* Tab/Shift+Tab springt zwischen Tabellenzellen; Enter in letzter Zelle fügt neue Zeile hinzu */
 $("edBody").addEventListener("keydown",e=>{
-  if(e.target&&e.target.closest&&e.target.closest(".calcblock"))return; // Rechenblock: eigene Eingabe
+  if(e.target&&e.target.closest&&e.target.closest(".calcblock,.imgcrop"))return; // Rechenblock/Bildausschnitt: eigene Eingabe
   const sel=window.getSelection();if(!sel.rangeCount)return;
   let node=sel.getRangeAt(0).startContainer;if(node.nodeType===3)node=node.parentNode;
   const cell=node&&node.closest?node.closest("td,th"):null;if(!cell)return;
@@ -2961,8 +3033,8 @@ $("edBody").addEventListener("click",e=>{const a=e.target.closest("a");if(!a)ret
 /* ---- Keyboard ---- */
 $("edBody").addEventListener("keydown",e=>{
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"){e.preventDefault();syncBody();persist();toast("Gespeichert");return;}
-  // Eingaben im Rechenblock (textarea) nicht abfangen – dort gelten die normalen Textfeld-Regeln.
-  if(e.target&&e.target.closest&&e.target.closest(".calcblock"))return;
+  // Eingaben im Rechenblock/in der Ausschnitt-Beschriftung nicht abfangen.
+  if(e.target&&e.target.closest&&e.target.closest(".calcblock,.imgcrop"))return;
   if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&e.key.toLowerCase()==="y"){e.preventDefault();doRedo();return;}
   if((e.ctrlKey||e.metaKey)&&e.shiftKey&&e.key.toLowerCase()==="z"){e.preventDefault();doRedo();return;}
   if(e.key===" "){if(handleMarkdownShortcut(e))return;}
@@ -3152,13 +3224,14 @@ function renderBacklinks(n){
 }
 function renderAttachments(n){const grid=$("attachGrid");grid.innerHTML="";const files=(n.attachments||[]).filter(a=>!a.inline);$("attachCount").textContent=files.length?"("+files.length+")":"";if(!files.length){grid.innerHTML='<div style="grid-column:1/-1;color:var(--text-dim);font-size:12.5px;">Noch keine angehängten Dateien. Bilder im Text erscheinen direkt in der Notiz.</div>';return;}
   files.forEach(att=>{const card=document.createElement("div");const isImg=(att.type||"").startsWith("image/");const isPdf=(att.type||"").includes("pdf");const isAudio=(att.type||"").startsWith("audio/");const ext=(att.name.split(".").pop()||"").slice(0,4).toUpperCase();card.className="att-card"+(isAudio?" att-audio":"")+(isPdf?" att-pdf":"");
-    card.innerHTML='<div class="att-thumb">'+(isImg?'<img alt="">':(isAudio?'<audio controls></audio>':(isPdf?'<canvas></canvas><span class="att-pagecount" id="pc_'+att.id+'"></span>':'<span class="ficon">'+(ext||"DAT")+'</span>')))+'</div><div class="att-info"><div class="att-name"></div><div class="att-size">'+fmtSize(att.size)+'</div></div><div class="att-actions"><button class="open" title="Öffnen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3h7v7M21 3l-9 9M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/></svg></button><button class="dl" title="Herunterladen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg></button>'+(isImg?'<button class="ocr" title="OCR">OCR</button>':(isPdf?'<button class="prnt" title="Seiten als Bilder in die Notiz einfügen (Ausdruck)">📄+</button><button class="ocr" title="PDF durchsuchbar machen (OCR)">OCR</button>':''))+'<button class="del" title="Entfernen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button></div>';
+    card.innerHTML='<div class="att-thumb">'+(isImg?'<img alt="">':(isAudio?'<audio controls></audio>':(isPdf?'<canvas></canvas><span class="att-pagecount" id="pc_'+att.id+'"></span>':'<span class="ficon">'+(ext||"DAT")+'</span>')))+'</div><div class="att-info"><div class="att-name"></div><div class="att-size">'+fmtSize(att.size)+'</div></div><div class="att-actions"><button class="open" title="Öffnen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3h7v7M21 3l-9 9M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/></svg></button><button class="dl" title="Herunterladen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg></button>'+(isImg?'<button class="split" title="Seite in Abschnitte aufteilen">✂</button><button class="ocr" title="OCR">OCR</button>':(isPdf?'<button class="prnt" title="Seiten als Bilder in die Notiz einfügen (Ausdruck)">📄+</button><button class="ocr" title="PDF durchsuchbar machen (OCR)">OCR</button>':''))+'<button class="del" title="Entfernen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button></div>';
     card.querySelector(".att-name").textContent=att.name;
     if(isImg)getAttUrl(att).then(u=>{if(u)card.querySelector(".att-thumb img").src=u;});
     if(isAudio)getAttUrl(att).then(u=>{if(u)card.querySelector(".att-thumb audio").src=u;});
     if(isPdf)renderPdfThumb(att,card.querySelector(".att-thumb canvas"));
     card.querySelector(".open").addEventListener("click",async()=>{if(isPdf){openPdfViewer(att);}else if(isImg){const u=await getAttUrl(att);if(u)openImageViewer(u,att.name);}else{const u=await getAttUrl(att);if(u)window.open(u,"_blank","noopener");}});
     card.querySelector(".dl").addEventListener("click",async()=>{const u=await getAttUrl(att);if(u){const a=document.createElement("a");a.href=u;a.download=att.name;a.click();}});
+    if(isImg){const sb=card.querySelector(".split");if(sb)sb.addEventListener("click",()=>openPageSplitDialog(att));}
     if(isImg){const ob=card.querySelector(".ocr");if(ob)ob.addEventListener("click",async()=>{const rec=await idbGet("blobs",att.id);if(!rec)return;const buf=await decryptBytes(cryptoKey,rec);runOcr(new Blob([buf],{type:att.type}));});}
     if(isPdf){const pb=card.querySelector(".prnt");if(pb)pb.addEventListener("click",()=>runPdfPrintout(att));}
     if(isPdf){const ob=card.querySelector(".ocr");if(ob)ob.addEventListener("click",()=>{
@@ -3405,7 +3478,7 @@ const eb=$("edBody");
 ["dragenter","dragover"].forEach(ev=>eb.addEventListener(ev,e=>{e.preventDefault();eb.classList.add("dragover");}));
 ["dragleave","drop"].forEach(ev=>eb.addEventListener(ev,e=>{e.preventDefault();eb.classList.remove("dragover");}));
 eb.addEventListener("drop",async e=>{const n=cur();if(!n||n.trashed)return;const files=[...(e.dataTransfer.files||[])];if(!files.length)return;for(const f of files){if(f.type.startsWith("image/"))await insertInlineImage(f);else await addAttachment(f,false);}renderAttachments(n);renderNoteList();});
-eb.addEventListener("paste",async e=>{if(e.target&&e.target.closest&&e.target.closest(".calcblock"))return;const n=cur();if(!n||n.trashed)return;const cd=e.clipboardData;const items=[...(cd?cd.items:[])];const imgs=items.filter(i=>i.kind==="file"&&i.type.startsWith("image/"));if(imgs.length){e.preventDefault();for(const it of imgs){const f=it.getAsFile();if(f)await insertInlineImage(f);}return;}const html=cd?cd.getData("text/html"):"";if(html){e.preventDefault();restoreSelection();document.execCommand("insertHTML",false,sanitizeHtml(html));bindChecklistEvents();syncBody();}});
+eb.addEventListener("paste",async e=>{if(e.target&&e.target.closest&&e.target.closest(".calcblock,.imgcrop"))return;const n=cur();if(!n||n.trashed)return;const cd=e.clipboardData;const items=[...(cd?cd.items:[])];const imgs=items.filter(i=>i.kind==="file"&&i.type.startsWith("image/"));if(imgs.length){e.preventDefault();for(const it of imgs){const f=it.getAsFile();if(f)await insertInlineImage(f);}return;}const html=cd?cd.getData("text/html"):"";if(html){e.preventDefault();restoreSelection();document.execCommand("insertHTML",false,sanitizeHtml(html));bindChecklistEvents();syncBody();}});
 
 /* ---- OCR (lokal, selbst gehostet) ---- */
 let tessLoading=null;
@@ -3483,6 +3556,66 @@ async function runPdfPrintout(att){
         toast(done?("Ausdruck eingefügt: "+done+" Seite"+(done===1?"":"n")):"Ausdruck fehlgeschlagen");
       }}
     ]});
+}
+/* Seite in Abschnitte aufteilen: Trennlinien setzen, daraus entstehen Bildausschnitte,
+   die alle auf dasselbe (nur einmal gespeicherte) Seitenfoto verweisen. */
+async function openPageSplitDialog(att){
+  const n=cur();if(!n){toast("Keine Notiz geöffnet");return;}
+  const url=await getAttUrl(att);if(!url){toast("Bild konnte nicht geladen werden");return;}
+  let lines=[];
+  modal({wide:true,title:"Seite in Abschnitte aufteilen",body:
+    '<p style="font-size:12px;color:var(--text-dim);margin:0 0 8px;">Tippe auf die Seite, um eine <b>Trennlinie</b> zu setzen (z.B. vor jedem Zwischentitel). Linien lassen sich ziehen, das ✕ entfernt sie. Aus jedem Abschnitt entsteht ein eigener Bildausschnitt in der Notiz – das Seitenfoto selbst bleibt als Ganzes erhalten.</p>'+
+    '<div id="__spWrap" style="position:relative;width:100%;user-select:none;touch-action:none;background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden;cursor:crosshair;"><img id="__spImg" alt="" style="width:100%;display:block;"></div>'+
+    '<div id="__spInfo" style="font-size:12px;color:var(--text-dim);margin-top:6px;"></div>',
+    buttons:[
+      {label:"Abbrechen",cls:"btn-ghost",act:closeModal},
+      {label:"Übernehmen",cls:"btn-blue",act:()=>{
+        const parts=[0].concat(lines.slice().sort((a,b)=>a-b)).concat([1]);
+        let out="";
+        for(let i=0;i<parts.length-1;i++){
+          if(parts[i+1]-parts[i]<0.01)continue; // zu dünne Streifen überspringen
+          out+='<div class="imgcrop" data-att="'+escapeHtml(att.id)+'" data-crop="'+parts[i].toFixed(4)+','+parts[i+1].toFixed(4)+'" data-caption="" contenteditable="false"></div>';
+        }
+        if(!out){toast("Keine Abschnitte");return;}
+        closeModal();
+        const eb=$("edBody");
+        eb.insertAdjacentHTML("beforeend",out+'<p><br></p>');
+        syncBody();renderDynamicBlocks(n);
+        toast((parts.length-1)+" Abschnitt(e) eingefügt");
+      }}
+    ]});
+  const wrap=$("__spWrap"),img=$("__spImg"),info=$("__spInfo");
+  img.src=url;
+  let dragIx=-1;
+  const draw=()=>{
+    wrap.querySelectorAll(".sp-line").forEach(e=>e.remove());
+    lines.slice().sort((a,b)=>a-b).forEach((f)=>{
+      const el=document.createElement("div");el.className="sp-line";
+      el.style.cssText="position:absolute;left:0;right:0;top:"+(f*100)+"%;height:0;border-top:2px dashed #d97706;z-index:5;";
+      const grip=document.createElement("div");
+      grip.style.cssText="position:absolute;left:0;right:0;top:-9px;height:18px;cursor:ns-resize;";
+      grip.dataset.f=String(f);
+      const del=document.createElement("button");del.textContent="✕";
+      del.style.cssText="position:absolute;right:4px;top:-11px;width:22px;height:22px;border:none;border-radius:5px;background:#d97706;color:#fff;cursor:pointer;line-height:1;z-index:6;";
+      del.onclick=(e)=>{e.stopPropagation();lines=lines.filter(x=>Math.abs(x-f)>1e-9);draw();};
+      el.appendChild(grip);el.appendChild(del);wrap.appendChild(el);
+    });
+    info.textContent=(lines.length+1)+" Abschnitt(e)";
+  };
+  const yFrac=(clientY)=>{const r=wrap.getBoundingClientRect();return Math.max(0,Math.min(1,(clientY-r.top)/r.height));};
+  wrap.addEventListener("pointerdown",e=>{
+    if(e.target.tagName==="BUTTON")return;
+    const f=yFrac(e.clientY);
+    // nahe an bestehender Linie -> ziehen, sonst neue Linie
+    let near=-1,best=0.02;
+    lines.forEach((L,i)=>{const d=Math.abs(L-f);if(d<best){best=d;near=i;}});
+    if(near>=0){dragIx=near;}else{lines.push(f);dragIx=lines.length-1;}
+    draw();wrap.setPointerCapture(e.pointerId);
+  });
+  wrap.addEventListener("pointermove",e=>{if(dragIx<0)return;lines[dragIx]=yFrac(e.clientY);draw();});
+  wrap.addEventListener("pointerup",()=>{dragIx=-1;});
+  wrap.addEventListener("pointercancel",()=>{dragIx=-1;});
+  draw();
 }
 async function runPdfOcr(att){
   const pdfOk=await ensurePdfjs();if(!pdfOk){pdfMissingModal();return;}
@@ -4293,6 +4426,9 @@ function extractFields(html){
     });
   };
   const src=new DOMParser().parseFromString(String(html||""),"text/html");
+  // Bildausschnitte tragen ihre Beschriftung in data-caption (ihr sichtbarer Inhalt wird beim
+  // Speichern entfernt). Für die Felderkennung als eigene Zeilen einsetzen.
+  src.body.querySelectorAll("[data-caption]").forEach(el=>{el.textContent="\n\u0002"+(el.getAttribute("data-caption")||"")+"\n";});
   walk(src.body);
   text=text.replace(/\u00a0/g," ").replace(/\u200b/g,"");
   const out=[];
@@ -4450,8 +4586,9 @@ function cleanAttrs(el){
     else if(name==="data-embed-section"&&tag==="DIV") keep=true;
     else if(name==="data-anonmap"&&tag==="DIV") keep=true;
     else if(name==="data-calc"&&tag==="DIV") keep=true;
+    else if((name==="data-att"||name==="data-crop"||name==="data-caption")&&tag==="DIV") keep=true;
     else if(name==="data-embed-body-hidx"&&tag==="DIV") keep=true;
-    else if(name==="contenteditable"&&tag==="DIV"&&(el.classList.contains("toc")||el.classList.contains("tagindex")||el.classList.contains("fieldindex")||el.classList.contains("embed")||el.classList.contains("anonmap")||el.classList.contains("calcblock"))) keep=(val==="false");
+    else if(name==="contenteditable"&&tag==="DIV"&&(el.classList.contains("toc")||el.classList.contains("tagindex")||el.classList.contains("fieldindex")||el.classList.contains("embed")||el.classList.contains("anonmap")||el.classList.contains("calcblock")||el.classList.contains("imgcrop"))) keep=(val==="false");
     else if(name==="style"&&tag==="DIV"&&el.classList.contains("anonmap")) keep=(val==="display:none");
     else if(name==="data-formula"&&(tag==="TD"||tag==="TH")) keep=true;
     else if(name==="class"){
@@ -4463,6 +4600,7 @@ function cleanAttrs(el){
       else if(tag==="DIV"&&val==="anonmap") keep=true;
       else if(tag==="DIV"&&val==="embed") keep=true;
       else if(tag==="DIV"&&val==="calcblock") keep=true;
+      else if(tag==="DIV"&&val==="imgcrop") keep=true;
       else if(tag==="A"&&/^(lvl[123])$/.test(val)) keep=true;
       else if((tag==="TD"||tag==="TH")&&val==="formula") keep=true;
     }
@@ -4537,7 +4675,7 @@ function clipboardWrite(text){try{if(navigator.clipboard&&navigator.clipboard.wr
 /* Rechtsklick im Editor */
 $("edBody").addEventListener("contextmenu",e=>{
   if(isMobile())return; // auf Touch das System-Menü lassen
-  if(e.target&&e.target.closest&&e.target.closest(".calcblock"))return; // im Rechenblock: natives Menü (Kopieren/Einfügen)
+  if(e.target&&e.target.closest&&e.target.closest(".calcblock,.imgcrop"))return; // natives Menü (Kopieren/Einfügen)
   e.preventDefault();
   const sel=window.getSelection();
   const hasSel=sel&&!sel.isCollapsed&&sel.toString().trim().length>0;
