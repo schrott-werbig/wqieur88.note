@@ -180,6 +180,10 @@
   .imgcrop .crop-cap:empty:before{content:attr(data-ph);color:var(--text-dim);opacity:.7;}
   .imgcrop > .block-del{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.45);color:#fff;border:none;border-radius:6px;width:24px;height:24px;cursor:pointer;line-height:1;}
   .fieldindex .fi-crop{width:100%;max-width:none;border:1px solid var(--line);border-radius:6px;overflow:hidden;position:relative;background:#fff;cursor:zoom-in;margin:6px 0 2px;}
+  .fieldindex .fi-ctrl{display:flex;gap:8px;margin:0 0 8px;flex-wrap:wrap;}
+  .fieldindex .fi-filter{flex:1 1 140px;min-width:120px;font-size:12.5px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--text);outline:none;}
+  .fieldindex .fi-sort{font-size:12.5px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--text);}
+  .fieldindex .fi-count{font-weight:400;opacity:.75;margin-right:auto;}
   .fieldindex .fi-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px;}
   .fieldindex .fi-head a{font-weight:400;font-size:12.5px;}
   .fieldindex .fi-crop img{position:absolute;left:0;width:100%;display:block;max-width:none;}
@@ -699,7 +703,7 @@
 /* App-Version: wird bei JEDER Auslieferung erhöht (Datum.Laufnummer) und auf dem
    Sperrbildschirm angezeigt – so ist nach einem Update sofort sichtbar, ob die
    PWA bereits die neue Fassung geladen hat oder noch die alte aus dem Cache zeigt. */
-const APP_VERSION="2026-07-18.4";
+const APP_VERSION="2026-07-18.5";
 
 /* ---- IndexedDB ---- */
 const DB_NAME="secureNotesDB", DB_VER=2;
@@ -923,7 +927,7 @@ function manualNoteHtml(){return ""+
   "<li><b>Notiz einbetten (ganz oder kapitelweise):</b> Über „⋯ → Notiz einbetten“ lässt sich der Inhalt einer anderen Notiz lebendig einfügen – wahlweise die ganze Notiz oder nur ein einzelnes Kapitel (Abschnitt unter einer Überschrift). Beides ist <b>direkt an Ort und Stelle bearbeitbar</b>, auch die Überschrift eines eingebetteten Kapitels; jede Änderung wird automatisch in der Originalnotiz gespeichert und erscheint überall, wo sie eingebettet ist. Mit dem ✕ rechts im Block-Kopf lässt sich eine Einbettung wieder entfernen (die Originalnotiz bleibt erhalten).</li>"+
   "<li><b>Rechenblock (🧮):</b> Über „⋯ → Rechenblock“ fügst du einen Mini-Rechner ein – ähnlich wie in MATLAB. Jede Zeile ist eine Rechnung oder eine Variablenzuweisung (<code>Radius = 5</code>), das Ergebnis erscheint rechts und aktualisiert sich live beim Tippen. Variablen können in folgenden Zeilen weiterverwendet werden. Unterstützt Grundrechnen, Klammern, Potenz (<code>^</code>), Prozent (<code>19%</code>), Konstanten (<code>pi</code>, <code>e</code>) und Funktionen wie <code>sqrt</code>, <code>wurzel</code>, <code>sin/cos/tan</code>, <code>log</code>, <code>exp</code>, <code>abs</code>, <code>round</code>, <code>min</code>, <code>max</code>, <code>summe</code>, <code>mittel</code>. Mit <code>//</code> beginnt eine Kommentarzeile. Rechnet vollständig lokal.<br><b>Listen &amp; Formeln:</b> <code>werte = [1, 2, 3]</code> oder <code>jahre = folge(1, 10)</code> erzeugt eine Liste; alle Rechnungen wirken <b>elementweise</b> (<code>1000 * 1.05^jahre</code> ergibt den Kontostand für jedes Jahr – das ersetzt Schleifen wie in MATLAB). Eigene Formeln definierst du mit <code>f(x) = x^2 - 2</code> und wendest sie auf Einzelwerte oder ganze Listen an: <code>f(werte)</code>. <b>Gleichung lösen:</b> <code>solve(f, 1)</code> sucht numerisch die Nullstelle von f nahe dem Startwert (oder <code>solve(f, von, bis)</code> im Bereich). <b>Schleife:</b> <code>iter(f, startwert, anzahl)</code> wendet f wiederholt an (z.B. Zinseszins: <code>f(k) = k * 1.05</code>, dann <code>iter(f, 1000, 10)</code>). In Listen und Funktionsklammern ist das Komma Trenner – Dezimalzahlen dort mit Punkt schreiben.</li>"+
   "<li><b>Felder (Feld:: Wert):</b> Schreibe in eine Notiz ein Feld der Form <code>Baubeginn:: 1. März 2026</code> (Feldname, zwei Doppelpunkte, Wert). Mehrere verschiedene Felder pro Notiz sind möglich. Ein Wert darf auch <b>über mehrere Zeilen</b> gehen (z.B. eine Adresse) – er läuft bis zur nächsten Leerzeile, zum nächsten Feld oder bis zu einer Liste. Schreibst du <code>Rubrik::</code> ganz ohne Wert, dient es nur als Überschrift und sammelt nichts ein. <b>Soll eine Liste oder ein längerer Block zum Wert gehören</b>, setze ihn in Anführungszeichen: <code>Pendenzen:: \"</code> … Liste … <code>\"</code> – alles zwischen den Anführungszeichen (auch Aufzählungen) wird als Wert erfasst.</li>"+
-  "<li><b>Felder-Rubrik &amp; Feld-Verzeichnis:</b> Alle verwendeten Feldnamen erscheinen automatisch links in der Seitenleiste unter „Felder“ – ein Klick zeigt alle Notizen mit diesem Feld. Über „⋯ → Feld-Verzeichnis“ fügst du zusätzlich ein lebendes Verzeichnis in eine Notiz ein, das alle Notizen mit diesem Feld samt Wert auflistet – ideal z.B. für Termine über mehrere Projekte hinweg. Es aktualisiert sich automatisch.</li>"+
+  "<li><b>Felder-Rubrik &amp; Feld-Verzeichnis:</b> Alle verwendeten Feldnamen erscheinen automatisch links in der Seitenleiste unter „Felder“ – ein Klick zeigt alle Notizen mit diesem Feld. Über „⋯ → Feld-Verzeichnis“ fügst du zusätzlich ein lebendes Verzeichnis in eine Notiz ein, das alle Notizen mit diesem Feld samt Wert auflistet – ideal z.B. für Termine über mehrere Projekte hinweg. Es aktualisiert sich automatisch. Direkt im Block lässt sich <b>filtern</b> (Suchfeld – durchsucht Wert und Notiztitel) und <b>sortieren</b> (Wert auf-/absteigend, Titel A–Z/Z–A, zuletzt geändert, älteste zuerst). Werte werden dabei sinnvoll verglichen: Datumsangaben chronologisch, Zahlen numerisch, sonst alphabetisch. Filter und Sortierung wirken sofort und bleiben im Block gespeichert.</li>"+
   "<li><b>Rückgängig/Wiederherstellen:</b> Oben in der Notiz-Leiste stehen die Pfeil-Knöpfe zum Rückgängigmachen und Wiederherstellen (auch per Strg+Z bzw. Strg+Y).</li>"+
   "<li><b>Mehrfachauswahl:</b> Über „⋯ → Mehrere auswählen…“ (oder den Auswahl-Knopf im Notizlisten-Kopf) lassen sich mehrere Notizen antippen und markieren. Mit „Links sammeln“ entsteht eine neue Notiz, die auf alle markierten verweist.</li>"+
   "<li><b>Duplizieren:</b> Über das Notiz-Menü – erstellt eine Kopie samt Anhängen.</li>"+
@@ -1247,7 +1251,7 @@ function renderDynamicBlocks(n){
       try{crops=[...new DOMParser().parseFromString(x.html||"","text/html").body.querySelectorAll(".imgcrop[data-caption]")];}catch(e){}
       extractFields(x.html||"").forEach(f=>{
         if(f.field.toLowerCase()!==fieldLow)return;
-        const row={id:x.id,title:x.title||"Ohne Titel",value:f.value};
+        const row={id:x.id,title:x.title||"Ohne Titel",value:f.value,updated:x.updated||0};
         const hit=crops.find(cel=>{
           const cap=cel.getAttribute("data-caption")||"";
           if(!cap)return false;
@@ -1257,30 +1261,85 @@ function renderDynamicBlocks(n){
         rows.push(row);
       });
     });
-    rows.sort((a,b)=>a.value.localeCompare(b.value,"de",{numeric:true}));
-    const body=rows.length
-      ? '<table class="fi-table"><tbody>'+rows.map(r=>r.att
-          ? '<tr><td colspan="2" class="fi-val"><div class="fi-head">'+escapeHtml(r.value).replace(/\n/g,"<br>")+' <a href="#" data-note="'+r.id+'">'+escapeHtml(r.title)+'</a></div><div class="fi-crop" title="Zum Vergrössern antippen" data-note="'+r.id+'" data-att="'+escapeHtml(r.att)+'" data-crop="'+escapeHtml(r.crop||"0,1")+'"><img alt=""></div></td></tr>'
-          : '<tr><td class="fi-val">'+escapeHtml(r.value).replace(/\n/g,"<br>")+'</td><td><a href="#" data-note="'+r.id+'">'+escapeHtml(r.title)+'</a></td></tr>').join("")+'</tbody></table>'
-      : '<span class="ti-empty">Noch keine Notizen mit dem Feld „'+escapeHtml(field)+'::“</span>';
-    box.innerHTML='<div class="ti-title">🗂 '+escapeHtml(field)+' ('+rows.length+')<button class="block-del" data-block-del title="Block entfernen">✕</button></div>'+body;
-    // Bildausschnitte im Verzeichnis nachladen (Bild liegt bei der jeweiligen Quellnotiz).
-    box.querySelectorAll(".fi-crop").forEach(cb=>{
-      const src=vault.notes.find(x=>x.id===cb.getAttribute("data-note"));
-      const a=src&&(src.attachments||[]).find(z=>z.id===cb.getAttribute("data-att"));
-      if(!a)return;
-      const cr=String(cb.getAttribute("data-crop")||"0,1").split(",").map(parseFloat);
-      const t0=Math.max(0,Math.min(1,isNaN(cr[0])?0:cr[0])), t1=Math.max(t0,Math.min(1,isNaN(cr[1])?1:cr[1]));
-      const im=cb.querySelector("img");
-      getAttUrl(a).then(u=>{
-        if(!u)return;
-        const fit=()=>{if(!im.naturalWidth)return;const r=im.naturalHeight/im.naturalWidth;
-          const h=Math.max(0.0001,t1-t0);
-          cb.style.paddingBottom=(h*r*100)+"%";im.style.top=(-t0/h*100)+"%";};
-        im.onload=fit;im.src=u;if(im.complete)fit();
-        cb.onclick=e=>{e.preventDefault();e.stopPropagation();openImageViewer(u,(a.name||"Seite")+" – "+(src.title||""));};
-      }).catch(()=>{});
-    });
+    // ---- Filter & Sortierung (im Block gespeichert, wirken sofort) ----
+    box.innerHTML='<div class="ti-title">🗂 '+escapeHtml(field)+' <span class="fi-count"></span>'+
+      '<button class="block-del" data-block-del title="Block entfernen">✕</button></div>'+
+      '<div class="fi-ctrl" contenteditable="false">'+
+        '<input type="text" class="fi-filter" placeholder="Filtern…" spellcheck="false">'+
+        '<select class="fi-sort">'+
+          '<option value="wert">Wert aufsteigend</option>'+
+          '<option value="wert-">Wert absteigend</option>'+
+          '<option value="titel">Titel A–Z</option>'+
+          '<option value="titel-">Titel Z–A</option>'+
+          '<option value="neu">Zuletzt geändert</option>'+
+          '<option value="alt">Älteste zuerst</option>'+
+        '</select>'+
+      '</div><div class="fi-body"></div>';
+    const fiIn=box.querySelector(".fi-filter"), fiSort=box.querySelector(".fi-sort"),
+          fiBody=box.querySelector(".fi-body"), fiCount=box.querySelector(".fi-count");
+    fiIn.value=box.getAttribute("data-fi-filter")||"";
+    fiSort.value=box.getAttribute("data-fi-sort")||"wert";
+    if(!fiSort.value)fiSort.value="wert";
+    /* Werte möglichst sinnvoll vergleichen: Datum (TT.MM.JJJJ) vor Zahl vor Text. */
+    const numOf=v=>{
+      const s=String(v||"").trim();
+      let m=s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+      if(m)return new Date(+m[3],+m[2]-1,+m[1]).getTime();
+      if(/^-?\d+(?:[.,]\d+)?$/.test(s))return parseFloat(s.replace(",","."));
+      return null;
+    };
+    const hydrateCrops=root=>{
+      root.querySelectorAll(".fi-crop").forEach(cb=>{
+        const src=vault.notes.find(x=>x.id===cb.getAttribute("data-note"));
+        const a=src&&(src.attachments||[]).find(z=>z.id===cb.getAttribute("data-att"));
+        if(!a)return;
+        const cr=String(cb.getAttribute("data-crop")||"0,1").split(",").map(parseFloat);
+        const t0=Math.max(0,Math.min(1,isNaN(cr[0])?0:cr[0])), t1=Math.max(t0,Math.min(1,isNaN(cr[1])?1:cr[1]));
+        const im=cb.querySelector("img");
+        getAttUrl(a).then(u=>{
+          if(!u)return;
+          const fit=()=>{if(!im.naturalWidth)return;const r=im.naturalHeight/im.naturalWidth;
+            const h=Math.max(0.0001,t1-t0);
+            cb.style.paddingBottom=(h*r*100)+"%";im.style.top=(-t0/h*100)+"%";};
+          im.onload=fit;im.src=u;if(im.complete)fit();
+          cb.onclick=e=>{e.preventDefault();e.stopPropagation();openImageViewer(u,(a.name||"Seite")+" – "+(src.title||""));};
+        }).catch(()=>{});
+      });
+    };
+    const paint=()=>{
+      const q=(fiIn.value||"").trim().toLowerCase();
+      const list=rows.filter(r=>!q||(r.value+" "+r.title).toLowerCase().indexOf(q)>=0);
+      const key=fiSort.value||"wert", dir=key.endsWith("-")?-1:1, base=key.replace(/-$/,"");
+      list.sort((a,b)=>{
+        if(base==="neu")return (b.updated||0)-(a.updated||0);
+        if(base==="alt")return (a.updated||0)-(b.updated||0);
+        if(base==="titel")return dir*a.title.localeCompare(b.title,"de",{numeric:true});
+        const na=numOf(a.value), nb=numOf(b.value);
+        if(na!==null&&nb!==null)return dir*(na-nb);
+        return dir*a.value.localeCompare(b.value,"de",{numeric:true});
+      });
+      fiCount.textContent="("+list.length+(list.length!==rows.length?" von "+rows.length:"")+")";
+      fiBody.innerHTML=list.length
+        ? '<table class="fi-table"><tbody>'+list.map(r=>r.att
+            ? '<tr><td colspan="2" class="fi-val"><div class="fi-head">'+escapeHtml(r.value).replace(/\n/g,"<br>")+' <a href="#" data-note="'+r.id+'">'+escapeHtml(r.title)+'</a></div><div class="fi-crop" title="Zum Vergrössern antippen" data-note="'+r.id+'" data-att="'+escapeHtml(r.att)+'" data-crop="'+escapeHtml(r.crop||"0,1")+'"><img alt=""></div></td></tr>'
+            : '<tr><td class="fi-val">'+escapeHtml(r.value).replace(/\n/g,"<br>")+'</td><td><a href="#" data-note="'+r.id+'">'+escapeHtml(r.title)+'</a></td></tr>').join("")+'</tbody></table>'
+        : '<span class="ti-empty">'+(rows.length?'Kein Treffer für den Filter':'Noch keine Notizen mit dem Feld „'+escapeHtml(field)+'::“')+'</span>';
+      hydrateCrops(fiBody);
+      bindDynamicBlockEvents();
+    };
+    let fiSaveTimer=null;
+    const fiSave=()=>{
+      clearTimeout(fiSaveTimer);
+      fiSaveTimer=setTimeout(()=>{
+        box.setAttribute("data-fi-filter",fiIn.value||"");
+        box.setAttribute("data-fi-sort",fiSort.value||"wert");
+        const nn=cur();if(nn){nn.html=sanitizeForStore(stripDynamicBlocks(eb.innerHTML));nn.updated=now();markDirty();}
+      },500);
+    };
+    fiIn.addEventListener("input",()=>{paint();fiSave();});
+    fiSort.addEventListener("change",()=>{paint();fiSave();});
+    [fiIn,fiSort].forEach(el=>el.addEventListener("click",e=>e.stopPropagation()));
+    paint();
   });
   // 2. Eingebettete Notizen
   eb.querySelectorAll('.embed[data-embed]').forEach(box=>{
@@ -1726,7 +1785,7 @@ function insertTable(rows,cols){
 }
 /* Tab/Shift+Tab springt zwischen Tabellenzellen; Enter in letzter Zelle fügt neue Zeile hinzu */
 $("edBody").addEventListener("keydown",e=>{
-  if(e.target&&e.target.closest&&e.target.closest(".calcblock,.imgcrop"))return; // Rechenblock/Bildausschnitt: eigene Eingabe
+  if(e.target&&e.target.closest&&e.target.closest(".calcblock,.imgcrop,.fi-ctrl"))return; // eigene Eingabefelder
   const sel=window.getSelection();if(!sel.rangeCount)return;
   let node=sel.getRangeAt(0).startContainer;if(node.nodeType===3)node=node.parentNode;
   const cell=node&&node.closest?node.closest("td,th"):null;if(!cell)return;
@@ -3064,8 +3123,8 @@ $("edBody").addEventListener("click",e=>{const a=e.target.closest("a");if(!a)ret
 /* ---- Keyboard ---- */
 $("edBody").addEventListener("keydown",e=>{
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"){e.preventDefault();syncBody();persist();toast("Gespeichert");return;}
-  // Eingaben im Rechenblock/in der Ausschnitt-Beschriftung nicht abfangen.
-  if(e.target&&e.target.closest&&e.target.closest(".calcblock,.imgcrop"))return;
+  // Eingaben in eigenen Feldern (Rechenblock, Beschriftung, Verzeichnis-Filter) nicht abfangen.
+  if(e.target&&e.target.closest&&e.target.closest(".calcblock,.imgcrop,.fi-ctrl"))return;
   if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&e.key.toLowerCase()==="y"){e.preventDefault();doRedo();return;}
   if((e.ctrlKey||e.metaKey)&&e.shiftKey&&e.key.toLowerCase()==="z"){e.preventDefault();doRedo();return;}
   if(e.key===" "){if(handleMarkdownShortcut(e))return;}
