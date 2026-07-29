@@ -707,7 +707,7 @@
 /* App-Version: wird bei JEDER Auslieferung erhöht (Datum.Laufnummer) und auf dem
    Sperrbildschirm angezeigt – so ist nach einem Update sofort sichtbar, ob die
    PWA bereits die neue Fassung geladen hat oder noch die alte aus dem Cache zeigt. */
-const APP_VERSION="2026-07-19.1";
+const APP_VERSION="2026-07-19.2";
 
 /* ---- IndexedDB ---- */
 const DB_NAME="secureNotesDB", DB_VER=2;
@@ -894,7 +894,7 @@ function manualNoteHtml(){return ""+
   "</ul>"+
 
   "<h2>Dokumentenscanner</h2>"+
-  "<p>Über das Kamera-Symbol. Foto aufnehmen, die App schlägt die vier Dokumentecken vor (mit Lupe genau justierbar), entzerrt das Bild gerade und bietet Farbe/Graustufen/Schwarz-Weiss. Speichern als Bild in der Notiz oder als eigenständiges PDF.</p>"+
+  "<p>Über das Kamera-Symbol. Foto aufnehmen, die App schlägt die vier Dokumentecken vor (mit Lupe genau justierbar), entzerrt das Bild gerade und bietet Farbe/Graustufen/Schwarz-Weiss. Speichern als Bild in der Notiz oder als eigenständiges PDF. Mit <b>„Drehen“</b> lässt sich die Aufnahme vor dem Zuschneiden um 90° drehen – praktisch bei einer quer fotografierten Doppelseite. Die gesetzten Ecken drehen dabei mit.</p>"+
 
   "<h2>Erinnerungen</h2>"+
   "<p>Über das Glocken-Symbol Datum und Uhrzeit setzen. Hinweis: Eine Benachrichtigung erscheint nur, solange die App geöffnet oder im Hintergrund aktiv ist – es gibt bewusst keinen externen Push-Server.</p>"+
@@ -2515,7 +2515,7 @@ async function openScanner(file,reuseHistory){
   const img=await loadImageBitmapish(file);
   if(!img){toast("Bild konnte nicht geladen werden");return;}
   const root=document.createElement("div");root.className="scan-bg";
-  root.innerHTML='<div class="scan-bar"><button id="scClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button><span class="sb-title">Zuschneiden</span><button id="scSnap" class="sc-labeled" title="An Kanten einrasten"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 9V5h4M15 5h4v4M19 15v4h-4M9 19H5v-4"/><circle cx="12" cy="12" r="2.5"/></svg><span>Einrasten</span></button><button id="scAuto" class="sc-labeled" title="Automatisch erkennen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h3l2-2h8l2 2h3v12H3z"/><circle cx="12" cy="13" r="3.5"/></svg><span>Auto</span></button></div><div class="scan-stage" id="scStage"><canvas id="scCanvas"></canvas></div><div class="scan-foot"><button class="sf-retake" id="scRetake">Neu aufnehmen</button><button class="sf-confirm" id="scConfirm">Zuschneiden &amp; weiter</button></div>';
+  root.innerHTML='<div class="scan-bar"><button id="scClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button><span class="sb-title">Zuschneiden</span><button id="scRotate" class="sc-labeled" title="Bild um 90° drehen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v5h-5"/></svg><span>Drehen</span></button><button id="scSnap" class="sc-labeled" title="An Kanten einrasten"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 9V5h4M15 5h4v4M19 15v4h-4M9 19H5v-4"/><circle cx="12" cy="12" r="2.5"/></svg><span>Einrasten</span></button><button id="scAuto" class="sc-labeled" title="Automatisch erkennen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h3l2-2h8l2 2h3v12H3z"/><circle cx="12" cy="13" r="3.5"/></svg><span>Auto</span></button></div><div class="scan-stage" id="scStage"><canvas id="scCanvas"></canvas></div><div class="scan-foot"><button class="sf-retake" id="scRetake">Neu aufnehmen</button><button class="sf-confirm" id="scConfirm">Zuschneiden &amp; weiter</button></div>';
   document.body.appendChild(root);
   if(!reuseHistory){try{history.pushState({s:1,viewer:1},"");}catch(e){}}
   let closed=false;function close(){if(closed)return;closed=true;root.remove();const ix=viewerCloseFns.indexOf(close);if(ix>=0)viewerCloseFns.splice(ix,1);}
@@ -2524,11 +2524,11 @@ async function openScanner(file,reuseHistory){
 
   const stage=root.querySelector("#scStage"), canvas=root.querySelector("#scCanvas");
   const maxW=Math.min(1400,img.width), scale0=Math.min(1,maxW/img.width);
-  const fullCanvas=document.createElement("canvas");fullCanvas.width=Math.round(img.width*scale0);fullCanvas.height=Math.round(img.height*scale0);
+  let fullCanvas=document.createElement("canvas");fullCanvas.width=Math.round(img.width*scale0);fullCanvas.height=Math.round(img.height*scale0);
   fullCanvas.getContext("2d").drawImage(img,0,0,fullCanvas.width,fullCanvas.height);
 
   // Gradientenkarte (Kantenstärke) einmalig berechnen – für das Einrasten der Ecken an Blattränder.
-  const gradMap=buildGradientMap(fullCanvas);
+  let gradMap=buildGradientMap(fullCanvas);
   let snapEnabled=true;
 
   function fitStage(){
@@ -2543,6 +2543,22 @@ async function openScanner(file,reuseHistory){
   window.addEventListener("resize",()=>{dispScale=fitStage();layoutHandles();},{passive:true});
 
   let corners=detectCorners(fullCanvas) || defaultCorners(fullCanvas.width,fullCanvas.height);
+  /* Bild um 90° im Uhrzeigersinn drehen (z.B. quer aufgenommene Doppelseite aufrichten).
+     Ein Punkt (x,y) landet dabei auf (Höhe-y, x); die Eckenliste wird zyklisch mitgedreht,
+     damit oben-links weiterhin oben-links bleibt. */
+  function rotateScan(){
+    const src=fullCanvas, sh=src.height;
+    const dst=document.createElement("canvas");
+    dst.width=src.height;dst.height=src.width;
+    const c2=dst.getContext("2d");
+    c2.translate(dst.width/2,dst.height/2);c2.rotate(Math.PI/2);
+    c2.drawImage(src,-src.width/2,-src.height/2);
+    fullCanvas=dst;
+    gradMap=buildGradientMap(fullCanvas);
+    const f=p=>({x:sh-p.y,y:p.x});
+    corners=[f(corners[3]),f(corners[0]),f(corners[1]),f(corners[2])];
+    dispScale=fitStage();layoutHandles();drawOverlay();
+  }
   const handles=[0,1,2,3].map(i=>{const h=document.createElement("div");h.className="scan-handle";stage.appendChild(h);return h;});
   // Kanten-Handles (Mitte jeder Kante): 0=oben(0-1) 1=rechts(1-2) 2=unten(2-3) 3=links(3-0)
   const edgeHandles=[0,1,2,3].map(i=>{const h=document.createElement("div");h.className="scan-edge-handle";stage.appendChild(h);return h;});
@@ -2690,6 +2706,7 @@ async function openScanner(file,reuseHistory){
     if(c){corners=c;drawOverlay();layoutHandles();toast("Blatt erkannt");}
     else toast("Keine klaren Kanten gefunden – Ecken grob ums Blatt legen und erneut „Auto“ tippen");
   });
+  root.querySelector("#scRotate").addEventListener("click",()=>{rotateScan();toast("Bild gedreht");});
   const snapBtn=root.querySelector("#scSnap");
   function updateSnapBtn(){snapBtn.style.opacity=snapEnabled?"1":"0.4";}
   updateSnapBtn();
